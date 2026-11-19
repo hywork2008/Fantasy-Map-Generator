@@ -52,6 +52,7 @@ import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
+import { createFerryNachen, FERRY_NACHEN } from "../buildings/ships/ferryNachen";
 import { createFerrySmack, FERRY_SMACK } from "../buildings/ships/ferrySmack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createGrokGalleon, GROK_GALLEON, grokGalleonParts } from "../buildings/ships/grokGalleon";
@@ -2266,6 +2267,64 @@ AUTHORED_VARIANTS[ropeFerryButton.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showRopeFerry()
+};
+
+const ferryNachenButton = document.createElement("button");
+ferryNachenButton.type = "button";
+ferryNachenButton.dataset.id = "ferry-nachen";
+ferryNachenButton.textContent = "Fährnachen · Rowed and poled river ferry boat";
+function showFerryNachen(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === ferryNachenButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Boat side elevation";
+  levelTitle.textContent = "Boat plan";
+  const model = createFerryNachen(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  frame({ occupancyMeters: { width: FERRY_NACHEN.length, depth: FERRY_NACHEN.beam } }, FERRY_NACHEN.height);
+  camera.position.set(9, 4.5, 9);
+  controls.target.set(0, 0.3, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", FERRY_NACHEN.name),
+    fact("Author", FERRY_NACHEN.author),
+    fact(
+      "Period",
+      "Rhine, Mosel and their tributaries, medieval to 19th century; size from the Sieg ferry register of 1846"
+    ),
+    fact(
+      "Dimensions",
+      `${FERRY_NACHEN.length} × ${FERRY_NACHEN.beam} × ${FERRY_NACHEN.depth} m (40 × 5 × 2¼ Prussian feet); ${FERRY_NACHEN.draft} m light draft`
+    ),
+    fact("Propulsion", "Pole and hand oars, one or two boatmen"),
+    fact(
+      "Load",
+      `Up to ${FERRY_NACHEN.passengers} passengers on five thwarts, small goods and small animals; no carts`
+    ),
+    fact("CE adoption", "Not placed by CE yet; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — hull, thwarts, oars and pole without frames or fittings"),
+    fact("Note", FERRY_NACHEN.note, "Nachen"),
+    ...(quality === "high" ? [fact("High detail", FERRY_NACHEN.highNote)] : [])
+  );
+}
+ferryNachenButton.addEventListener("click", () => showFerryNachen());
+shipsHeading.append(ferryNachenButton);
+AUTHORED_VARIANTS[ferryNachenButton.dataset.id] = {
+  author: FERRY_NACHEN.author,
+  primary: true,
+  quality: true,
+  show: () => showFerryNachen()
 };
 
 const ferrySmackState: { sails: "set" | "furled" } = { sails: "set" };

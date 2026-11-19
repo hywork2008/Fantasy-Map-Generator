@@ -55,6 +55,7 @@ const VIEWER_ENTRIES: Record<string, ModelFacets> = {
   trireme: f("ship", ["classicalAntiquity"], ["mediterranean"], ["military"]),
   sloop: f("ship", span("maritimeEra", "steamEra"), ["european", "american"], ["trade", "transport"]),
   barge: f("ship", span("classicalAntiquity", "steamEra"), ["any"], ["trade", "transport"]),
+  "ferry-nachen": f("ship", span("highMedieval", "steamEra"), EU, ["ferry", "transport"]),
   "ferry-smack": f("ship", span("ageOfExploration", "preIndustrialEra"), EU, ["ferry", "transport"]),
   "rope-ferry": f("ship", span("highMedieval", "steamEra"), EU, ["ferry", "transport"]),
   "ford-carrier": f("ship", ["rocketryEra"], ["american"], ["aviation", "military"], [2017, 2105]),

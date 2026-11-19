@@ -2,6 +2,7 @@ import { type ModelVariant, variantId } from "../modelVariants";
 import { createBarge } from "./barge";
 import { createCaravel } from "./caravel";
 import { createCarrack } from "./carrack";
+import { createFerryNachenModel } from "./ferryNachen";
 import { createFerrySmackModel } from "./ferrySmack";
 import { createFordCarrierModel } from "./fordCarrier";
 import { createGalleon } from "./galleon";
@@ -135,6 +136,14 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     author: "Claude Opus 5.5" as const,
     // Not placed by CE yet; the default tier is Low, as for the carrier.
     create: () => createRopeFerryModel(level === "high" ? "high" : "low")
+  })),
+  ...(["default", "low", "high"] as const).map(level => ({
+    id: variantId("ship.ferry-nachen", level, "Claude Opus 5.5"),
+    family: "ship.ferry-nachen",
+    level,
+    author: "Claude Opus 5.5" as const,
+    // Not placed by CE yet; the default tier is Low.
+    create: () => createFerryNachenModel(level === "high" ? "high" : "low")
   })),
   ...(["default", "low", "high"] as const).map(level => ({
     id: variantId("ship.ferry-smack", level, "Claude Opus 5.5"),
