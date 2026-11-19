@@ -97,8 +97,18 @@ export function regionBoolean(
       try {
         result = run(rounded(a, 1e-7), rounded(b, 1e-7));
       } catch {
-        // Still far below the sampling tolerance; reached only where both finer lattices fail.
-        result = run(rounded(a, 1e-6), rounded(b, 1e-6));
+        try {
+          // Still far below the sampling tolerance; reached only where both finer lattices fail.
+          result = run(rounded(a, 1e-6), rounded(b, 1e-6));
+        } catch (last) {
+          // The kernel can also lose an edge whose ends round to within a few ulps of the origin (a town centred
+          // on it): the same lattice shifted off the origin, and the result shifted back.
+          if (!(last instanceof Error)) throw last;
+          const shift = (polygons: MultiPolygon, dx: number, dy: number): MultiPolygon =>
+            polygons.map(rings => rings.map(r => r.map(([x, y]) => [x + dx, y + dy] as Point)));
+          const [sx, sy] = [97.125, 53.6875];
+          result = shift(run(shift(rounded(a, 1e-6), sx, sy), shift(rounded(b, 1e-6), sx, sy)), -sx, -sy);
+        }
       }
     }
   }

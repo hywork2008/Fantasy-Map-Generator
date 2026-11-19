@@ -65,6 +65,10 @@ const WASTE_GOOD_ENOUGH_M2 = 5;
 /** Seeds that take the building compared for the least waste. */
 const SEEDS_COMPARED = 3;
 
+/** The smiths and chandlers beyond the wall stand among the houses along the roads, not in a row of their own
+ * (docs/plan/ce-outskirts-workshop-sizes.md §8.14): no two of them this close. */
+export const ROADSIDE_APART_METERS = 40;
+
 export function placeFacilitiesOnLots(
   doc: VectorCityDocument,
   plan: VectorPerimeterPlan,
@@ -96,6 +100,15 @@ export function placeFacilitiesOnLots(
   const failed = new Map<string, Set<number>>();
   const cellRings = new Map(plan.districts.flatMap(d => d.cells.map(c => [c.id, c.ring] as const)));
   const { lines, lineIndex, surfaceOf } = facilityLines(doc, plan),
+    /** Whether a street or lane of the plan runs into a parcel (the CE lots keep off them; a site wider than its seed
+     * lot can still reach a bend), tested on the line surfaces the fabric records keep. */
+    crossesLine = (site: VectorPolygon) =>
+      lineIndex.search(boxOf(site.outer, 4)).some(item => {
+        const line = lines[item.k];
+        if (!line.fabric) return false;
+        const surface = surfaceOf(item.k);
+        return !!surface && regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6);
+      }),
     { occupied, protectedLand } = facilityLand(doc);
   // A facility never stands across a lane of its street block.
   const lanesOf = new Map(plan.districts.flatMap(d => d.cells.map(c => [c.id, c.lanes] as const)));
@@ -138,6 +151,8 @@ export function placeFacilitiesOnLots(
       : result.cells.has(l.cellId)
         ? 1
         : 2;
+  // Smiths and chandlers among the houses along the roads, apart (§8.14).
+  const roadside: Point[] = [];
   for (const request of requests) {
     // A wet tannery stands only in the tanners' row, reserved on the bank before the street plan. One the row did
     // not take (an edit keeps the row as it was, and lays no new one) is reported, not dropped.
@@ -159,7 +174,17 @@ export function placeFacilitiesOnLots(
     const seeds = lots
       .filter(l => !used.has(l.i) && !failedHere.has(l.i) && l.core !== outskirts)
       .filter(l => !wantsWater || waterOf(l.i) <= request.riverbankMaxDistanceMeters! + 30)
-      .map(l => ({ l, near: wantsWater || commerce ? 0 : nextToFacility(l) }))
+      // Beyond the wall the lots clear of the other smiths and chandlers come first, then the rest.
+      .map(l => ({
+        l,
+        near: outskirts
+          ? roadside.some(q => Math.hypot(q[0] - l.centroid[0], q[1] - l.centroid[1]) < ROADSIDE_APART_METERS)
+            ? 1
+            : 0
+          : wantsWater || commerce
+            ? 0
+            : nextToFacility(l)
+      }))
       .sort(
         ({ l: a, near: na }, { l: b, near: nb }) =>
           na - nb ||
@@ -286,15 +311,7 @@ export function placeFacilitiesOnLots(
         if (protectedLand.search(boxOf(site.outer, 1e-6)).some(o => surfacesOverlap(site, o.polygon))) continue;
         // No street or lane of the plan runs into the parcel (the CE lots keep off them; a site wider than its seed
         // lot can still reach a bend), tested on the line surfaces the fabric records keep.
-        if (
-          lineIndex.search(boxOf(site.outer, 4)).some(item => {
-            const line = lines[item.k];
-            if (!line.fabric) return false;
-            const surface = surfaceOf(item.k);
-            return !!surface && regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6);
-          })
-        )
-          continue;
+        if (crossesLine(site)) continue;
         const footprint = asset.footprint.map(p => ({
           outer: p.outer.map(transform),
           holes: p.holes.map(h => h.map(transform))
@@ -388,6 +405,8 @@ export function placeFacilitiesOnLots(
                 .search(boxOf(parcel[0].outer))
                 .some(o => regionBoolean(parcel, [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) &&
               !protectedLand.search(boxOf(parcel[0].outer, 1e-6)).some(o => surfacesOverlap(parcel[0], o.polygon)) &&
+              // The leftovers of the lots reach no street or lane either.
+              !crossesLine(parcel[0]) &&
               // The door keeps standing on the parcel as validation tests it.
               candidate.building!.entrances.every(e => containsRegion(parcel, e.point))
             ) {
@@ -418,6 +437,7 @@ export function placeFacilitiesOnLots(
       for (const l of best.under) used.add(l.i);
       occupied.insert({ ...boxOf(best.site.outer), polygon: best.site });
       facilitySites.insert({ ...boxOf(best.site.outer), polygon: best.site });
+      if (outskirts) roadside.push(placement.position);
       result.cells.add(cellId);
     }
     if (placement) result.placed.push(placement.id);

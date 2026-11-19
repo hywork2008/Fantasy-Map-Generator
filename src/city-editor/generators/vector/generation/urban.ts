@@ -22,6 +22,7 @@ import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
+import { reserveEdgeWorks } from "./edgeWorks";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
 import { placeFacilitiesOnPlots } from "./facilityPlots";
 import { vectorHousingCulture, vectorTownCulture, vectorTownProfile } from "./housingCulture";
@@ -388,6 +389,16 @@ function* vectorUrbanSteps(
         reserveRopewalks(doc, requests, walls.length ? inside : undefined)
       : { placed: [], sites: [], unplaced: [] };
   for (const site of ropewalks.sites) protectedRegions.push(structuredClone(site));
+  // Kiln works (lime and tile yards, potters) past the houses along those roads, apart, as many as the map shows; the
+  // rest lie beyond its edge (ce-outskirts-workshop-sizes.md §8.15).
+  const edgeWorks =
+    !continuation &&
+    organicMode &&
+    settings.mode === "medieval-facilities" &&
+    Object.values(doc.paths).some(p => p.role === "wall")
+      ? reserveEdgeWorks(doc, requests, walls.length ? inside : undefined)
+      : { placed: [], sites: [], offMap: [] };
+  for (const site of edgeWorks.sites) protectedRegions.push(structuredClone(site));
   // The street plan keeps off the yards and their revetments.
   // A little wider than the yards themselves: a lane ending on the block's edge, rounded to the centimetre, must not
   // reach into a yard.
@@ -495,7 +506,11 @@ function* vectorUrbanSteps(
     totalAttempts: run?.facilityAttempts ?? FACILITY_SEARCH_LIMITS.totalAttempts,
     requestAttempts: run?.requestAttempts ?? FACILITY_SEARCH_LIMITS.requestAttempts
   };
-  const ownedPlacements: string[] = [...(continuation?.retainedPlacements ?? []), ...ropewalks.placed],
+  const ownedPlacements: string[] = [
+      ...(continuation?.retainedPlacements ?? []),
+      ...ropewalks.placed,
+      ...edgeWorks.placed
+    ],
     unplacedFacilities: NonNullable<VectorCityDocument["urban"]>["report"]["unplacedFacilities"] = [];
   let facilityAttempts = 0;
   /** Facilities first, each on a frontage of its use, then the retries a capped search left over. */
@@ -702,14 +717,15 @@ function* vectorUrbanSteps(
         r =>
           !ownedPlacements.includes(`urban:${r.id}`) &&
           !tanneryRow.unplaced.some(u => u.id === r.id) &&
-          !ropewalks.unplaced.some(u => u.id === r.id)
+          !ropewalks.unplaced.some(u => u.id === r.id) &&
+          !edgeWorks.offMap.some(u => u.id === r.id)
       ),
       core,
       tanneryRow.placed,
       // A park ward stays a lawn (P7c); its lots never take a facility.
       id => wards.get(id)?.ward === "park"
     );
-    unplacedFacilities.push(...tanneryRow.unplaced, ...ropewalks.unplaced);
+    unplacedFacilities.push(...tanneryRow.unplaced, ...ropewalks.unplaced, ...edgeWorks.offMap);
     ownedPlacements.push(...lots.placed);
     unplacedFacilities.push(...lots.unplaced);
     facilityCells = lots.cells;

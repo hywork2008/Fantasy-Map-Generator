@@ -20,11 +20,14 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v49–v51: ropewalks as long as the ground allows (54 to 180 m, a port's to 300 m), along the wall when no road
 // has room, else left unplaced (same plan, §8.9).
 // v50–v52: a coastal town's ropewalks too, its wall closed along the shore for them (same plan, §8.11).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v50";
+// v51–v53: coopers and horse mills in town; smiths and chandlers spread among the roadside houses; lime and tile
+// yards and potters apart past the houses, the rest beyond the map (same plan, §8.15); a facility's parcel keeps
+// off the streets with its lots' leftovers too.
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v51";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v51";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v52";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v52";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v53";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

@@ -168,19 +168,21 @@ export function buildPopulationFacilityRequests(
         return bvFacilityAsset("trade-workshop.dedicated-horse-mill", [{ id: "main", ...HORSE_MILL.main }]);
       return placeholder(trade.pool);
     });
-    const outer = [
-      "tanning",
-      "smithing",
-      "cooperage",
-      "ropemaking",
-      "limeAndTile",
-      "pottery",
-      "glazing",
-      "chandlery",
-      "milling"
-    ].includes(trade.pool);
+    // Out of the walls (docs/plan/ce-outskirts-workshop-sizes.md §8.14): the tanners by the water, the rope-makers'
+    // walks, the kilns and potters out on the edge, the smiths and chandlers among the houses along the roads out of
+    // the gates. Coopers (a guild craft of York's freemen) and the horse mill (a brewhouse's or a bakehouse's) work in
+    // the town.
+    const outer = ["tanning", "smithing", "ropemaking", "limeAndTile", "pottery", "glazing", "chandlery"].includes(
+      trade.pool
+    );
     const use: FacilityUse =
-      trade.pool === "tanning" ? "river" : outer ? "hazard" : asset.residentialDwellings === 1 ? "craft" : "commerce";
+      trade.pool === "tanning"
+        ? "river"
+        : outer
+          ? "hazard"
+          : asset.residentialDwellings === 1 || trade.pool === "cooperage" || trade.pool === "milling"
+            ? "craft"
+            : "commerce";
     for (let i = 0; i < facilities; i++)
       requests.push({
         id: `${PREFIX}workshop:${trade.pool}:${i}`,

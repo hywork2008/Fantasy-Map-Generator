@@ -70,7 +70,8 @@ export interface VectorUrbanReport {
   provisionalFacilities: number;
   unplacedFacilities: {
     id: string;
-    reason: "space" | "river" | "district" | "budget" | "unsearched" | "frame" | "plot";
+    /** `offMap`: taken to stand beyond the map's edge (kiln works out along the roads), not a shortfall. */
+    reason: "space" | "river" | "district" | "budget" | "unsearched" | "frame" | "plot" | "offMap";
   }[];
   housingBuildings: number;
   reasons: string[];
@@ -147,7 +148,8 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v49"
   | "vector-urban-v50"
   | "vector-urban-v51"
-  | "vector-urban-v52";
+  | "vector-urban-v52"
+  | "vector-urban-v53";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

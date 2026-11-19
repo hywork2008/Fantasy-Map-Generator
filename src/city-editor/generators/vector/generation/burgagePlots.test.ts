@@ -53,8 +53,8 @@ const rings = (coords: number[], offsets: number[], origin: [number, number]) =>
 describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md B2, B3, B5, §8.7)", () => {
   it("houses everyone on plots recorded with their street blocks, and keeps them through a save", () => {
     const doc = town("burgage");
-    expect(doc.urban!.algorithm).toBe("vector-urban-v51");
-    expect(doc.fabric!.algorithm).toBe("vector-urban-v51");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v52");
+    expect(doc.fabric!.algorithm).toBe("vector-urban-v52");
     expect(doc.urban!.report.unplacedDwellings).toBe(0);
     const cells = Object.values(doc.fabric!.cells).filter(c => c.houses.offsets.length);
     expect(cells.length).toBeGreaterThan(5);
@@ -148,7 +148,7 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     };
     const dense = town("burgage-dense", 5000),
       compact = town("compact", 5000);
-    expect(dense.fabric!.algorithm).toBe("vector-urban-v52");
+    expect(dense.fabric!.algorithm).toBe("vector-urban-v53");
     expect(dense.urban!.report.unplacedDwellings).toBe(0);
     expect(cover(dense)).toBeGreaterThan(cover(compact) * 0.8);
     // Inside the wall the plots are halved: most are narrower than the burgage option's narrowest (5 m).
@@ -180,7 +180,7 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
 
   it("leaves compact street blocks as they were", () => {
     const doc = town("compact");
-    expect(doc.fabric!.algorithm).toBe("vector-urban-v50");
+    expect(doc.fabric!.algorithm).toBe("vector-urban-v51");
     expect(Object.values(doc.fabric!.cells).some(c => c.plots)).toBe(false);
   });
 
@@ -227,6 +227,26 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
       expect(Math.min(...walk.building!.footprint[0].outer.map(q => nearestOnPolyline(q, road).dist))).toBeGreaterThan(
         20
       );
+    }
+  });
+
+  it("keeps coopers and horse mills in town, the kiln works apart beyond the roadside houses (ce-outskirts-workshop-sizes.md §8.14, §8.15)", () => {
+    const doc = town("burgage-dense", 5000, true),
+      wall = Object.values(doc.paths).find(p => p.role === "wall" && !p.id.includes("inner"))!,
+      ring = samplePath(wall).map(q => q.point),
+      placements = Object.values(doc.placements);
+    const inTown = placements.filter(p => /dedicated-(cooperage|horse-mill)$/.test(p.modelId));
+    expect(inTown.length).toBe(7);
+    for (const p of inTown) expect(pointInPolygon(p.position, ring)).toBe(true);
+    const kilns = placements.filter(p => p.building?.districtId === "edge-works");
+    expect(kilns.map(p => p.modelId).sort()).toEqual([
+      ...Array(4).fill("potters-workshop"),
+      ...Array(4).fill("trade-workshop.dedicated-lime-tile-yard")
+    ]);
+    for (const [i, a] of kilns.entries()) {
+      expect(pointInPolygon(a.position, ring)).toBe(false);
+      for (const b of kilns.slice(i + 1))
+        expect(Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1])).toBeGreaterThanOrEqual(60);
     }
   });
 });

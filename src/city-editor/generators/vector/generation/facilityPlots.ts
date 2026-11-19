@@ -12,7 +12,14 @@ import { evaluateAnchor } from "../geometry/curves";
 import { nearestRoadAnchor } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { simpleContour, surfacesOverlap } from "../geometry/surfaces";
-import { connectTanneryRow, type FacilityLotResult, facilityLand, facilityLines, isWetTannery } from "./facilityLots";
+import {
+  connectTanneryRow,
+  type FacilityLotResult,
+  facilityLand,
+  facilityLines,
+  isWetTannery,
+  ROADSIDE_APART_METERS
+} from "./facilityLots";
 import { CIVIC_PLAZA_ID } from "./market";
 import type { VectorPerimeterPlan } from "./perimeter";
 import {
@@ -180,7 +187,9 @@ export function placeFacilitiesOnPlots(
       return probes.some(q => nearestOnPolyline(q, line.points).dist < reach);
     });
   };
-  const facilityRows = new Set<number>();
+  const facilityRows = new Set<number>(),
+    roadside: Point[] = [],
+    crowded = (c: Point) => (roadside.some(q => Math.hypot(q[0] - c[0], q[1] - c[1]) < ROADSIDE_APART_METERS) ? 1 : 0);
   /** Binaire houses of each street block, behind its heads. */
   const cellHouses = new Map<string, Plot[]>();
   for (const p of plots) if (p.kind === "row") cellHouses.set(p.cellId, [...(cellHouses.get(p.cellId) ?? []), p]);
@@ -220,7 +229,11 @@ export function placeFacilitiesOnPlots(
       // Rows and street blocks already holding their share of facilities give no seed.
       .filter(p => rowRoom(rows.get(p.row)!) >= 1 && cellRoom(p.cellId) >= 1)
       .filter(p => !wantsWater || waterOf(p) <= request.riverbankMaxDistanceMeters! + 30)
-      .map(p => ({ p, near: wantsWater || commerce || market ? 0 : facilityRows.has(p.row) ? 0 : 1 }))
+      // Beyond the wall the plots clear of the other smiths and chandlers come first, then the rest.
+      .map(p => ({
+        p,
+        near: outskirts ? crowded(p.centroid) : wantsWater || commerce || market ? 0 : facilityRows.has(p.row) ? 0 : 1
+      }))
       .sort(
         ({ p: a, near: na }, { p: b, near: nb }) =>
           na - nb ||
@@ -352,6 +365,7 @@ export function placeFacilitiesOnPlots(
       takenInRow.set(run[0].row, (takenInRow.get(run[0].row) ?? 0) + run.length);
       takenInCell.set(run[0].cellId, (takenInCell.get(run[0].cellId) ?? 0) + run.length);
       facilityRows.add(run[0].row);
+      if (outskirts) roadside.push(placement.position);
       occupied.insert({ ...boxOf(placement.site.outer), polygon: placement.site });
       result.cells.add(run[0].cellId);
       result.placed.push(placement.id, ...(rear ? [rear.id] : []));

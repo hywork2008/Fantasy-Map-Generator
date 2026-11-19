@@ -217,7 +217,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v49",
       "vector-urban-v50",
       "vector-urban-v51",
-      "vector-urban-v52"
+      "vector-urban-v52",
+      "vector-urban-v53"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
@@ -353,7 +354,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       f =>
         keys(f, "id,reason") &&
         id(f.id) &&
-        ["space", "river", "district", "budget", "unsearched", "frame", "plot"].includes(f.reason)
+        ["space", "river", "district", "budget", "unsearched", "frame", "plot", "offMap"].includes(f.reason)
     ) ||
     !Array.isArray(r.reasons) ||
     !r.reasons.every(k => typeof k === "string")
