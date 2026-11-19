@@ -3,6 +3,7 @@ import { variantId } from "../modelVariants";
 import type { MedievalModel } from "./modelKit";
 import { ModelKit } from "./modelKit";
 import { createOpusRopewalk, OPUS_ROPEWALK } from "./opusRopewalk";
+import { OPUS_ROPEWALK_LENGTHS, opusRopewalkModelId } from "./opusTradeProfiles";
 
 const OPUS = "Claude Opus 5.5" as const;
 
@@ -67,5 +68,29 @@ export const models: MedievalModel[] = [
         create: () => createOpusRopewalk(level)
       }))
     ]
-  }
+  },
+  // The same walk built longer for CE (docs/plan/ce-outskirts-workshop-sizes.md §8.9): head and foot alike, more
+  // stakes and fence between them.
+  ...OPUS_ROPEWALK_LENGTHS.filter(length => length !== OPUS_ROPEWALK.depth).map((length): MedievalModel => {
+    const longId = opusRopewalkModelId(length),
+      longFamily = `medieval.${longId}`;
+    return {
+      id: longId,
+      task: 56,
+      author: OPUS,
+      name: `Medieval ropewalk and hemp preparation yard (${length} m)`,
+      size: [OPUS_ROPEWALK.width, length, 5.3],
+      placementEnvelope: [OPUS_ROPEWALK.width, length],
+      note: `Opus: the hand ropewalk of the 54 m model with its walk run out to ${length} m, for towns whose roads out of the gates or wall sides have the room (docs/plan/ce-outskirts-workshop-sizes.md §8.9). Hemp house, pentice, wheel, tackle-board, traveller and reel are the same; stakes stand every 6.6 m between them, the spinners at the middle stake.`,
+      create: () => createOpusRopewalk("low", length),
+      variants: (["low", "high"] as const).map(level => ({
+        id: variantId(longFamily, level, OPUS),
+        family: longFamily,
+        author: OPUS,
+        level,
+        label: level === "low" ? "Low" : "High",
+        create: () => createOpusRopewalk(level, length)
+      }))
+    };
+  })
 ];

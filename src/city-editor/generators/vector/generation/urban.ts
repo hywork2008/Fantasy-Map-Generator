@@ -382,7 +382,7 @@ function* vectorUrbanSteps(
   const ropewalks =
     !continuation && organicMode && settings.mode === "medieval-facilities" && walls.length
       ? reserveRopewalks(doc, requests, inside)
-      : { placed: [], sites: [] };
+      : { placed: [], sites: [], unplaced: [] };
   for (const site of ropewalks.sites) protectedRegions.push(structuredClone(site));
   // The street plan keeps off the yards and their revetments.
   // A little wider than the yards themselves: a lane ending on the block's edge, rounded to the centimetre, must not
@@ -694,13 +694,18 @@ function* vectorUrbanSteps(
     const lots = (organic.plotFabric ? placeFacilitiesOnPlots : placeFacilitiesOnLots)(
       doc,
       organic,
-      requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`) && !tanneryRow.unplaced.some(u => u.id === r.id)),
+      requests.filter(
+        r =>
+          !ownedPlacements.includes(`urban:${r.id}`) &&
+          !tanneryRow.unplaced.some(u => u.id === r.id) &&
+          !ropewalks.unplaced.some(u => u.id === r.id)
+      ),
       core,
       tanneryRow.placed,
       // A park ward stays a lawn (P7c); its lots never take a facility.
       id => wards.get(id)?.ward === "park"
     );
-    unplacedFacilities.push(...tanneryRow.unplaced);
+    unplacedFacilities.push(...tanneryRow.unplaced, ...ropewalks.unplaced);
     ownedPlacements.push(...lots.placed);
     unplacedFacilities.push(...lots.unplaced);
     facilityCells = lots.cells;

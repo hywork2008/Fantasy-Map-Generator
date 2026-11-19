@@ -53,8 +53,8 @@ const rings = (coords: number[], offsets: number[], origin: [number, number]) =>
 describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md B2, B3, B5, §8.7)", () => {
   it("houses everyone on plots recorded with their street blocks, and keeps them through a save", () => {
     const doc = town("burgage");
-    expect(doc.urban!.algorithm).toBe("vector-urban-v49");
-    expect(doc.fabric!.algorithm).toBe("vector-urban-v49");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v50");
+    expect(doc.fabric!.algorithm).toBe("vector-urban-v50");
     expect(doc.urban!.report.unplacedDwellings).toBe(0);
     const cells = Object.values(doc.fabric!.cells).filter(c => c.houses.offsets.length);
     expect(cells.length).toBeGreaterThan(5);
@@ -148,7 +148,7 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     };
     const dense = town("burgage-dense", 5000),
       compact = town("compact", 5000);
-    expect(dense.fabric!.algorithm).toBe("vector-urban-v50");
+    expect(dense.fabric!.algorithm).toBe("vector-urban-v51");
     expect(dense.urban!.report.unplacedDwellings).toBe(0);
     expect(cover(dense)).toBeGreaterThan(cover(compact) * 0.8);
     // Inside the wall the plots are halved: most are narrower than the burgage option's narrowest (5 m).
@@ -180,7 +180,7 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
 
   it("leaves compact street blocks as they were", () => {
     const doc = town("compact");
-    expect(doc.fabric!.algorithm).toBe("vector-urban-v48");
+    expect(doc.fabric!.algorithm).toBe("vector-urban-v49");
     expect(Object.values(doc.fabric!.cells).some(c => c.plots)).toBe(false);
   });
 
@@ -200,10 +200,13 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     for (const rear of rears) expect(doc.placements[rear.building!.annexOf!]?.building?.kind).toBe("facility");
   });
 
-  it("lays the ropewalks behind the row facing the roads out of the gates, off the glacis (ce-outskirts-workshop-sizes.md S1)", () => {
+  it("lays the ropewalks behind the row facing the roads out of the gates, off the glacis, an inland town's 180 m long (ce-outskirts-workshop-sizes.md S1, §8.9)", () => {
     const doc = town("burgage-dense", 5000, true),
-      walks = Object.values(doc.placements).filter(p => p.modelId === "trade-workshop.dedicated-ropewalk");
-    expect(walks).toHaveLength(2);
+      walks = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workshop.dedicated-ropewalk"));
+    expect(walks.map(w => w.modelId)).toEqual([
+      "trade-workshop.dedicated-ropewalk-180",
+      "trade-workshop.dedicated-ropewalk-180"
+    ]);
     expect(doc.urban!.report.unplacedFacilities.filter(f => f.id.includes(":ropemaking:"))).toEqual([]);
     const roads = Object.values(doc.paths).filter(p => p.role === "road"),
       walls = Object.values(doc.paths).filter(p => p.role === "wall");

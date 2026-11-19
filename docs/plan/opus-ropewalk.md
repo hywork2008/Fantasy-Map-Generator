@@ -1,7 +1,7 @@
 # 綱打ち場（MV task 56）を史料に沿って作り直す
 
 作成: 2026-11-19
-状態: 作った（§6）。CE は今の区画と入口のまま Opus 版を採る。
+状態: 作った（§6）。CE は今の区画と入口のまま Opus 版を採る。 長さを 54・108・180・300 m の段で変えられるようにした（[ce-outskirts-workshop-sizes.md](ce-outskirts-workshop-sizes.md) §8.10）。
 
 ## 1. 目的
 

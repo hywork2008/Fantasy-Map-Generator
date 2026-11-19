@@ -68,6 +68,22 @@ export const OPUS_ROPEWALK = {
 } as const;
 
 /**
+ * The lengths the walk is built in (docs/plan/ce-outskirts-workshop-sizes.md §8.9): the hemp house at the head and the
+ * traveller at the foot keep their form, the stakes and fence run on between them. 54 m is the original plot; real
+ * walks ran some 180 m (Hebert) to 300 m (Hamburg, and the navy's cables).
+ */
+export const OPUS_ROPEWALK_LENGTHS = [54, 108, 180, 300] as const;
+export type OpusRopewalkLength = (typeof OPUS_ROPEWALK_LENGTHS)[number];
+/** The model of a walk of this length: the 54 m walk keeps the original id that saved towns refer to. */
+export const opusRopewalkModelId = (length: OpusRopewalkLength) =>
+  length === OPUS_ROPEWALK.depth ? "trade-workshop.dedicated-ropewalk" : `trade-workshop.dedicated-ropewalk-${length}`;
+/** The door at the head of a walk of this length. */
+export const opusRopewalkEntrance = (length: OpusRopewalkLength) => ({
+  ...OPUS_ROPEWALK.entrance,
+  position: [0, 0, length / 2] as const
+});
+
+/**
  * Opus smithy (MV task 53, docs/plan/ce-outskirts-workshop-sizes.md S2): a thirteenth-century smithy after the one dug
  * at Newington (Oxfordshire), an 8 x 5 m building on stone footings with two hearths at right angles, an anvil on a
  * stone base and a water trough, open-fronted onto its yard, with a small fuel store against its gable. +Z is the yard
