@@ -268,6 +268,7 @@ const PLACEABLE_IDS: Record<string, ModelFacets> = {
   tigerI: f("vehicle", ["petroleumEra"], EU, ["armor", "military"], [1942, 1945]),
   b29: f("vehicle", ["petroleumEra"], ["american"], ["aviation", "military"], [1944, 1960]),
   b2: f("vehicle", ["rocketryEra"], ["american"], ["aviation", "military"], [1997, 2032]),
+  wrightFlyer: f("vehicle", ["industrialChemistryEra"], ["american"], ["aviation"], [1903, 1903]),
   postMill: s(MEDIEVAL_ON, EU, "milling"),
   towerMill: s(LATE_ON, EU, "milling"),
   waterMill: WATER_MILL,

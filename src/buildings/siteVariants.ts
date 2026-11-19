@@ -20,6 +20,7 @@ import { createGrokTrebuchet, GROK_TREBUCHET } from "./siege/grokTrebuchet";
 import { B2, createB2 } from "./vehicles/b2Bomber";
 import { B29, createB29 } from "./vehicles/b29Bomber";
 import { createTigerTank, TIGER_I } from "./vehicles/tigerTank";
+import { createWrightFlyer, WRIGHT_FLYER } from "./vehicles/wrightFlyer";
 import { createMedievalWellModel, MEDIEVAL_WELL } from "./wells/medievalWell";
 import { createLowMedievalWellModel } from "./wells/medievalWellLow";
 import { createPublicWaterBasinModel } from "./wells/publicWaterBasin";
@@ -74,6 +75,14 @@ export const OBJECT_VARIANTS = [
     author: B2.author,
     credits: [{ author: B2.author, date: "2026-11-18", note: B2.highNote }],
     create: () => createB2("high")
+  },
+  {
+    id: variantId("object.wrightFlyer", "high", WRIGHT_FLYER.author),
+    family: "object.wrightFlyer",
+    level: "high",
+    author: WRIGHT_FLYER.author,
+    credits: [{ author: WRIGHT_FLYER.author, date: "2026-11-19", note: WRIGHT_FLYER.highNote }],
+    create: () => createWrightFlyer("high")
   }
 ];
 

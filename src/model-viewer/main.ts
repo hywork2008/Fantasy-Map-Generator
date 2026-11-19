@@ -125,6 +125,7 @@ import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
 import { createTigerTank, TIGER_I } from "../buildings/vehicles/tigerTank";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
+import { createWrightFlyer, WRIGHT_FLYER } from "../buildings/vehicles/wrightFlyer";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import {
   createPublicWaterBasin,
@@ -3174,6 +3175,68 @@ AUTHORED_VARIANTS[b2Button.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showB2()
+};
+
+const wrightFlyerButton = document.createElement("button");
+wrightFlyerButton.dataset.id = "wrightFlyer";
+wrightFlyerButton.type = "button";
+wrightFlyerButton.textContent = "Wright Flyer · US pioneer aeroplane, 1903";
+function showWrightFlyer(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === wrightFlyerButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Wright Flyer side elevation";
+  levelTitle.textContent = "Wright Flyer plan";
+  const model = createWrightFlyer(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: WRIGHT_FLYER.length, depth: WRIGHT_FLYER.span } }, WRIGHT_FLYER.height);
+  camera.position.set(7.5, 4.5, 9.5);
+  controls.target.set(0, 1.2, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", WRIGHT_FLYER.name),
+    fact("Author", WRIGHT_FLYER.author),
+    fact("Period", "Pioneer era of aviation · United States, first flights on 17 December 1903"),
+    fact(
+      "Dimensions",
+      `${WRIGHT_FLYER.length} m long × ${WRIGHT_FLYER.span} m span × ${WRIGHT_FLYER.height} m high; wing chord ${WRIGHT_FLYER.chord} m, gap ${WRIGHT_FLYER.gap} m, camber 1:20`
+    ),
+    fact(
+      "Powerplant",
+      `The Wrights' own 12 hp four-cylinder water-cooled engine; two counter-rotating pusher propellers, ${WRIGHT_FLYER.propellerDiameter} m, driven by chains`
+    ),
+    fact(
+      "Controls",
+      "Biplane elevator ahead for pitch, wing warping from the pilot's hip cradle for roll, twin rudders aft"
+    ),
+    fact("Undercarriage", "Two wooden skids; it took off from a wooden launching rail (not modelled)"),
+    fact(
+      "Quality",
+      quality === "high" ? "High" : "Low — plain wings without ribs or bracing wires, a block engine and no chains"
+    ),
+    fact("Note", WRIGHT_FLYER.note, "Wright Flyer"),
+    ...(quality === "high" ? [fact("High detail", WRIGHT_FLYER.highNote)] : [])
+  );
+}
+wrightFlyerButton.addEventListener("click", () => showWrightFlyer());
+vehiclesHeading.append(wrightFlyerButton);
+AUTHORED_VARIANTS[wrightFlyerButton.dataset.id] = {
+  author: WRIGHT_FLYER.author,
+  primary: true,
+  quality: true,
+  show: () => showWrightFlyer()
 };
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";

@@ -25,6 +25,7 @@ import { createMinecart, MINECART } from "./vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "./vehicles/nobleCarriage";
 import { createTigerTank, TIGER_I } from "./vehicles/tigerTank";
 import { createWarWagon, WAR_WAGON } from "./vehicles/warWagon";
+import { createWrightFlyer, WRIGHT_FLYER } from "./vehicles/wrightFlyer";
 import { createMedievalWell, MEDIEVAL_WELL } from "./wells/medievalWell";
 import { createPublicWaterBasin } from "./wells/publicWaterBasin";
 import { PUBLIC_WATER_BASINS, WATER_BASIN_KINDS } from "./wells/publicWaterBasinSpec";
@@ -103,6 +104,13 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
   { id: "tigerI", category: "Vehicles", name: TIGER_I.name, author: TIGER_I.author, create: createTigerTank },
   { id: "b29", category: "Vehicles", name: B29.name, author: B29.author, create: createB29 },
   { id: "b2", category: "Vehicles", name: B2.name, author: B2.author, create: createB2 },
+  {
+    id: "wrightFlyer",
+    category: "Vehicles",
+    name: WRIGHT_FLYER.name,
+    author: WRIGHT_FLYER.author,
+    create: createWrightFlyer
+  },
   { id: "postMill", category: "Mills", name: POST_MILL.name, author: POST_MILL.author, create: createPostMill },
   { id: "towerMill", category: "Mills", name: TOWER_MILL.name, author: TOWER_MILL.author, create: createTowerMill },
   { id: "waterMill", category: "Mills", name: WATER_MILL.name, author: WATER_MILL.author, create: createWaterMill },
