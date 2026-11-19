@@ -52,6 +52,7 @@ import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
+import { createFerrySmack, FERRY_SMACK } from "../buildings/ships/ferrySmack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
 import { createGrokGalleon, GROK_GALLEON, grokGalleonParts } from "../buildings/ships/grokGalleon";
 import { createGrokGalley, GROK_GALLEY, grokGalleyParts } from "../buildings/ships/grokGalley";
@@ -2265,6 +2266,76 @@ AUTHORED_VARIANTS[ropeFerryButton.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showRopeFerry()
+};
+
+const ferrySmackState: { sails: "set" | "furled" } = { sails: "set" };
+const ferrySmackButton = document.createElement("button");
+ferrySmackButton.type = "button";
+ferrySmackButton.dataset.id = "ferry-smack";
+ferrySmackButton.textContent = "Ferry smack · Sail-and-oar ferry for wide water";
+function showFerrySmack(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === ferrySmackButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  const sailsSelect = document.createElement("select");
+  sailsSelect.setAttribute("aria-label", "Sails");
+  sailsSelect.add(new Option("Set", "set"));
+  sailsSelect.add(new Option("Furled · moored", "furled"));
+  sailsSelect.value = ferrySmackState.sails;
+  sailsSelect.addEventListener("change", () => {
+    ferrySmackState.sails = sailsSelect.value as "set" | "furled";
+    showFerrySmack();
+  });
+  const row = document.createElement("label");
+  row.append("Sails", sailsSelect);
+  optionFields.append(row);
+  modelOptions.hidden = false;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createFerrySmack(quality, ferrySmackState);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  frame({ occupancyMeters: { width: FERRY_SMACK.length, depth: FERRY_SMACK.width } }, FERRY_SMACK.height);
+  camera.position.set(17, 10, 19);
+  controls.target.set(0, 4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", FERRY_SMACK.name),
+    fact("Author", FERRY_SMACK.author),
+    fact("Period", "Danish belts and sounds, 16th to 18th century; Great Belt ferry privileged since the 1300s"),
+    fact(
+      "Dimensions",
+      `${FERRY_SMACK.hullLength} m hull (${FERRY_SMACK.length} m with the rudder) × ${FERRY_SMACK.beam} m beam (${FERRY_SMACK.width.toFixed(2)} m across the leeboards); ${FERRY_SMACK.depth} m deep, ${FERRY_SMACK.draft} m draft; ${FERRY_SMACK.height.toFixed(2)} m to the mast truck`
+    ),
+    fact("Propulsion", "Gaff mainsail and foresail on one mast, leeboards; sweeps in a calm"),
+    fact(
+      "Load",
+      `Passengers, cattle and up to ${FERRY_SMACK.horses} horses in four files; crossings of 15–26 km recorded`
+    ),
+    fact("Sails", ferrySmackState.sails === "furled" ? "Furled" : "Set"),
+    fact("CE adoption", "Not placed by CE yet; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — hull, spars, sails and hold without rigging or fittings"),
+    fact("Note", FERRY_SMACK.note, "Smack (ship)"),
+    ...(quality === "high" ? [fact("High detail", FERRY_SMACK.highNote)] : [])
+  );
+}
+ferrySmackButton.addEventListener("click", () => showFerrySmack());
+shipsHeading.append(ferrySmackButton);
+AUTHORED_VARIANTS[ferrySmackButton.dataset.id] = {
+  author: FERRY_SMACK.author,
+  primary: true,
+  quality: true,
+  show: () => showFerrySmack()
 };
 
 const siegeHeading = modelCategory("Siege engines");

@@ -40,6 +40,38 @@ AGENTS.mdの「河川と橋の角度」の規則では、橋の角度の上限�
 - [ ] A02. **櫂・竿で漕ぐ小型渡し船** — 人と小荷物を運ぶ。古代〜近世。既存の手漕ぎ舟とは用途と船幅で区別する。
 - [ ] A03. **渡し場の桟橋と綱の支柱** — 両岸の着岸台、綱を張る柱、巻き上げ機。CEの渡し場に置く設備。Kuhn（1983）によれば、荷車を乗せるには水位に合わせて上下する浮き桟橋（Landeschiff）が要る。固定の桟橋では荷車を乗せられない。浮き桟橋か、水際まで下る斜路のどちらかで作る。
 
+- [x] A04. **帆と櫂の大型渡し船** — 綱を張れない広い川・河口・海峡を渡る渡し船。人・家畜・荷車を載せ、帆と櫂で走る。FMG連携によりCEの川幅は最大で12 km近くになり、綱を使うA01や、流れで渡る渡し船では渡れない。
+  - 根拠：Kuhn（1983）によれば、綱を使わない漕ぐ渡し船（Ponte・Schale）が「古くから」の方式で、ライン川の下流では帆を付けたものもあった。フォース湾の Queensferry には12世紀から定期便があり、1821年に外輪蒸気船が曳くようになるまで帆船で渡した。大ベルト海峡（Nyborg–Korsør 約26 km）には、中世に途中のスプロー島（Nyborg から約8.5 km）に王の待機所があった。
+  - 史料調査（2026-11-19）の結果は次のとおり。
+    - **形式**：18世紀デンマークの渡し船は「帆で走り、風が無いときは櫂で漕ぐ、屋根の無い船」で、旅人・車両・荷・馬・牛を載せた（Mortensøn『Kystlandskabet』1996、Jonge『Danmarksbeskrivelse』1777 による。da.wikipedia「Færgegårde i Danmark」の引用から）。主な船種はスマック船（færgesmakke）と小型帆船（jagt）である。スマック船は平底で、両端がふくらみ、側面がほぼ直線で、リーボード（風下側に下ろして横流れを防ぐ板）を持つ。帆は古くはスプリットセイル（斜めの棒で張る帆）で、18世紀からガフセイル（上辺を斜めの棒で張る帆）が主になった。
+    - **距離**：Assens–Ærø の約15 km（2デンマーク・マイル）を、馬と荷車用の屋根の無いスマック船2隻で渡した。大ベルト海峡の Nyborg–Korsør（約26 km、1300年代からの特権付きの渡し）も同じ種類の船で渡した。Aarhus–Kalundborg（12デンマーク・マイル、約90 km）には、大・中・小の3種類のスマック船があった（1747年の料金表）。CEの最大12 km はこの範囲に収まる。
+    - **積載量**：小ベルト海峡（Middelfart–Snoghøj）のスマック船1隻は、旅客と馬10〜12頭を載せた。大きい輸送用の渡し船は馬16〜22頭（Jonge 1777）。
+    - **運航の規模**：1785年、大ベルト海峡の渡し船10隻（Nyborg 6隻、Korsør 4隻）が800往復し、約6,500人、牛5,405頭、子羊1,363頭、豚177頭、馬約2,000頭を運んだ。冬に海が凍ると、氷の上を引ける小舟（isbåd）を使った（Provinsens søfart 1720–1832）。
+    - **時代**：スマックという語の初出は1460年で、16世紀には広く使われた。中世盛期の Queensferry（12世紀〜）なども帆と櫂の渡しだが、船の形と寸法の史料は見つからなかった。A04 は16〜18世紀の北海・バルト海沿岸のスマック型渡し船とし、中世の船体は後の課題とする。
+    - **寸法（推定）**：渡し船のスマック船の寸法を書いた史料は見つからなかった。同じ地域の平底・一本マストの砂運搬船（sandskude、18世紀中頃）が平均で全長14 m・幅4.5 m・深さ1.5 m である。馬10〜12頭（1頭あたり約0.8 × 2.5 m）を2列に並べられる大きさと合うため、これを基準にする。推定であることをモデルの説明文に明記する。
+    - **未解決**：荷車の積み方（板を渡したか、車輪を外したか）、櫂の数、乗組員の数。荷車は分からないため、船に載せた状態は作らず、板を渡す装備だけを置く。
+  - 制作の方針：一本マストでガフセイル（展帆と畳帆）、リーボード、平底で両端がふくらんだ船体、屋根の無い荷室、馬をつなぐ横木、乗り込み用の板、長い櫂。Low／High の2品質とし、A01 と同じく MV 専用で `SHIP_VARIANTS` に登録する。
+  - 2026-11-19に [ferrySmack.ts](../../src/buildings/ships/ferrySmack.ts) として実装し、MVの Ships に `ferry-smack` で登録した（`SHIP_VARIANTS` の `ship.ferry-smack`、Low／High、帆は Set／Furled を選べる。author は Claude Opus 5.5）。CEへの配置は未実装。
+    - 船体は全長14 m・幅4.5 m・深さ1.5 m・喫水0.8 m。舵を含む全長は14.75 m、リーボードを含む幅は4.68 m、マストの頂部は水線上12.42 m。マストの高さと帆の大きさは、船体からの割り出しである。
+    - 馬12頭が乗る。並べ方は、1頭あたり2.5 × 0.9 m の区画を4列 × 3頭（荷室の x = −4〜3.5 m）。胴の高さで外側の列が船内に収まることをテストで確かめた。当初の船尾の細い船型では外側の列が収まらなかったため、両端を同じようにふくらませた。
+    - 荷車は積んだ状態を作っていない。乗り込み用の板（4 m）だけを置く。
+
+### 川幅による渡し船の選び方（2026-11-19）
+
+綱で渡す方式が実用になる距離は、史料と記録の範囲では数百mまでである。
+
+- 綱を手で引く渡しの現存例は、ほとんどが小河川である（例：Elwell Ferry は対岸まで約100 m）。
+- 流れで渡る渡し船（Gierponte）は、ライン川の本流が上限だった。最初の例のナイメーヘン（1657年）でさえ川幅全体は渡れず、浅い北岸側の約3分の1には舟橋をつなげていた（Kuhn 1983）。
+- 綱の方式で1 kmを超えるのは、近代の鋼索とエンジンの例だけである。世界最長は Baynes Sound Connector（2016年、1,961 m、海底に沈めた鋼索3本）。
+
+これを受けて、CEでは川幅で船を選ぶ。境界の値は、A02・A04 の史料調査で決め直す仮の値である。
+
+| 川幅 | 渡し船 |
+|---|---|
+| 〜300 m程度 | A01 綱を手で引く平底渡し船 |
+| 〜数百m | 流れで渡る渡し船（17世紀以降）、または竿や櫂で漕ぐ渡し船（A02） |
+| それより広い川 | A04 帆と櫂の大型渡し船 |
+
 ### CEの渡し場の大きさ（2026-11-19 確認）
 
 CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-editor/generators/ferryLanding.ts)）は、桟橋・係留中の船・待つ人と荷車のために確保する土地の幅である。しかし、根拠となる史料の記載が無い。A01の船体（12 m）なら1隻は収まる。待つ荷車の列や浮き桟橋の大きさは、史料に基づいて決めたものではない。A03の制作時に、浮き桟橋と斜路の寸法から確保する幅を決め直す。
@@ -103,7 +135,7 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
 
 ## 着手の順番
 
-A → B（B01〜B04を先に）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
+A（A01の次はA04の史料調査、続いてA02・A03）→ B（B01〜B04を先に）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
 
 上の各グループの中では番号順に進める。地域や時代が限られるモデル（E10、D04など）は、使う文化圏と年代の要望が出た時点で順位を上げる。
 
@@ -121,6 +153,15 @@ A → B（B01〜B04を先に）→ C（C01〜C07を先に）→ D01・D02 → E0
 - [MVの一覧と属性](/src/model-viewer/catalogueIndex.ts)
 - [CEの渡し場](/src/city-editor/generators/ferryLanding.ts)
 - H. W. Kuhn, Frühe Gierponten: fliegende Brücken auf dem Rhein im 17. und 18. Jahrhundert, Deutsches Schiffahrtsarchiv 6 (1983), 25–64（[SSOAR](https://www.ssoar.info/ssoar/handle/document/52531)）
+- [Cable ferry（Wikipedia）](https://en.wikipedia.org/wiki/Cable_ferry)
+- [Guinness World Records: Longest cable ferry](https://www.guinnessworldrecords.com/world-records/407955-longest-cable-ferry)
+- [History of the Forth Crossing（Wikipedia）](https://en.wikipedia.org/wiki/History_of_the_Forth_Crossing)
+- [Great Belt（Wikipedia）](https://en.wikipedia.org/wiki/Great_Belt)
+- [Færgegårde i Danmark（da.wikipedia）](https://da.wikipedia.org/wiki/F%C3%A6rgeg%C3%A5rde_i_Danmark) — Jonge『Danmarksbeskrivelse』（1777）と Mortensøn『Kystlandskabet』（1996）の引用
+- [Provinsens søfart 1720–1832: Søfarten i Korsør](http://ddb.byhistorie.dk/provinsens_soefart/tekst.aspx?distriktID=20)
+- [Provinsens søfart 1720–1832: Søfarten i Nyborg](http://ddb.byhistorie.dk/provinsens_soefart/tekst.aspx?distriktID=25)
+- [Smakke（da.wikipedia）](https://da.wikipedia.org/wiki/Smakke)、[Sejlskibstyper（jmarcussen.dk）](https://www.jmarcussen.dk/maritim/mart/lexref/skibstyper.html)、[Smakken（aldus.dk）](https://www.aldus.dk/fanoe/kaaver/smakke.html)
+- [Skibstyper（loekkenhistorie.dk）](https://www.loekkenhistorie.dk/skudehandlen-2/332-skibstyper-2) — 18世紀中頃の砂運搬船の寸法
 - [Ename の中世の渡し船の復元（Europeana）](https://www.europeana.eu/en/item/2048716/object_HA_2128)
 - [Magor Pill Boat（Living Levels）](https://www.livinglevels.org.uk/stories/2020/4/27/the-magor-pill-boat)
 - [Medieval Shipwreck from Ráckeve（A. J. Tóth）](https://files.archaeolingua.hu/2013TA/Upload/cikk_Toth_EN.pdf)
