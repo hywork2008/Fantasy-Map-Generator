@@ -19,11 +19,12 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v48–v50: coopers at the inland rate of York, more in ports (same plan, S3).
 // v49–v51: ropewalks as long as the ground allows (54 to 180 m, a port's to 300 m), along the wall when no road
 // has room, else left unplaced (same plan, §8.9).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v49";
+// v50–v52: a coastal town's ropewalks too, its wall closed along the shore for them (same plan, §8.11).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v50";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v50";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v51";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v51";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v52";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

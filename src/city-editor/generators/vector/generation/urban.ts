@@ -380,8 +380,12 @@ function* vectorUrbanSteps(
   // Ropewalks beside the roads out of the gates (docs/plan/ce-outskirts-workshop-sizes.md S1), laid as the tanners'
   // row is: the street plan keeps off them.
   const ropewalks =
-    !continuation && organicMode && settings.mode === "medieval-facilities" && walls.length
-      ? reserveRopewalks(doc, requests, inside)
+    !continuation &&
+    organicMode &&
+    settings.mode === "medieval-facilities" &&
+    Object.values(doc.paths).some(p => p.role === "wall")
+      ? // A coastal town's wall is open to the shore and makes no circuit: the ropewalks close it themselves.
+        reserveRopewalks(doc, requests, walls.length ? inside : undefined)
       : { placed: [], sites: [], unplaced: [] };
   for (const site of ropewalks.sites) protectedRegions.push(structuredClone(site));
   // The street plan keeps off the yards and their revetments.

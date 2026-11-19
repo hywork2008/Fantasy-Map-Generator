@@ -22,11 +22,21 @@ const GATE_METERS = 15;
  * band per approach road beyond the wall, gate end first, profiled by its FMG traffic (trade from rank 0.5, else
  * rural) with the band's glacis clearance and ribbon length. Empty for an open town or one without approaches.
  */
-export function vectorApproachBands(doc: VectorCityDocument): { bands: ApproachBand[]; walls: Point[][] } {
+export function vectorApproachBands(
+  doc: VectorCityDocument,
+  /** A coastal town's wall runs from shore to shore: closed across its ends (along the shore), it has approaches too.
+   * Only the ropewalks ask for them (docs/plan/ce-outskirts-workshop-sizes.md §8.11); its suburbs are not grown. */
+  options: { openWall?: boolean } = {}
+): { bands: ApproachBand[]; walls: Point[][]; ring?: Point[]; closed?: boolean } {
   const walls = Object.values(doc.paths)
       .filter(p => p.role === "wall")
       .map(p => samplePath(p).map(s => s.point)),
-    outer = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
+    closed = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner")),
+    outer =
+      closed ??
+      (options.openWall
+        ? Object.values(doc.paths).find(p => p.role === "wall" && !pathIsClosed(p) && !p.id.includes("inner"))
+        : undefined);
   if (!outer) return { bands: [], walls };
   const ring = samplePath(outer).map(s => s.point),
     wallGap = (q: Point) => nearestOnPolyline(q, [...ring, ring[0]]).dist,
@@ -65,7 +75,7 @@ export function vectorApproachBands(doc: VectorCityDocument): { bands: ApproachB
             : null;
       return [{ groupId: p.id, points: line, ...suburbanProfile(undefined, doc.frame.extentMeters, true, use) }];
     });
-  return { bands, walls };
+  return { bands, walls, ring, closed: !!closed };
 }
 
 /**

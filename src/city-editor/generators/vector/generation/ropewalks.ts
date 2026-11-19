@@ -13,10 +13,9 @@ import type { BVFacilityRequest } from "../../allocateBVFacilities";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
 import { facilityUseOf } from "../../facilityUses";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon } from "../../geom";
-import { evaluateAnchor, pathIsClosed } from "../geometry/curves";
+import { evaluateAnchor } from "../geometry/curves";
 import { nearestRoadAnchor } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
-import { samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { facilityLand } from "./facilityLots";
@@ -93,12 +92,13 @@ function straightBetween(
 }
 
 /**
- * Straight runs of a closed wall ring (each side of a polygonal wall): from a corner, as far as the wall keeps within
- * STRAIGHT_METERS of the chord.
+ * Straight runs of a wall (each side of a polygonal wall): from a corner, as far as the wall keeps within
+ * STRAIGHT_METERS of the chord. A closed ring starts at its sharpest corner; an open wall (a coastal town's, from
+ * shore to shore) at its first end.
  */
-function wallRuns(ring: Point[]): { a: Point; b: Point }[] {
+function wallRuns(ring: Point[], closed: boolean): { a: Point; b: Point }[] {
   const n = ring.length;
-  if (n < 3) return [];
+  if (n < (closed ? 3 : 2)) return [];
   // Start at the sharpest corner so no run wraps round it.
   const turn = (i: number) => {
     const p = ring[(i - 1 + n) % n],
@@ -109,8 +109,8 @@ function wallRuns(ring: Point[]): { a: Point; b: Point }[] {
     return Math.abs(Math.atan2(Math.sin(b - a), Math.cos(b - a)));
   };
   let start = 0;
-  for (let i = 1; i < n; i++) if (turn(i) > turn(start)) start = i;
-  const loop = [...ring.slice(start), ...ring.slice(0, start), ring[start]];
+  if (closed) for (let i = 1; i < n; i++) if (turn(i) > turn(start)) start = i;
+  const loop = closed ? [...ring.slice(start), ...ring.slice(0, start), ring[start]] : ring;
   const runs: { a: Point; b: Point }[] = [];
   let i = 0;
   while (i < loop.length - 1) {
@@ -141,14 +141,15 @@ function wallRuns(ring: Point[]): { a: Point; b: Point }[] {
  * 2. failing that, along a straight side of the wall beyond its glacis (as Sandwich's Ropewalk follows the town's
  *    rampart), its head toward an approach road that crosses its line, a lane from that road to its door;
  * 3. failing both, not at all: the request is left unplaced, never put on a lot or plot.
+ * A coastal town's wall, open to the shore, is closed across its ends for this (§8.11).
  * Clear of the roads, the wall, water and land already taken, nearest the gate first. Laid before the street plan like
  * the tanners' row, so the streets and lots keep off it and its lane.
  */
 export function reserveRopewalks(
   doc: VectorCityDocument,
   requests: readonly BVFacilityRequest[],
-  /** Inside the town wall. */
-  inside: (p: Point) => boolean
+  /** Inside the town wall; by default inside the wall closed across its ends (a coastal town's). */
+  insideWall?: (p: Point) => boolean
 ): { placed: string[]; sites: VectorPolygon[]; unplaced: { id: string; reason: "space" }[] } {
   const pending = requests.filter(isRopewalk);
   const out = {
@@ -157,8 +158,15 @@ export function reserveRopewalks(
     unplaced: [] as { id: string; reason: "space" }[]
   };
   if (!pending.length || !doc.site) return out;
-  const { bands, walls } = vectorApproachBands(doc);
-  if (!bands.length) return out;
+  const { bands, walls, ring, closed } = vectorApproachBands(doc, { openWall: true });
+  // A walk is never put on a lot or plot: one with no ground of its own is left unplaced.
+  const unplaced = () =>
+    pending.filter(r => !out.placed.includes(`urban:${r.id}`)).map(r => ({ id: r.id, reason: "space" as const }));
+  if (!bands.length || !ring) {
+    out.unplaced = unplaced();
+    return out;
+  }
+  const inside = insideWall ?? ((p: Point) => pointInPolygon(p, ring));
   const { occupied, protectedLand } = facilityLand(doc),
     roads = Object.values(doc.paths)
       .filter(p => p.role === "road")
@@ -284,8 +292,7 @@ export function reserveRopewalks(
   };
 
   // The wall's sides, and the approach roads that may lead a lane to a walk along them.
-  const outerWall = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner")),
-    runs = outerWall ? wallRuns(samplePath(outerWall).map(s => s.point)) : [],
+  const runs = wallRuns(ring, !!closed),
     centre0 = doc.site.center;
   /** Along a straight side of the wall beyond the glacis, its head toward an approach road crossing its line. */
   const alongWall = (length: OpusRopewalkLength): Fit | undefined => {
@@ -437,7 +444,6 @@ export function reserveRopewalks(
     out.placed = kept;
     out.sites = kept.map(id => doc.placements[id].site);
   }
-  // A walk is never put on a lot or plot: one with no ground of its own is left unplaced.
-  out.unplaced = pending.filter(r => !out.placed.includes(`urban:${r.id}`)).map(r => ({ id: r.id, reason: "space" }));
+  out.unplaced = unplaced();
   return out;
 }
