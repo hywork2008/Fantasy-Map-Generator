@@ -616,7 +616,8 @@ export class TradeKit extends ModelKit {
     board.rotation.z = s * 0.06;
     const body = this.add("bellows-leather", new THREE.CylinderGeometry(0.02, 0.3, 1.0, this.high ? 10 : 6), "leather");
     body.position.set(x + s * 0.5, y + 0.18, z);
-    body.rotation.z = (s * Math.PI) / 2;
+    // The leather narrows toward the nozzle.
+    body.rotation.z = (-s * Math.PI) / 2;
     body.scale.set(1, 1, 0.45);
     this.beam("bellows-nozzle", [x + s * 1.0, y + 0.18, z], [x + s * 1.35, y + 0.1, z], 0.06, "iron", true);
     if (this.high) this.beam("bellows-rocker", [x - s * 0.1, y + 1.1, z], [x + s * 0.4, y + 0.35, z], 0.06, "oak");

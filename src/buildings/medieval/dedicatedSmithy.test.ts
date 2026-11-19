@@ -14,7 +14,7 @@ it("keeps two distinct immutable forms without doubling the calibrated smithing 
   expect(farrier.ports.find(p => p.id === "animal-front")?.normalXZ).toEqual([0, 1]);
   expect(farrier.ports.find(p => p.id === "animal-rear")?.normalXZ).toEqual([0, -1]);
   for (const m of models) {
-    expect(m.variants!.map(v => v.level)).toEqual(["low", "high"]);
+    expect(m.variants!.filter(v => v.author === m.variants![0].author).map(v => v.level)).toEqual(["low", "high"]);
     expect(m.cePlacementStatus).toBeUndefined();
   }
   for (const form of ["smithy", "farrier"] as const) {

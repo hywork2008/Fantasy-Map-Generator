@@ -1,7 +1,6 @@
 import { csvParse } from "d3";
 import occupations from "../../../docs/plan/medieval-urban-calibration-targets/occupations.csv?raw";
 import { DEDICATED_COOPER } from "../../buildings/medieval/dedicatedCooperProfile";
-import { dedicatedSmithyProfile } from "../../buildings/medieval/dedicatedSmithyProfile";
 import { DEDICATED_TANNERY } from "../../buildings/medieval/dedicatedTanneryProfile";
 import { DETACHED_BAKEHOUSE } from "../../buildings/medieval/detachedBakehouseProfile";
 import { ENCLOSED_GUILD_HALL } from "../../buildings/medieval/enclosedGuildHall";
@@ -15,6 +14,7 @@ import {
 import {
   OPUS_BUTCHERY,
   OPUS_ROPEWALK,
+  OPUS_SMITHY,
   OPUS_TOWN_TRADES,
   type OpusTownTrade
 } from "../../buildings/medieval/opusTradeProfiles";
@@ -136,8 +136,7 @@ export function buildPopulationFacilityRequests(
       }
       if (trade.pool === "baking")
         return bvFacilityAsset("trade-workshop.dedicated-bakehouse", [{ id: "main", ...DETACHED_BAKEHOUSE.main }]);
-      if (trade.pool === "smithing")
-        return bvFacilityAsset("trade-workshop.dedicated-smithy", dedicatedSmithyProfile("smithy").ports.slice(0, 1));
+      if (trade.pool === "smithing") return bvFacilityAsset("trade-workshop.dedicated-smithy", [OPUS_SMITHY.entrance]);
       if (trade.pool === "cooperage")
         return bvFacilityAsset("trade-workshop.dedicated-cooperage", DEDICATED_COOPER.ports.slice(0, 1));
       if (trade.pool === "tanning")

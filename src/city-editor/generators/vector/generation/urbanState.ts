@@ -14,11 +14,13 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v41–v43: the Opus ropewalk (docs/plan/opus-ropewalk.md): same plot and door, its own height.
 // v44–v45: each butcher his own shop in the Butcher Row of a burgage town (ce-town-trade-rear-works.md §10.8).
 // v46–v48: ropewalks beside the roads out of the gates (docs/plan/ce-outskirts-workshop-sizes.md S1).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v46";
+// v47–v49: the Opus smithy after Newington on a 10 x 8 m envelope (same plan, S2); the ropewalks behind the row
+// facing the road, a lane to their door (§8.2).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v47";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v47";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v48";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v48";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v49";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

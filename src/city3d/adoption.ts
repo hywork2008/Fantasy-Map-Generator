@@ -104,6 +104,17 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
       )
     ])
   ),
+  // The Opus smithy after Newington (docs/plan/ce-outskirts-workshop-sizes.md S2), on its smaller 10 x 8 m envelope.
+  "medieval.trade-workshop.dedicated-smithy": Object.fromEntries(
+    (["low", "high"] as const).map(level => [
+      level,
+      {
+        variant: `medieval.trade-workshop.dedicated-smithy@${level}#claude-opus-5.5`,
+        since: "2026-11-19",
+        note: "Opus open-fronted smithy with two hearths at right angles, anvil on stone, trough and fuel store; 10 x 8 m"
+      }
+    ])
+  ),
   // The Opus ropewalk rebuilt from the rope-makers' trade (docs/plan/opus-ropewalk.md), on the earlier plot.
   "medieval.trade-workshop.dedicated-ropewalk": Object.fromEntries(
     (["low", "high"] as const).map(level => [

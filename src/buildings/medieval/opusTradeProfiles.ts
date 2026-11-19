@@ -66,3 +66,16 @@ export const OPUS_ROPEWALK = {
   /** The hemp house's door on the road at the head of the walk. */
   entrance: { id: "main", position: [0, 0, 27] as const, clearWidth: 1.6 }
 } as const;
+
+/**
+ * Opus smithy (MV task 53, docs/plan/ce-outskirts-workshop-sizes.md S2): a thirteenth-century smithy after the one dug
+ * at Newington (Oxfordshire), an 8 x 5 m building on stone footings with two hearths at right angles, an anvil on a
+ * stone base and a water trough, open-fronted onto its yard, with a small fuel store against its gable. +Z is the yard
+ * and the way in from the road.
+ */
+export const OPUS_SMITHY = {
+  width: 10,
+  depth: 8,
+  /** The way into the yard from the road, before the open front of the smithy. */
+  entrance: { id: "main", position: [0, 0, 4] as const, clearWidth: 1.6 }
+} as const;

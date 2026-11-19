@@ -14,8 +14,10 @@ import { facilityLand } from "./facilityLots";
 import { vectorApproachBands } from "./suburbs";
 
 const ROPEWALK_MODEL = "trade-workshop.dedicated-ropewalk";
-/** The walk keeps this far off the road's edge; its site this much round its envelope. */
-const ROAD_CLEARANCE_METERS = 1.5;
+/** The walk lies behind the row of plots facing the road (their inns and shops keep the frontage), this far off the
+ * road's edge; a lane this wide runs from the road past its head to its door. Its site keeps this much round it. */
+const FRONT_ROW_METERS = 24;
+const LANE_METERS = 3;
 const SITE_MARGIN_METERS = 0.3;
 /** The walk starts at least this far out along the road from where it leaves the wall (past the gate's own ground),
  * and never on the glacis. */
@@ -28,11 +30,12 @@ const STRAIGHT_METERS = 1;
 export const isRopewalk = (r: BVFacilityRequest) => r.asset.bvModel?.id === ROPEWALK_MODEL;
 
 /**
- * Ropewalks beside the roads out of the gates (docs/plan/ce-outskirts-workshop-sizes.md S1): the rope-makers worked
- * a long straight walk outside the town, as Hamburg's Reeperbahn ran along the road before its gate. Each walk lies
- * along a straight stretch of an approach road, on either side, its head (the hemp house and its door) toward the
- * gate, clear of the road, the wall, water and land already taken, nearest the gate first. Laid before the street plan
- * like the tanners' row, so the streets and lots keep off it. Its door is joined to the road.
+ * Ropewalks behind the roads out of the gates (docs/plan/ce-outskirts-workshop-sizes.md S1, §8.2): the rope-makers
+ * worked a long straight walk on the edge of town, as Bridport's walks ran down the long gardens behind the houses of
+ * its streets. Each walk lies parallel to a straight stretch of an approach road, on either side, behind the row of
+ * plots facing it, its head (the hemp house and its door) toward the gate, a lane from the road past its head to the
+ * door; clear of the road, the wall, water and land already taken, nearest the gate first. Laid before the street plan
+ * like the tanners' row, so the streets and lots keep off it and its lane.
  */
 export function reserveRopewalks(
   doc: VectorCityDocument,
@@ -105,7 +108,7 @@ export function reserveRopewalks(
         if (stretch.some(p => Math.abs((p[0] - a[0]) * -u[1] + (p[1] - a[1]) * u[0]) > STRAIGHT_METERS)) continue;
         for (const side of [1, -1] as const) {
           const n: Point = [-u[1] * side, u[0] * side],
-            off = halfRoad + ROAD_CLEARANCE_METERS + width / 2,
+            off = halfRoad + FRONT_ROW_METERS + width / 2,
             centre: Point = [(a[0] + b[0]) / 2 + n[0] * off, (a[1] + b[1]) / 2 + n[1] * off];
           if (inside(centre)) continue;
           // The head toward the gate: the model's door end (local plan -Y) points back along the road.
@@ -123,7 +126,24 @@ export function reserveRopewalks(
                 [-width / 2 - m, length / 2 + m]
               ] as Point[]
             ).map(transform);
-          const site: VectorPolygon = { outer: rect(SITE_MARGIN_METERS), holes: [] };
+          // The lane on the gate side of the head (local -Y), from the road's edge (local x toward the road is
+          // `side`) to the walk's far side.
+          const toRoad = off - halfRoad,
+            lane = (
+              [
+                [-(width / 2 + SITE_MARGIN_METERS), -length / 2 - LANE_METERS],
+                [toRoad, -length / 2 - LANE_METERS],
+                [toRoad, -length / 2],
+                [-(width / 2 + SITE_MARGIN_METERS), -length / 2]
+              ] as Point[]
+            ).map(([x, y]) => transform([x * side, y])),
+            joined = regionBoolean(
+              [{ outer: rect(SITE_MARGIN_METERS), holes: [] }],
+              [{ outer: lane, holes: [] }],
+              "union"
+            );
+          if (joined.length !== 1 || joined[0].holes.length) continue;
+          const site: VectorPolygon = joined[0];
           if (
             site.outer.some(inside) ||
             site.outer.some(p => walls.some(w => nearestOnPolyline(p, w).dist < band.clearance)) ||
@@ -134,7 +154,8 @@ export function reserveRopewalks(
             asset = request.asset,
             entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0],
             door = transform(entrance.point),
-            anchor = nearestRoadAnchor(path, door),
+            // Joined to the road at the lane's mouth.
+            anchor = nearestRoadAnchor(path, transform([toRoad * side, -length / 2 - LANE_METERS / 2])),
             end = evaluateAnchor(path, anchor),
             reach = Math.hypot(end[0] - door[0], end[1] - door[1]);
           if (reach < 0.01 || !pointInPolygon(door, site.outer)) {
