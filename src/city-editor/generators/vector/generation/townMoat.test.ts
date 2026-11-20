@@ -47,8 +47,9 @@ describe("meshless town moat from the mesh editor's settings (feature parity P4c
 
   it("keeps the wall without a moat and says so when no turn bridges every road squarely", () => {
     // Roads are laid square through their gates (pre-acceptance U1), so most outlines now take a moat; seed m39
-    // (m19 before U1) still finds no turn whose moat every road crosses on one straight piece.
-    const { skeleton } = city("m39");
+    // (m19 before U1, m39 before a bastioned wall took bastions by its size) still finds no turn whose moat every
+    // road crosses on one straight piece.
+    const { skeleton } = city("m59");
     expect(skeleton.document.paths[TOWN_MOAT_ID]).toBeUndefined();
     expect(skeleton.document.generation!.diagnostics.map(d => d.code)).toContain("town-moat-unplaced");
   });

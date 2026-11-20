@@ -19,7 +19,7 @@ import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
 import { vectorFacilityLand } from "./suburbs";
 import { bridgeSyntheticCrossings } from "./syntheticCrossings";
 import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius, meshlessSiteFillScale } from "./urbanSizing";
-import { isVectorWallShape, vectorWallAreaShare, vectorWallChoice } from "./wallShape";
+import { isVectorWallShape, vectorBastionCount, vectorWallAreaShare, vectorWallChoice } from "./wallShape";
 
 export interface VectorEditorGenerationInput {
   seed: string;
@@ -70,11 +70,23 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
   // the site grows so the walled area matches (P4a). A walled town is sized to fill its interior (gate-ribbon §3.6);
   // what the estimate misses goes to the roadside beyond the gates.
   const wall = vectorWallChoice(settings, seed, period, input.frame.extentMeters),
+    // A bastioned wall left to the generator takes as many bastions as its size needs, and the count sets the share
+    // of the wall the bastions take: resolved on the site's radius (`fitBastions`), as the pipeline will.
+    autoBastions = wall.wall === "bastioned" && wall.wallSides === undefined;
+  let sides = autoBastions ? vectorBastionCount(seed, 0) : wall.wallSides;
+  const wallShare = () => (isVectorWallShape(wall.wall) ? vectorWallAreaShare(seed, wall.wall, sides) : 1),
     walledScale = (dwellings: number) =>
-      wall.wall === "none"
-        ? 1
-        : meshlessSiteFillScale(dwellings) *
-          (isVectorWallShape(wall.wall) ? 1 / Math.sqrt(vectorWallAreaShare(seed, wall.wall, wall.wallSides)) : 1);
+      wall.wall === "none" ? 1 : meshlessSiteFillScale(dwellings) * (1 / Math.sqrt(wallShare()));
+  /** Settle the bastion count on the radius `radius` gives for it; the count only grows, so it ends. */
+  const fitBastions = (radius: () => number) => {
+    if (!autoBastions) return radius();
+    for (;;) {
+      const r = radius(),
+        n = Math.max(sides!, vectorBastionCount(seed, r));
+      if (n === sides) return r;
+      sides = n;
+    }
+  };
   // Only a site sized for its own lots (meshless occupancy) takes its own frame; a mesh-sized one keeps the mesh map's.
   const ownFrame = wall.wall !== "none" && input.lotOccupancy !== undefined && !!settings.population;
   // A synthesized site's meandering rivers are laid as smooth curves through the town (curvedRivers.ts). Its frame
@@ -98,14 +110,17 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     const dwellings = getUrbanDwellings(settings.population.targetPopulation),
       need =
         Math.PI *
-        (walledScale(dwellings) *
-          meshlessCityRadius(
-            dwellings,
-            expectedVectorHouseStoreys(period, settings, undefined),
-            input.lotOccupancy,
-            0,
-            burgageLandFactor(settings)
-          )) **
+        fitBastions(
+          () =>
+            walledScale(dwellings) *
+            meshlessCityRadius(
+              dwellings,
+              expectedVectorHouseStoreys(period, settings, undefined),
+              input.lotOccupancy!,
+              0,
+              burgageLandFactor(settings)
+            )
+        ) **
           2;
     let scale = 1;
     for (let attempt = 0; attempt < 3; attempt++) {
@@ -217,18 +232,21 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
         settings.facilityLayout,
         vectorTownCulture(townProfileFor(period, chosenHousingCulture(settings), descriptor, seed))
       ).coreM2,
-      shape = isVectorWallShape(wall.wall) ? 1 / vectorWallAreaShare(seed, wall.wall, wall.wallSides) : 1,
-      housing =
-        walledScale(dwellings) *
-        meshlessCityRadius(
-          dwellings,
-          expectedVectorHouseStoreys(period, settings, settings.descriptor.civilization?.tradition),
-          input.lotOccupancy,
-          houses * MONASTERY_BLOCK_M2 * CIVIC_LAND_FACTOR,
-          burgageLandFactor(settings)
-        ),
       // On burgage plots a facility takes whole plots, its yard with it (plan §6).
-      need = Math.sqrt(housing ** 2 + (facilityM2 * shape * burgageLandFactor(settings, "facility")) / Math.PI);
+      need = fitBastions(() => {
+        const housing =
+          walledScale(dwellings) *
+          meshlessCityRadius(
+            dwellings,
+            expectedVectorHouseStoreys(period, settings, settings.descriptor!.civilization?.tradition),
+            input.lotOccupancy!,
+            houses * MONASTERY_BLOCK_M2 * CIVIC_LAND_FACTOR,
+            burgageLandFactor(settings)
+          );
+        return Math.sqrt(
+          housing ** 2 + ((facilityM2 / wallShare()) * burgageLandFactor(settings, "facility")) / Math.PI
+        );
+      });
     for (let attempt = 0; attempt < 3; attempt++) {
       const probe = vectorInputFromDescriptor(descriptor),
         dry =
@@ -261,7 +279,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       );
     // The facilities' parcels are measured land, not an estimate the fill correction trims: they are added whole,
     // widened by the wall shape as the rest is.
-    const shape = isVectorWallShape(wall.wall) ? 1 / vectorWallAreaShare(seed, wall.wall, wall.wallSides) : 1;
+    const shape = 1 / wallShare();
     // On burgage plots a facility takes whole plots, its yard with it (plan §6).
     return Math.max(
       30,
@@ -269,7 +287,10 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     );
   };
   // The first pass leaves the civic centre out: on a site sized for houses alone it may not fit yet.
-  const first = build(size(0), false);
+  const first = build(
+    fitBastions(() => size(0)),
+    false
+  );
   const reserved = [
     // Fortress works lie outside the built-up disc and take none of its land.
     ...featureReservations(
@@ -293,13 +314,15 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     houses = monasteryKindsFor(settings.descriptor?.civilization?.faith, period, walled)
       .slice(0, monasteryCountFor(getUrbanDwellings(settings.population.targetPopulation), period))
       .filter(kind => !(kind === "abbey" && walled)).length;
-  if (!reserved && !civic.specs.length && !houses) return build(size(0, facilityM2));
+  if (!reserved && !civic.specs.length && !houses) return build(fitBastions(() => size(0, facilityM2)));
   // The civic centre takes its area from the houses' land, and more: lots stop short of its setbacks and the
   // streets that front it. Its farthest corner must stay inside the rim.
   return build(
-    Math.max(
-      size(reserved + (civic.areaM2 + houses * MONASTERY_BLOCK_M2) * CIVIC_LAND_FACTOR, facilityM2),
-      civic.radiusMeters + MESHLESS_SITE_RIM_METERS
+    fitBastions(() =>
+      Math.max(
+        size(reserved + (civic.areaM2 + houses * MONASTERY_BLOCK_M2) * CIVIC_LAND_FACTOR, facilityM2),
+        civic.radiusMeters + MESHLESS_SITE_RIM_METERS
+      )
     )
   );
 }

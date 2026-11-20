@@ -223,8 +223,39 @@ function makeTrace(
   urban: Point[],
   urbanRadius: number
 ): Trace | null {
+  if (settings.wallSides !== undefined)
+    return traceWith(inputs, settings, seed, attempt, corePoint, urban, urbanRadius, settings.wallSides);
+  // A bastion covers its neighbours within a gun's range: a larger town takes more bastions, not larger ones.
+  const base = 5 + Math.floor(makeRng(`${seed}:bastioned-town:trace:${attempt}`)() * 5);
+  for (let sides = base; ; sides++) {
+    const trace = traceWith(inputs, settings, seed, attempt, corePoint, urban, urbanRadius, sides);
+    if (!trace || sides >= BASTION_COUNT_MAX || maxFrontLength(trace.outer, sides) <= BASTION_FRONT_METERS)
+      return trace;
+  }
+}
+
+/** Bastions a count left to the generator may grow to. */
+const BASTION_COUNT_MAX = 48;
+/** Longest front (salient to salient): Palmanova was laid out from the 350 m effective range of its guns, and
+ * Vauban's exterior side was 180 toises (351 m). */
+const BASTION_FRONT_METERS = 350;
+function maxFrontLength(outer: Point[], sides: number): number {
+  return Math.max(...Array.from({ length: sides }, (_, i) => dist(outer[i * 5 + 2], outer[((i + 1) % sides) * 5 + 2])));
+}
+
+function traceWith(
+  inputs: SkeletonInputs,
+  settings: GenerationSettings,
+  seed: string,
+  attempt: number,
+  corePoint: Point,
+  urban: Point[],
+  urbanRadius: number,
+  sides: number
+): Trace | null {
   const rng = makeRng(`${seed}:bastioned-town:trace:${attempt}`);
-  const sides = settings.wallSides ?? 5 + Math.floor(rng() * 5);
+  // The count's draw stays in the stream, so the trace's other draws are the same whatever the count.
+  rng();
   const center = add(corePoint, [
     (rng() - 0.5) * Math.min(12, inputs.cellSize * 0.25),
     (rng() - 0.5) * Math.min(12, inputs.cellSize * 0.25)

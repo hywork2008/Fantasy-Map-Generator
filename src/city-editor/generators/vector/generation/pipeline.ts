@@ -51,7 +51,13 @@ import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { raiseVectorShantyLand, wantsShanty } from "./shanty";
 import { clipVectorDomainToWall, raiseVectorRibbonLand, vectorFacilityLand, vectorRibbonShortfall } from "./suburbs";
 import { raiseTownGuildhall, townGuildhallRole } from "./townGuildhall";
-import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
+import {
+  isVectorWallShape,
+  VECTOR_WALL_WIDTH_METERS,
+  vectorBastionCount,
+  vectorUnitWallRing,
+  vectorWallSettings
+} from "./wallShape";
 
 /** Sine of the shallowest angle a road or river may cross a generated wall shape at (20 degrees). */
 const WALL_CROSSING_SINE = Math.sin((20 * Math.PI) / 180);
@@ -720,6 +726,8 @@ function skeleton(
   timed("source-validation-and-clone");
   /** Fixed roads continued through a wall shape by a generated approach; their own ends are no route ports. */
   const extended = new Set<string>();
+  /** A bastioned wall's bastions, as many as its size needs (`vectorBastionCount`). */
+  let wallSides = settings.wallSides;
   let deferredInner:
     | { make: (scale: number, turn?: number) => VectorPath; parent: string; scale: number; turns: boolean }
     | undefined;
@@ -734,6 +742,10 @@ function skeleton(
       half = (maxX - minX) / 2,
       halfY = (maxY - minY) / 2,
       shape = settings.wall,
+      sides =
+        shape === "bastioned"
+          ? vectorBastionCount(settings.seed, Math.max(half, halfY), settings.wallSides)
+          : wallSides,
       // The sea side of a walled harbour town (P5b-2, the mesh editor's Wall coast): `open` leaves the waterfront
       // unwalled, `opening` keeps the sea wall with one harbour gap; either leaves an open wall line ending at the
       // shore, which has no circuit, so no old-town wall or town moat rides on it.
@@ -743,6 +755,7 @@ function skeleton(
       innerId = "auto-inner-wall",
       // The old town takes `share` of the walled area; outlines scale about the centre.
       innerScale = Math.sqrt(inner?.share ?? 1);
+    wallSides = sides;
     const attempts: { rotation: number; scale: number }[] = [];
     // Approaches that would gate the wall close together join outside it, so the gates spread round the wall (U1).
     {
@@ -793,7 +806,7 @@ function skeleton(
     };
     const ringAt = (rotation: number, scale = 1) =>
       clearOfSea(
-        vectorUnitWallRing(settings.seed, shape as WallShape, settings.wallSides, rotation).map(
+        vectorUnitWallRing(settings.seed, shape as WallShape, sides, rotation).map(
           ([x, y]) => [center[0] + x * half * scale, center[1] + y * halfY * scale] as Point
         )
       );
@@ -1127,8 +1140,7 @@ function skeleton(
   if (settings.castle && !reserveVectorCastle(doc, settings))
     diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });
   // A bastioned wall's bastions are gun platforms: reserved before the streets, so no block or house stands there.
-  if (settings.wall === "bastioned" && doc.paths["auto-wall"])
-    reserveVectorBastions(doc, "auto-wall", settings.wallSides ?? 6);
+  if (settings.wall === "bastioned" && doc.paths["auto-wall"]) reserveVectorBastions(doc, "auto-wall", wallSides ?? 6);
   // The town's land ends at its wall; beyond it the town grows only along the approaches (gate-ribbon plan W1).
   doc = clipVectorDomainToWall(doc);
   const free = freeLand(doc);

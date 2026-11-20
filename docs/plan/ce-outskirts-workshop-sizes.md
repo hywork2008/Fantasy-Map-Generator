@@ -855,3 +855,54 @@ A・B の共通の作り:
 
 - [doubleWalls.test.ts](../../src/city-editor/generators/vector/generation/doubleWalls.test.ts) は固定を外した（既定のゆるい蛇行で通る）。
 - [lotFit.test.ts](../../src/city-editor/generators/vector/generation/lotFit.test.ts)・[wards.test.ts](../../src/city-editor/generators/vector/generation/wards.test.ts)・[parks.test.ts](../../src/city-editor/generators/vector/generation/parks.test.ts)・[wallShape.test.ts](../../src/city-editor/generators/vector/generation/wallShape.test.ts) は、上の表のとおり種による違いなので、まっすぐな川に固定したままにした。
+
+### 8.24 町が大きくなったら稜堡を増やす（2026-11-20、実装）
+
+ユーザー: 稜堡式は戦争のための町で、稜堡は大砲を撃ち合う所なので建物を置かない。稜堡の数を変えないまま町を大きくすると、大砲の射程と稜堡の大きさが合わなくなる。人口が増えて町の面積が増えたら、頂点（稜堡）を増やす必要がある。
+
+#### 決まり
+
+- 稜堡の数をユーザーが指定していない時は、隣り合う稜堡の突角の間（前線の一辺）が **350 m 以内** になるまで稜堡を増やす。数は 48 まで。
+  - 根拠: Palmanova は、大砲の有効射程 350 m（200歩）から平面を決めた（[ce-bastioned-fortress-city.md](ce-bastioned-fortress-city.md) の寸法の節に引いた Palmanova 公式解説）。Vauban の外側の多角形の一辺は 180 トワーズ（約 351 m）。
+- 小さい町は今までどおり、種で決まる数（市壁の形 `bastioned` は 5〜8、要塞都市 `townFortification` は 5〜9）を下限にする。
+- 稜堡の数をユーザーが指定した時は、その数のままにする。
+- 市壁の形 `bastioned`: 数で、壁の内に占める稜堡の割合（`vectorWallAreaShare`）が変わる。敷地の大きさを決める時（[editorInput.ts](../../src/city-editor/generators/vector/generation/editorInput.ts) の `fitBastions`）に、敷地の半径から数を決め直し、数が変わらなくなるまで繰り返す。壁を置く時（[pipeline.ts](../../src/city-editor/generators/vector/generation/pipeline.ts)）も、同じ関数（[wallShape.ts](../../src/city-editor/generators/vector/generation/wallShape.ts) の `vectorBastionCount`）で敷地の半径から数を決める。
+- 要塞都市: [bastionedTown/plan.ts](../../src/city-editor/generators/bastionedTown/plan.ts) の `makeTrace` で、前線の一辺が 350 m を超える間は稜堡を 1 つずつ増やして引き直す。乱数の引き方は変えないので、前線が 350 m 以内の町の形は変わらない。
+
+#### 測定（川はゆるい蛇行、メッシュなし）
+
+市壁の形 `bastioned`（数は指定なし）:
+
+| 人口・種 | 前: 稜堡の数・前線の最長・稜堡の深さ | 後: 稜堡の数・前線の最長・稜堡の深さ |
+| --- | --- | --- |
+| 1,000・b1 | 生成できない（`fixed-port-unreachable`） | 6・132 m・38 m |
+| 5,000・b1 | 5・320 m・92 m | 6・252 m・72 m |
+| 5,000・b2 | 7・203 m・47 m | 8・171 m・35 m |
+| 10,000・b1 | 生成できない（`fixed-port-unreachable`） | 6・329 m・94 m |
+| 20,000・b1 | 5・578 m・166 m | 8・322 m・87 m |
+| 20,000・b2 | 7・366 m・85 m | 8・309 m・64 m |
+| 40,000・b1 | 5・796 m・229 m | 10・332 m・79 m |
+| 80,000・b1 | 生成できない（`urban-document-budget`） | 14・332 m・77 m |
+
+- 前は町が大きくなるほど稜堡が大きくなった（40,000 人で深さ 229 m）。後は前線 350 m 以内、深さ 35〜94 m に収まる（`artillery-v1` の最小の深さは 70〜90 m）。
+- 稜堡の割合が数で変わるので、5,000 人でも数が変わり、敷地も変わる。全員が住めること（未収容 0）はすべての町で確認した。
+- 1,000 人・10,000 人の `b1` は、前は乱数の引き方が違う形で生成できなかった。数の乱数を別の流れ（`vector-wall:bastions`）にしたことで形が変わった結果で、この変更で直したものではない。
+
+要塞都市（種 g0、川なし、外堡あり）:
+
+| 人口 | 前: 稜堡の数（`artillery-v1`の支援距離） | 後 |
+| --- | --- | --- |
+| 5,000 | 9（140 m） | 9（140 m） |
+| 20,000 | 9（218 m） | 12（170 m） |
+| 40,000 | 9（287 m） | 15（191 m） |
+
+- 寸法の決まりなし（`dimensionPolicy` なし）でも、20,000 人で 9→10、40,000 人で 9→13。
+
+#### 版
+
+- 出力が変わるので、版を compact v56、burgage v57、burgage-dense v58 に上げた。
+
+#### 試験
+
+- [wallShape.test.ts](../../src/city-editor/generators/vector/generation/wallShape.test.ts) に、町が大きくなると稜堡が増えて前線が 350 m 以内に収まること、指定した数はそのままになることを加えた。
+- [townMoat.test.ts](../../src/city-editor/generators/vector/generation/townMoat.test.ts) の「堀を置けない町」の種を `m39` から `m59` に替えた。`m39` は稜堡の数が変わって堀を置けるようになった。種 `m0`〜`m79`（5,000 人、壁の形は自動）で、生成できない稜堡式の町は前も後も 2 つ（前 `m30`・`m76`、後 `m30`・`m65`）。
