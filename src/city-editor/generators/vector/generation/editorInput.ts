@@ -167,7 +167,9 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
           )
         : [],
       ownFrame ? WALLED_REACH : undefined,
-      plainForm
+      plainForm,
+      // The map the site is laid on (`build` widens it to this), so the river and approaches reach its edge.
+      ownFrame ? 0 : Math.max(input.frame.extentMeters, frame.extentMeters)
     );
     return site;
   };

@@ -485,6 +485,25 @@ function wetStretches(course: Point[], p: Point, reach: number): [number, number
   return out;
 }
 
+/** Where the ray from `from` along `direction` leaves the square frame of half-size `half`. */
+function rayToFrame(from: Point, direction: Point, half: number): Point {
+  const l = Math.hypot(direction[0], direction[1]) || 1,
+    d: Point = [direction[0] / l, direction[1] / l];
+  let t = Infinity;
+  for (const k of [0, 1]) if (Math.abs(d[k]) > 1e-12) t = Math.min(t, ((d[k] > 0 ? half : -half) - from[k]) / d[k]);
+  return Number.isFinite(t) && t > 0 ? [from[0] + d[0] * t, from[1] + d[1] * t] : from;
+}
+/** A course carried on along its end tangents to the frame edge, so the river crosses the whole map. */
+function courseToFrame(points: Point[], half: number): Point[] {
+  if (points.length < 2) return points;
+  const [a, b] = points,
+    [y, z] = points.slice(-2),
+    start = rayToFrame(a, [a[0] - b[0], a[1] - b[1]], half),
+    end = rayToFrame(z, [z[0] - y[0], z[1] - y[1]], half),
+    far = (p: Point, q: Point) => Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.5;
+  return [...(far(start, a) ? [start] : []), ...points, ...(far(end, z) ? [end] : [])];
+}
+
 /**
  * Synthetic standalone site. Without `vary` the layout is the fixed reference
  * (east-west river, four cardinal roads). With `vary` the seed picks the river
@@ -502,10 +521,13 @@ export function syntheticVectorInput(
   reach = 1.5,
   /** The varied river's channel: nearly straight, or a gentle meander as `synthSite` lays one
    * (docs/plan/ce-outskirts-workshop-sizes.md §8.21). */
-  riverForm: "straight" | "gentle" = "straight"
+  riverForm: "straight" | "gentle" = "straight",
+  /** The map the site is drawn on, when wider than `reach` gives: the river and the approaches run out to its edge. */
+  extentMeters = 0
 ): VectorCityDocument {
   if (!(radius >= 30 && radius <= 3000 && Number.isFinite(radius))) throw new Error("site-frame");
-  const doc = createVectorDocument(seed, radius * 2 * reach),
+  const doc = createVectorDocument(seed, Math.max(radius * 2 * reach, extentMeters)),
+    half = doc.frame.extentMeters / 2,
     site: VectorSite = {
       kind: "synthetic",
       id: "synthetic-site",
@@ -551,7 +573,9 @@ export function syntheticVectorInput(
       break;
     }
   }
-  const { normal, side, offset, points: riverPoints } = layout;
+  const { normal, side, offset } = layout;
+  // Laid inside the reach, then carried on to the map's edge: a river never stops short in the open country.
+  const riverPoints = courseToFrame(layout.points, half);
   if (river) doc.paths["input-river"] = importedPath("input-river", "river", riverPoints, RIVER_WIDTH);
   // Beyond the river: across its line from the centre (a gentle meander's own course, not its axis).
   const crossesCourse = (p: Point) =>
@@ -606,7 +630,11 @@ export function syntheticVectorInput(
     if (past !== undefined && (past + 6) / radius > 0.75) continue;
     // Nor where the bearing crosses a meander twice: the way in would need a second, oblique bridge.
     if (cut.length > 1) continue;
-    doc.paths[id] = importedPath(id, "road", [p, endpoint], 5);
+    // The approach comes in from the map's edge, unless that longer way would meet the river.
+    const edge = rayToFrame(p, p, half),
+      wet = (q: Point) =>
+        river && riverPoints.slice(1).some((b, k) => segmentsIntersect(q, endpoint, riverPoints[k], b));
+    doc.paths[id] = importedPath(id, "road", [!wet(edge) || wet(p) ? edge : p, endpoint], 5);
   }
   site.fixedPaths = Object.values(doc.paths).map(p => structuredClone(p));
   return seal(doc, site);
