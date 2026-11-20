@@ -16,7 +16,7 @@ import { builtFeatureReservations, featureReservations } from "../environmentSta
 import { fabricLaneId, fabricStreetId } from "../fabric/lines";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening, junctionSurface, nearestRoadAnchor } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionArea, regionBoolean, regionContains } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -110,6 +110,16 @@ export function placeFacilitiesOnLots(
         return !!surface && regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6);
       }),
     { occupied, protectedLand } = facilityLand(doc);
+  // Each street block's outline, indexed once: the sites are sampled against it point by point.
+  const ringTests = new Map<string, (p: Point) => boolean>(),
+    ringTest = (cellId: string, ring: Point[]) => {
+      let test = ringTests.get(cellId);
+      if (!test) {
+        test = regionContains({ outer: ring, holes: [] });
+        ringTests.set(cellId, test);
+      }
+      return test;
+    };
   // A facility never stands across a lane of its street block.
   const lanesOf = new Map(plan.districts.flatMap(d => d.cells.map(c => [c.id, c.lanes] as const)));
   const water = new Map<number, number>();
@@ -263,12 +273,13 @@ export function placeFacilitiesOnLots(
         if (!under.length || under.some(l => used.has(l.i) || l.cellId !== seed.cellId)) continue;
         // The site lies wholly in the street block: every sample of it falls inside the block's outline.
         const ring = cellRings.get(seed.cellId)!,
+          inRing = ringTest(seed.cellId, ring),
           box = boxOf(hull);
         let covered = true;
         for (let x = box.minX + SAMPLE_METERS / 2; covered && x < box.maxX; x += SAMPLE_METERS)
           for (let y = box.minY + SAMPLE_METERS / 2; y < box.maxY; y += SAMPLE_METERS) {
             if (!pointInPolygon([x, y], hull)) continue;
-            if (!pointInPolygon([x, y], ring)) {
+            if (!inRing([x, y])) {
               covered = false;
               break;
             }
@@ -279,7 +290,16 @@ export function placeFacilitiesOnLots(
             // The lane's surface: its line and both edges, every half metre.
             lane.points.slice(1).some((b, k) => {
               const a = lane.points[k],
-                l = Math.hypot(b[0] - a[0], b[1] - a[1]),
+                reach = lane.widthMeters / 2;
+              // No sample of a lane piece away from the site's bounds can fall inside it.
+              if (
+                Math.min(a[0], b[0]) - reach > box.maxX ||
+                Math.max(a[0], b[0]) + reach < box.minX ||
+                Math.min(a[1], b[1]) - reach > box.maxY ||
+                Math.max(a[1], b[1]) + reach < box.minY
+              )
+                return false;
+              const l = Math.hypot(b[0] - a[0], b[1] - a[1]),
                 n: Point = l
                   ? [(-(b[1] - a[1]) / l) * (lane.widthMeters / 2), ((b[0] - a[0]) / l) * (lane.widthMeters / 2)]
                   : [0, 0];
@@ -1232,6 +1252,16 @@ function layTannersLanes(
    * A way round what lies between `head` and the roads (the town wall, a burial ground, a bend of the river): a search
    * on a grid of LANE_GRID_METERS cells to the nearest road, its corners then pulled straight.
    */
+  // The grid search tests thousands of points against the same obstacles; each obstacle's outline is indexed once.
+  const tests = new Map<VectorPolygon, (p: Point) => boolean>(),
+    inPolygon = (polygon: VectorPolygon) => {
+      let test = tests.get(polygon);
+      if (!test) {
+        test = regionContains(polygon);
+        tests.set(polygon, test);
+      }
+      return test;
+    };
   const routeAround = (head: Point) => {
     const g = LANE_GRID_METERS,
       r = Math.ceil(LANE_REACH_METERS / g),
@@ -1257,9 +1287,7 @@ function layTannersLanes(
       else
         for (const o of obstacles.search(boxOf([p], clearance)))
           if (
-            o.road
-              ? containsRegion([o.polygon], p)
-              : probe(p, o.yard ? YARD_CLEARANCE : clearance).some(q => containsRegion([o.polygon], q))
+            o.road ? inPolygon(o.polygon)(p) : probe(p, o.yard ? YARD_CLEARANCE : clearance).some(inPolygon(o.polygon))
           ) {
             v = o.road ? 2 : 1;
             if (v === 1) break;
@@ -1279,9 +1307,7 @@ function layTannersLanes(
           Math.abs(p[1]) > ctx.half - clearance ||
           obstacles
             .search(boxOf([p], clearance))
-            .some(
-              o => !o.road && probe(p, o.yard ? YARD_CLEARANCE : clearance).some(q => containsRegion([o.polygon], q))
-            );
+            .some(o => !o.road && probe(p, o.yard ? YARD_CLEARANCE : clearance).some(inPolygon(o.polygon)));
         blockedAt.set(k, v);
       }
       return v;
@@ -1351,10 +1377,12 @@ function layTannersLanes(
       d: 0
     };
   };
-  const routesFrom = (head: Point) => {
+  // The way round is searched only when no straight route served the whole run: it is the costliest, and last.
+  function* routesFrom(head: Point) {
+    yield* straightRoutes(head);
     const around = routeAround(head);
-    return [...straightRoutes(head), ...(around ? [around] : [])];
-  };
+    if (around) yield around;
+  }
   const straightRoutes = (head: Point) =>
     roadPaths
       .flatMap(road => {

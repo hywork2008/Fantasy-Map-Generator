@@ -55,6 +55,7 @@ import type { StreetHouseExterior } from "./medieval/streetHouses";
 import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableObjects";
 import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
+import footprintTable from "./placementFootprints.json";
 import type { BuildingRecord } from "./record";
 import { BASILICA_QUALITIES } from "./temples/basilicaTemple";
 import { BASILICA_VARIANTS } from "./temples/basilicaVariants";
@@ -87,9 +88,22 @@ export function placementPalette(id: string, requested?: MarketPalette): MarketP
     : undefined;
 }
 
+/**
+ * The footprints measured once ahead (`placementFootprints.json`, kept equal to the models by
+ * `placementFootprints.test.ts`): measuring builds the whole 3D model, and a generation worker starts with an empty
+ * cache, so a town in facility mode spent seconds building every trade's model only to read its bounds.
+ */
+const measuredAhead = footprintTable as Record<string, FootprintBox>;
+let measureAhead = true;
+
 function measured(definition: BvDefinition): FootprintBox {
   const cached = footprints.get(definition.id);
   if (cached) return cached;
+  const known = measureAhead ? measuredAhead[definition.id] : undefined;
+  if (known) {
+    footprints.set(definition.id, known);
+    return known;
+  }
   const model = definition.create();
   try {
     const box = new THREE.Box3().setFromObject(model.group, true);
@@ -231,6 +245,24 @@ export function placementQuality(id: string, requested?: PlacementQuality): Plac
 
 export function placementCatalog(): readonly PlacementCatalogItem[] {
   return [...sources.values()].map(source => source.item);
+}
+
+/** Every model footprint measured from its model, as `placementFootprints.json` holds them (tests only). */
+export function measureAllPlacementFootprints(): Record<string, FootprintBox> {
+  measureAhead = false;
+  footprints.clear();
+  try {
+    for (const source of sources.values()) {
+      if (!source.definition && !source.qualities) continue;
+      for (const quality of [undefined, "low", "high"] as const) source.footprint(quality);
+    }
+    // Placeable objects are measured from their drawings, which costs nothing: only models are kept.
+    const objects = new Set(PLACEABLE_OBJECTS.map(o => o.id));
+    return Object.fromEntries([...footprints].filter(([id]) => !objects.has(id)).sort(([a], [b]) => (a < b ? -1 : 1)));
+  } finally {
+    measureAhead = true;
+    footprints.clear();
+  }
 }
 
 export function placementFootprint(id: string, quality?: PlacementQuality): FootprintBox | null {

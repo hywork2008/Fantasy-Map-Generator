@@ -41,6 +41,38 @@ export function indexedContains(polygons: VectorPolygon[]) {
       return inside(rings[0]) && !rings.slice(1).some(inside);
     });
 }
+/**
+ * `containsRegion([polygon], p)` for one polygon tested at many points: the same crossing test on the same edges,
+ * so the answer is identical, but only the edges spanning the point's height are visited (an index by height).
+ * Worth it for outlines of many vertices, such as a meandering river's water.
+ */
+export function regionContains(polygon: VectorPolygon): (p: Point) => boolean {
+  const rings = [polygon.outer, ...polygon.holes].map(r => {
+    const tree = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; i: number }>();
+    tree.load(
+      r.map((pi, i) => {
+        const pj = r[(i + r.length - 1) % r.length];
+        return { minX: 0, maxX: 0, minY: Math.min(pi[1], pj[1]), maxY: Math.max(pi[1], pj[1]), i };
+      })
+    );
+    return { r, tree };
+  });
+  // pointInPolygon's test, edge by edge; the crossings are counted the same, so their order does not matter.
+  const inside = ({ r, tree }: (typeof rings)[number], p: Point) => {
+    let yes = false;
+    const px = p[0],
+      py = p[1];
+    for (const { i } of tree.search({ minX: 0, maxX: 0, minY: py, maxY: py })) {
+      const pi = r[i],
+        pj = r[(i + r.length - 1) % r.length],
+        yi = pi[1],
+        yj = pj[1];
+      if (yi > py !== yj > py && px < ((pj[0] - pi[0]) * (py - yi)) / (yj - yi) + pi[0]) yes = !yes;
+    }
+    return yes;
+  };
+  return p => inside(rings[0], p) && !rings.slice(1).some(h => inside(h, p));
+}
 /** Only derived boundaries enter the clipping kernel; source paths and surveyed rings remain untouched. */
 export function regionBoolean(
   a: VectorPolygon[],

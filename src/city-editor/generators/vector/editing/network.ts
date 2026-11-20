@@ -180,6 +180,21 @@ export function rebuildRoadGraph(document: VectorCityDocument): void {
     }
   }
 }
+let inPlace = 0;
+/**
+ * Run a batch of edits on a working copy the caller owns and throws away on failure (a generator gating a new wall):
+ * connecting anchors, setting circuits and adding gates edit it in place instead of copying the whole document for
+ * each edit.
+ */
+export function withInPlaceEdits<T>(run: () => T): T {
+  inPlace++;
+  try {
+    return run();
+  } finally {
+    inPlace--;
+  }
+}
+const editable = (document: VectorCityDocument) => (inPlace ? document : structuredClone(document));
 function finish(document: VectorCityDocument): VectorCityDocument {
   rebuildRoadGraph(document);
   document.revision++;
@@ -201,7 +216,7 @@ export function connectVectorAnchors(
     new Set([targetPath.role, sourcePath.role]).has("river")
   )
     throw new Error("bridge-required");
-  let next = structuredClone(document);
+  let next = editable(document);
   const position = evaluateAnchor(targetPath, target);
   if (distance(position, evaluateAnchor(sourcePath, source)) > 1e-6) {
     if (sourcePath.editPolicy === "fixed") throw new Error("fixed-connection");
@@ -246,7 +261,7 @@ export function disconnectVectorNode(document: VectorCityDocument, id: string): 
   return finish(next);
 }
 export function setWallCircuit(document: VectorCityDocument, pathId: string, parentId?: string): VectorCityDocument {
-  const next = structuredClone(document),
+  const next = editable(document),
     path = next.paths[pathId];
   if (path?.role !== "wall" || !pathIsClosed(path)) throw new Error("circuit-containment");
   const id =
@@ -263,7 +278,7 @@ export function createVectorGate(
   kind: VectorGate["kind"],
   existingId?: string
 ): VectorCityDocument {
-  let next = structuredClone(document);
+  let next = editable(document);
   if (
     next.paths[wall.pathId]?.role !== "wall" ||
     next.paths[access.pathId]?.role !== (kind === "passage" ? "road" : "river")

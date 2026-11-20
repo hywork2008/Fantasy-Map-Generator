@@ -578,7 +578,26 @@ function contentKey(value: unknown): string | undefined {
   return `${text.length}:${(a >>> 0).toString(16)}:${(b >>> 0).toString(16)}`;
 }
 
+let deferred = 0;
+/**
+ * Run a batch of edits whose intermediate documents need no checks of their own (a generator adding a gate at each
+ * crossing of a new wall, one after another): the edits skip their own validation, and the batch's result is
+ * validated once, so a failure still throws.
+ */
+export function withDeferredValidation(run: () => VectorCityDocument): VectorCityDocument {
+  deferred++;
+  let result: VectorCityDocument;
+  try {
+    result = run();
+  } finally {
+    deferred--;
+  }
+  assertVectorDocument(result);
+  return result;
+}
+
 export function assertVectorDocument(value: unknown): asserts value is VectorCityDocument {
+  if (deferred) return;
   const key = contentKey(value);
   if (key !== undefined && validatedContent.includes(key)) return;
   const errors = validateVectorDocument(value);

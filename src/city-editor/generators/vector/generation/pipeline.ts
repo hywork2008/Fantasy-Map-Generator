@@ -17,7 +17,8 @@ import {
   joinVectorGenerationAnchors,
   proposeSquareBridge,
   rebuildRoadGraph,
-  setWallCircuit
+  setWallCircuit,
+  withInPlaceEdits
 } from "../editing/network";
 import { curveSource, removeVectorPath } from "../editing/paths";
 import { featureReservations } from "../environmentState";
@@ -30,7 +31,7 @@ import { pointSegmentDistance, samplePath, simplifyFreehand } from "../geometry/
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
-import { assertVectorDocument } from "../validation/document";
+import { assertVectorDocument, withDeferredValidation } from "../validation/document";
 import { BASTION_REGION_PREFIX, reserveVectorBastions } from "./bastions";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
@@ -309,6 +310,11 @@ function addTownMoat(doc: VectorCityDocument, wallId: string, settings: VectorGe
 }
 /** Gates wherever a road or river crosses the wall. */
 function gateWall(doc: VectorCityDocument, id: string, settings: VectorGenerationSettings): VectorCityDocument {
+  // Each gate is an edit of its own; the wall with all its gates is validated once.
+  // The working copy is the attempt's own (`skeleton` discards it on failure), so the gates are added in place.
+  return withDeferredValidation(() => withInPlaceEdits(() => gateEachCrossing(doc, id, settings)));
+}
+function gateEachCrossing(doc: VectorCityDocument, id: string, settings: VectorGenerationSettings): VectorCityDocument {
   for (const path of Object.values(doc.paths).filter(p => p.id !== id && (p.role === "road" || p.role === "river")))
     for (const hit of pathIntersections(doc.paths[id], path)) {
       const tangent = unit(evaluateAnchor(doc.paths[id], hit.a, true)),

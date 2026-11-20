@@ -1,0 +1,919 @@
+{
+ "ale-brewhouse:high": {
+  "halfX": 5.789999961853027,
+  "halfZ": 3.6799999475479126,
+  "centerX": 0.6750001907348633,
+  "centerZ": -0.1799999475479126,
+  "groundY": -1.490116086078075e-10
+ },
+ "ale-brewhouse:low": {
+  "halfX": 5.650000095367432,
+  "halfZ": 3.6889723929849785,
+  "centerX": 0.5999999046325684,
+  "centerZ": -0.18897239298497848,
+  "groundY": -1.490116086078075e-10
+ },
+ "basilica-temple:high": {
+  "halfX": 31.3671293258667,
+  "halfZ": 14.050000190734863,
+  "centerX": -1.4328699111938477,
+  "centerZ": 0,
+  "groundY": -0.18000000715255737
+ },
+ "basilica-temple:low": {
+  "halfX": 31.3671293258667,
+  "halfZ": 13.920000076293945,
+  "centerX": -1.4328699111938477,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:beaumaris": {
+  "halfX": 53.58612823486328,
+  "halfZ": 54.08612823486328,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:castel-del-monte": {
+  "halfX": 23.659292221069336,
+  "halfZ": 23.659292221069336,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:fixture-courtyard-keep": {
+  "halfX": 5,
+  "halfZ": 5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:krak-inner-ward": {
+  "halfX": 27,
+  "halfZ": 37,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:langeais-keep": {
+  "halfX": 8.75,
+  "halfZ": 5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:loches-donjon": {
+  "halfX": 7.75,
+  "halfZ": 16.149999618530273,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:nunney": {
+  "halfX": 14.600000381469727,
+  "halfZ": 9.100000381469727,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:orford-keep": {
+  "halfX": 9.84619426727295,
+  "halfZ": 9.92491626739502,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:vincennes-donjon": {
+  "halfX": 25,
+  "halfZ": 25,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "catalogue:white-tower": {
+  "halfX": 21.5,
+  "halfZ": 17.75,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "churchyard-cross:high": {
+  "halfX": 1.2000000476837158,
+  "halfZ": 1.2000000476837158,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "churchyard-cross:low": {
+  "halfX": 1.2000000476837158,
+  "halfZ": 1.2000000476837158,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "cloth-guild-hall:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "cloth-guild-hall:low": {
+  "halfX": 8.300000190734863,
+  "halfZ": 6.587531996348941,
+  "centerX": 0,
+  "centerZ": 2.212468003651057,
+  "groundY": -2.3841857821338408e-8
+ },
+ "covered-market-hall:high": {
+  "halfX": 8.042500019073486,
+  "halfZ": 3.8849998712539673,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "covered-market-hall:low": {
+  "halfX": 7.800000190734863,
+  "halfZ": 5.590378297526608,
+  "centerX": 0,
+  "centerZ": 2.2096217024733917,
+  "groundY": -2.3841857821338408e-8
+ },
+ "early-printing-workshop:high": {
+  "halfX": 4.364999771118164,
+  "halfZ": 2.8600000143051147,
+  "centerX": 0,
+  "centerZ": -0.8000000715255737,
+  "groundY": 0
+ },
+ "early-printing-workshop:low": {
+  "halfX": 4.300000190734863,
+  "halfZ": 2.876454232779208,
+  "centerX": 0,
+  "centerZ": -1,
+  "groundY": 0
+ },
+ "house:atlantic": {
+  "halfX": 3.559999942779541,
+  "halfZ": 4.800000190734863,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "house:mediterranean": {
+  "halfX": 2.9391772747039795,
+  "halfZ": 4.175000190734863,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "house:northern-urban": {
+  "halfX": 3.266883134841919,
+  "halfZ": 5.137500047683716,
+  "centerX": 0,
+  "centerZ": 0.5125000476837158,
+  "groundY": 0
+ },
+ "house:northern-wooded": {
+  "halfX": 3.1600000858306885,
+  "halfZ": 4.400000095367432,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "house:stone-upland": {
+  "halfX": 2.9614717960357666,
+  "halfZ": 4.662499904632568,
+  "centerX": 0,
+  "centerZ": 0.4375,
+  "groundY": 0
+ },
+ "lych-gate:high": {
+  "halfX": 1.6369386911392212,
+  "halfZ": 2.523646354675293,
+  "centerX": 0,
+  "centerZ": 0.2236464023590088,
+  "groundY": 0
+ },
+ "lych-gate:low": {
+  "halfX": 1.6369386911392212,
+  "halfZ": 2.523646354675293,
+  "centerX": 0,
+  "centerZ": 0.2236464023590088,
+  "groundY": 0
+ },
+ "market-bread-stall:high": {
+  "halfX": 2.315000057220459,
+  "halfZ": 1.757900059223175,
+  "centerX": 0,
+  "centerZ": 0.006430089473724365,
+  "groundY": -2.98023217215615e-10
+ },
+ "market-bread-stall:low": {
+  "halfX": 2.315000057220459,
+  "halfZ": 1.757900059223175,
+  "centerX": 0,
+  "centerZ": 0.006430089473724365,
+  "groundY": -2.98023217215615e-10
+ },
+ "market-cross-canopied:high": {
+  "halfX": 2.9049999713897705,
+  "halfZ": 2.9049999713897705,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "market-cross-canopied:low": {
+  "halfX": 2.9000000953674316,
+  "halfZ": 2.9000000953674316,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "market-cross-stepped:high": {
+  "halfX": 1.8049999475479126,
+  "halfZ": 1.8049999475479126,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -5.9604645663569045e-9
+ },
+ "market-cross-stepped:low": {
+  "halfX": 1.8000000715255737,
+  "halfZ": 1.8000000715255737,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -5.9604645663569045e-9
+ },
+ "market-fish-booth:high": {
+  "halfX": 2.009999990463257,
+  "halfZ": 1.623834490776062,
+  "centerX": -0.009999990463256836,
+  "centerZ": 0,
+  "groundY": -1.2665986315330002e-10
+ },
+ "market-fish-booth:low": {
+  "halfX": 2.009999990463257,
+  "halfZ": 1.623834490776062,
+  "centerX": -0.009999990463256836,
+  "centerZ": 0,
+  "groundY": -1.2665986315330002e-10
+ },
+ "market-fish-table:high": {
+  "halfX": 1.7950000166893005,
+  "halfZ": 1.2363749742507935,
+  "centerX": -0.020000040531158447,
+  "centerZ": 0.22612500190734863,
+  "groundY": -1.2665986315330002e-10
+ },
+ "market-fish-table:low": {
+  "halfX": 1.7950000166893005,
+  "halfZ": 1.2363749742507935,
+  "centerX": -0.020000040531158447,
+  "centerZ": 0.22612500190734863,
+  "groundY": -1.2665986315330002e-10
+ },
+ "market-goods-booth:high": {
+  "halfX": 2.315000057220459,
+  "halfZ": 1.7586124539375305,
+  "centerX": 0,
+  "centerZ": 0.0057176947593688965,
+  "groundY": -2.98023217215615e-10
+ },
+ "market-goods-booth:low": {
+  "halfX": 2.200000047683716,
+  "halfZ": 1.7708911917762178,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "market-grain-table:high": {
+  "halfX": 1.7950000166893005,
+  "halfZ": 1.2162500023841858,
+  "centerX": -0.020000040531158447,
+  "centerZ": 0.2462499737739563,
+  "groundY": -4.172325152040912e-9
+ },
+ "market-grain-table:low": {
+  "halfX": 1.7950000166893005,
+  "halfZ": 1.2162500023841858,
+  "centerX": -0.020000040531158447,
+  "centerZ": 0.2462499737739563,
+  "groundY": -4.172325152040912e-9
+ },
+ "market-produce-stall:high": {
+  "halfX": 2.3274999856948853,
+  "halfZ": 1.757900059223175,
+  "centerX": 0.01249992847442627,
+  "centerZ": 0.006430089473724365,
+  "groundY": -2.98023217215615e-10
+ },
+ "market-produce-stall:low": {
+  "halfX": 2.04,
+  "halfZ": 1.7401086374082666,
+  "centerX": 2.220446049250313e-16,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "medieval-town-hall:high": {
+  "halfX": 7.042499780654907,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775000095367432,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "medieval-town-hall:low": {
+  "halfX": 6.800000190734863,
+  "halfZ": 6.587531996348941,
+  "centerX": 0,
+  "centerZ": 2.212468003651057,
+  "groundY": -2.3841857821338408e-8
+ },
+ "pillory-and-stocks:high": {
+  "halfX": 2.299999952316284,
+  "halfZ": 1.399999976158142,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "pillory-and-stocks:low": {
+  "halfX": 2.299999952316284,
+  "halfZ": 1.399999976158142,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "potters-workshop:high": {
+  "halfX": 5.732499837875366,
+  "halfZ": 3.7049999237060547,
+  "centerX": -0.13249993324279785,
+  "centerZ": -0.1549999713897705,
+  "groundY": -1.4901161415892261e-9
+ },
+ "potters-workshop:low": {
+  "halfX": 5.650000095367432,
+  "halfZ": 3.7374501553976947,
+  "centerX": -0.15000009536743164,
+  "centerZ": -0.13745015539769478,
+  "groundY": -5.960464455334602e-9
+ },
+ "town-brewery:high": {
+  "halfX": 7.039999961853027,
+  "halfZ": 3.6799999475479126,
+  "centerX": 0.6750001907348633,
+  "centerZ": -0.1799999475479126,
+  "groundY": -1.490116086078075e-10
+ },
+ "town-brewery:low": {
+  "halfX": 6.900000095367432,
+  "halfZ": 3.6889723929849785,
+  "centerX": 0.5999999046325684,
+  "centerZ": -0.18897239298497848,
+  "groundY": -1.490116086078075e-10
+ },
+ "town-church-collegiate:high": {
+  "halfX": 25.766685485839844,
+  "halfZ": 14.020000457763672,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -0.03999999910593033
+ },
+ "town-church-collegiate:low": {
+  "halfX": 25.766685485839844,
+  "halfZ": 14.020000457763672,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "town-church-large:high": {
+  "halfX": 17.655000686645508,
+  "halfZ": 9.957500457763672,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -0.03999999910593033
+ },
+ "town-church-large:low": {
+  "halfX": 17.622499465942383,
+  "halfZ": 9.925000190734863,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "town-church-parish:high": {
+  "halfX": 10.954999923706055,
+  "halfZ": 5.302499771118164,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -0.03999999910593033
+ },
+ "town-church-parish:low": {
+  "halfX": 10.922499656677246,
+  "halfZ": 5.269999980926514,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.baking:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.baking:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.book-trades:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.book-trades:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.brewing:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.brewing:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.glassware-pottery:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.glassware-pottery:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.leather:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.leather:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.masonry:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.masonry:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.metallurgy:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.metallurgy:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.textiles:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.textiles:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.victualling:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.victualling:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.woodworking:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-enclosed.woodworking:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 4.360000133514404,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.baking:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.baking:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.book-trades:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.book-trades:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.brewing:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.brewing:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.glassware-pottery:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.glassware-pottery:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.leather:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.leather:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.masonry:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.masonry:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.metallurgy:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.metallurgy:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.textiles:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.textiles:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.victualling:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.victualling:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.woodworking:high": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-hall.guild-market-arcade.woodworking:low": {
+  "halfX": 8.542500019073486,
+  "halfZ": 4.384999871253967,
+  "centerX": 0.6775002479553223,
+  "centerZ": 0.5249999761581421,
+  "groundY": 0
+ },
+ "trade-workhome.workhome-narrow.skeleton:high": {
+  "halfX": 2.619999885559082,
+  "halfZ": 4.465000152587891,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workhome.workhome-narrow.skeleton:low": {
+  "halfX": 2.619999885559082,
+  "halfZ": 4.465000152587891,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workhome.workhome-standard.skeleton:high": {
+  "halfX": 3.2200000286102295,
+  "halfZ": 5.264999866485596,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workhome.workhome-standard.skeleton:low": {
+  "halfX": 3.2200000286102295,
+  "halfZ": 5.264999866485596,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workhome.workhome-wide.skeleton:high": {
+  "halfX": 3.819999933242798,
+  "halfZ": 5.264999866485596,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workhome.workhome-wide.skeleton:low": {
+  "halfX": 3.819999933242798,
+  "halfZ": 5.264999866485596,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-bakehouse:high": {
+  "halfX": 7.25,
+  "halfZ": 5.25,
+  "centerX": 2.75,
+  "centerZ": 1.75,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-bakehouse:low": {
+  "halfX": 7.25,
+  "halfZ": 5.25,
+  "centerX": 2.75,
+  "centerZ": 1.75,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-butchery:high": {
+  "halfX": 8,
+  "halfZ": 6.5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -5.960464455334602e-9
+ },
+ "trade-workshop.dedicated-butchery:low": {
+  "halfX": 8,
+  "halfZ": 6.5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -5.960464455334602e-9
+ },
+ "trade-workshop.dedicated-chandlery:high": {
+  "halfX": 6,
+  "halfZ": 5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-chandlery:low": {
+  "halfX": 6,
+  "halfZ": 5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -1.1920928966180355e-8
+ },
+ "trade-workshop.dedicated-cooperage:high": {
+  "halfX": 8,
+  "halfZ": 6.5,
+  "centerX": 0,
+  "centerZ": 0.5,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-cooperage:low": {
+  "halfX": 8,
+  "halfZ": 6.5,
+  "centerX": 0,
+  "centerZ": 0.5,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-cutlery:high": {
+  "halfX": 6,
+  "halfZ": 5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -5.960464455334602e-9
+ },
+ "trade-workshop.dedicated-cutlery:low": {
+  "halfX": 6,
+  "halfZ": 5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -5.960464455334602e-9
+ },
+ "trade-workshop.dedicated-farrier:high": {
+  "halfX": 8.099999904632568,
+  "halfZ": 7,
+  "centerX": 1.9000000953674316,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-farrier:low": {
+  "halfX": 8.099999904632568,
+  "halfZ": 7,
+  "centerX": 1.9000000953674316,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-fishmongery:high": {
+  "halfX": 7,
+  "halfZ": 6,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-fishmongery:low": {
+  "halfX": 7,
+  "halfZ": 6,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -5.960464455334602e-9
+ },
+ "trade-workshop.dedicated-glaziers-workshop:high": {
+  "halfX": 6,
+  "halfZ": 5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-glaziers-workshop:low": {
+  "halfX": 6,
+  "halfZ": 5,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -1.1920928966180355e-8
+ },
+ "trade-workshop.dedicated-horse-mill:high": {
+  "halfX": 6.300000190734863,
+  "halfZ": 5.987184047698975,
+  "centerX": 0,
+  "centerZ": -0.11281585693359375,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-horse-mill:low": {
+  "halfX": 6.300000190734863,
+  "halfZ": 5.987184047698975,
+  "centerX": 0,
+  "centerZ": -0.11281585693359375,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-lime-tile-yard:high": {
+  "halfX": 10,
+  "halfZ": 10,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-lime-tile-yard:low": {
+  "halfX": 10,
+  "halfZ": 10,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-metalwares:high": {
+  "halfX": 7,
+  "halfZ": 6,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-metalwares:low": {
+  "halfX": 7,
+  "halfZ": 6,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": -5.960464455334602e-9
+ },
+ "trade-workshop.dedicated-wet-tannery:high": {
+  "halfX": 9,
+  "halfZ": 8,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "trade-workshop.dedicated-wet-tannery:low": {
+  "halfX": 9,
+  "halfZ": 8,
+  "centerX": 0,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "village-chapel:high": {
+  "halfX": 5.7149999141693115,
+  "halfZ": 3.0759999752044678,
+  "centerX": 1.3500001430511475,
+  "centerZ": 0,
+  "groundY": 0
+ },
+ "village-chapel:low": {
+  "halfX": 5.650000095367432,
+  "halfZ": 2.975,
+  "centerX": 1.3499999046325684,
+  "centerZ": 0,
+  "groundY": 0
+ }
+}

@@ -51,6 +51,16 @@ export function layoutVectorParks(
       .map(p => ({ line: samplePath(p).map(s => s.point), margin: p.width.leftMeters + 3.2 })),
     water = allVectorWater(doc).map(w => w.outer),
     trees = vectorTreesGrow(doc),
+    // A water outline's convex pieces are the same for every park beside it: cut once.
+    pieces = new Map<Point[], Point[][]>(),
+    convexPieces = (w: Point[]) => {
+      let cut = pieces.get(w);
+      if (!cut) {
+        cut = convexInfillParts(w);
+        pieces.set(w, cut);
+      }
+      return cut;
+    },
     parks: VectorPark[] = [];
   for (const [id, polygons] of [...blocks].sort(([a], [b]) => (a < b ? -1 : 1))) {
     const outline = regionBoolean(polygons, [], "union").sort((a, b) => b.outer.length - a.outer.length)[0]?.outer;
@@ -90,7 +100,7 @@ export function layoutVectorParks(
       segments: wallSegments,
       rivers: [],
       riverSegments,
-      water: wet.flatMap(convexInfillParts)
+      water: wet.flatMap(convexPieces)
     };
     const lawn = layoutParkLawn(id, outline, boundary, makeRng(`${doc.recipe.seed}:park-lawn:${id}`), clearance, {
       fortified: outline.some(p => distance(p, wallSegments) < FORTIFIED_METERS),
