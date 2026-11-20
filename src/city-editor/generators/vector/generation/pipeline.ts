@@ -720,7 +720,9 @@ function skeleton(
   timed("source-validation-and-clone");
   /** Fixed roads continued through a wall shape by a generated approach; their own ends are no route ports. */
   const extended = new Set<string>();
-  let deferredInner: { make: (scale: number) => VectorPath; parent: string; scale: number } | undefined;
+  let deferredInner:
+    | { make: (scale: number, turn?: number) => VectorPath; parent: string; scale: number; turns: boolean }
+    | undefined;
   if (settings.wall !== "none" && !Object.values(doc.paths).some(p => p.role === "wall")) {
     const ring = doc.site!.domain[0].outer,
       minX = Math.min(...ring.map(p => p[0])),
@@ -966,7 +968,10 @@ function skeleton(
         );
       // The checks above are geometric; a rotation whose gates still fail validation gives way to the next one.
       attempts.push(...fits, ...turns.filter(t => t.scale === 1 && !fits.includes(t)));
-    } else attempts.push({ rotation: 0, scale: 1 });
+    }
+    // A preset outline cannot turn; eased in or out a little it meets a river or road that grazes it (a meandering
+    // river can run along it) at a steeper angle (docs/plan/ce-outskirts-workshop-sizes.md §8.23).
+    else attempts.push(...[1, 0.96, 1.04, 0.92, 1.08].map(scale => ({ rotation: 0, scale })));
     const start = doc;
     let failure: unknown;
     // A town moat that no rotation can bridge squarely gives way to the wall alone, as the mesh editor's
@@ -991,8 +996,8 @@ function skeleton(
                 innerId
               );
           } else {
-            next.paths[id] = preset(id, 1);
-            if (inner) next.paths[innerId] = preset(innerId, innerScale);
+            next.paths[id] = preset(id, outerScale);
+            if (inner) next.paths[innerId] = preset(innerId, innerScale * outerScale);
           }
           const outerClosed = pathIsClosed(next.paths[id]);
           if (outerClosed) next = setWallCircuit(next, id);
@@ -1024,12 +1029,16 @@ function skeleton(
               // afterwards, with a gate wherever a street crosses it.
               const turned = rotation;
               deferredInner = {
-                make: scale =>
+                make: (scale, turn = 0) =>
                   isVectorWallShape(shape)
-                    ? wallPath(curveSource(ringAt(turned, innerScale * outerScale * scale), "polyline", true), innerId)
-                    : preset(innerId, innerScale * scale),
+                    ? wallPath(
+                        curveSource(ringAt(turned + turn, innerScale * outerScale * scale), "polyline", true),
+                        innerId
+                      )
+                    : preset(innerId, innerScale * outerScale * scale),
                 parent: outerCircuit,
-                scale: innerScale
+                scale: innerScale,
+                turns: isVectorWallShape(shape)
               };
               delete next.paths[innerId];
             }
@@ -1054,23 +1063,36 @@ function skeleton(
     const samples = samplePath(river).filter(s => containsRegion(doc.site!.domain, s.point));
     const candidate = samples.sort((a, b) => distance(a.point, center) - distance(b.point, center))[0];
     // Linear paths need interior candidates too; samples intentionally do not densify straight source segments.
-    let anchor = candidate?.anchor;
+    let anchors = candidate ? [candidate.anchor] : [];
     if (river.source.kind === "curve") {
       const candidates = river.source.segments
         .flatMap(s => Array.from({ length: 17 }, (_, i) => ({ pathId: river.id, segmentId: s.id, t: i / 16 })))
         .filter(a => containsRegion(doc.site!.domain, evaluateAnchor(river, a)))
         .sort((a, b) => distance(evaluateAnchor(river, a), center) - distance(evaluateAnchor(river, b), center));
-      anchor = candidates[0] ?? anchor;
+      if (candidates.length) anchors = candidates;
     }
-    if (!anchor) continue;
+    if (!anchors.length) continue;
     try {
-      doc = proposeSquareBridge(
-        doc,
-        anchor,
-        settings.roadWidthMeters,
-        settings.roadWidthMeters / 2 + settings.clearanceMeters + 2,
-        "stone"
-      );
+      // Nearest the centre first; where a meander bends too tightly there for a square bridge, the next places
+      // along it in turn (docs/plan/ce-outskirts-workshop-sizes.md §8.23).
+      let failure: unknown;
+      let bridged: VectorCityDocument | undefined;
+      for (const anchor of anchors) {
+        try {
+          bridged = proposeSquareBridge(
+            doc,
+            anchor,
+            settings.roadWidthMeters,
+            settings.roadWidthMeters / 2 + settings.clearanceMeters + 2,
+            "stone"
+          );
+          break;
+        } catch (error) {
+          failure ??= error;
+        }
+      }
+      if (!bridged) throw failure;
+      doc = bridged;
       const created = Object.values(doc.connections.bridges).find(
         b => !before.has(b.roadPathId) && !b.roadPathId.startsWith("auto-bridge-road:")
       );
@@ -1224,9 +1246,14 @@ function skeleton(
     const crossers = Object.values(doc.paths).filter(p => p.role === "road" || p.role === "river"),
       blocked = [...vectorOccupiedSites(doc, "reserved"), ...featureReservations(doc)],
       // The old town takes in the civic centre, so the line may also grow until it clears those sites.
-      candidates = [0, ...Array.from({ length: 40 }, (_, i) => (i % 4 === 3 ? -1 : 1) * 0.02 * (1 + (i >> 1)))]
-        .filter(d => deferredInner!.scale * (1 + d) <= 0.9)
-        .map(d => deferredInner!.make(1 + d)),
+      // A polygonal old town may also turn a little on its own, so that a river or street that meets it at a corner
+      // (a meandering river does so more often) crosses a side instead; unturned lines come first.
+      turns = deferredInner.turns ? [0, 0.12, -0.12, 0.24, -0.24] : [0],
+      candidates = turns.flatMap(turn =>
+        [0, ...Array.from({ length: 40 }, (_, i) => (i % 4 === 3 ? -1 : 1) * 0.02 * (1 + (i >> 1)))]
+          .filter(d => deferredInner!.scale * (1 + d) <= 0.9)
+          .map(d => deferredInner!.make(1 + d, turn))
+      ),
       // A line clear of the civic sites is preferred; one through a precinct too large for the old town comes next.
       // A line whose gates still fail validation gives way to the next one.
       clear = candidates.filter(c => wallCrossingsFit(c, crossers, settings, blocked)),

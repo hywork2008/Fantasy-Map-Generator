@@ -17,7 +17,10 @@ describe("park wards laid out by the mesh editor's park fabric (feature parity P
         ...defaultGenerationSettings(),
         population: defaultPopulationSettings(3000),
         historicalPeriod: "lateMedieval" as const,
-        buildingPattern: "medieval" as const
+        buildingPattern: "medieval" as const,
+        // A straight river, as the default `through` river was when these cases were set (it is now a gentle
+        // meander, docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+        config: { ...defaultGenerationSettings().config, riverForms: ["straight" as const] }
       },
       input = vectorInputFromEditor({
         settings,

@@ -396,7 +396,16 @@ export function placeFacilitiesOnLots(
         // and reached the streets the fronts lie on (B3 lays facilities on whole plots instead).
         if (absorbed.length && !plan.plotFabric) {
           try {
-            const parcel = regionBoolean([site, ...absorbed], [], "union");
+            // On a lattice of hundredths of a micrometre: the leftovers share the outline's edges to within rounding,
+            // and the clipping kernel can sweep such near-coincident edges without end (seed sw6, a gently meandering
+            // river; docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+            const lattice = (p: VectorPolygon): VectorPolygon => ({
+                outer: p.outer.map(q => [Math.round(q[0] * 1e8) / 1e8, Math.round(q[1] * 1e8) / 1e8] as Point),
+                holes: p.holes.map(h =>
+                  h.map(q => [Math.round(q[0] * 1e8) / 1e8, Math.round(q[1] * 1e8) / 1e8] as Point)
+                )
+              }),
+              parcel = regionBoolean([site, ...absorbed].map(lattice), [], "union");
             if (
               parcel.length === 1 &&
               !parcel[0].holes.length &&

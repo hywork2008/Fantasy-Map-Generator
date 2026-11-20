@@ -137,8 +137,8 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       descriptor.burg.dwellings = getUrbanDwellings(descriptor.burg.population);
     }
   }
-  // The editor's own plain site. A gently meandering river can bend across an approach, which is then laid to cross
-  // it square on a bridge as a synthesized site's roads are (`bridgeSyntheticCrossings`).
+  // The editor's own plain site, its river straight or a gentle meander (the approaches keep to the town's bank but
+  // one, which meets the river square).
   const plainForm = riverSettings(settings.config)[0]?.form === "gentle" ? "gentle" : "straight";
   const plainSite = (radius: number, civic: boolean) => {
     const site = syntheticVectorInput(
@@ -154,7 +154,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       ownFrame ? WALLED_REACH : undefined,
       plainForm
     );
-    return plainForm === "gentle" && settings.config.rivers.length ? bridgeSyntheticCrossings(site) : site;
+    return site;
   };
   const build = (radius: number, civic = true) => {
     let doc = descriptor

@@ -65,7 +65,13 @@ describe("economic wards by the mesh editor's ward mix (feature parity P6g)", ()
       const base = defaultGenerationSettings(),
         settings = {
           ...base,
-          config: { ...base.config, features: { ...base.config.features, walls: true, shanty } },
+          // A straight river, as the default `through` river was when this case was set (it is now a gentle meander,
+          // docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+          config: {
+            ...base.config,
+            riverForms: ["straight" as const],
+            features: { ...base.config.features, walls: true, shanty }
+          },
           population: defaultPopulationSettings(3000),
           historicalPeriod: "lateMedieval" as const,
           buildingPattern: "medieval" as const

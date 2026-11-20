@@ -25,6 +25,9 @@ const settingsFor = (extra: Partial<ReturnType<typeof defaultGenerationSettings>
   population: defaultPopulationSettings(3000),
   historicalPeriod: "ageOfExploration" as const,
   buildingPattern: "medieval" as const,
+  // A straight river, as the default `through` river was when these cases were set (it is now a gentle meander,
+  // docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+  config: { ...defaultGenerationSettings().config, riverForms: ["straight" as const] },
   ...extra
 });
 

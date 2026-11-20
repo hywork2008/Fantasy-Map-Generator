@@ -72,21 +72,19 @@ describe("default standalone civic land and city envelope", () => {
     disabled.config.features.temple = false;
     expect(vectorInputFromEditor({ settings: disabled, seed: "b5o620", frame }).environment).toBeUndefined();
   });
-  it("keeps civic accesses, reservations and all 5000 residents inside a comparable wall area", () => {
+  it("keeps civic accesses, reservations and all 5000 residents inside a wall sized for them", () => {
     const settings = defaults(),
-      seed = "b5o620";
-    const mesh = generateCityOnDocument(createGridDocument({ size: "small", grid: "voronoi", seed }), settings, seed)!;
-    expect(mesh).not.toBeNull();
-    const meshArea = (mesh.defenseCircuits ?? [])
-      .filter(c => c.scope === "town")
-      .reduce((n, c) => n + Math.abs(polygonArea(circuitRing(mesh, c))), 0);
+      seed = "b5o620",
+      // The population plan's own target, not a mesh town's wall: a mesh town of 5,000 sits where its map changes
+      // between 600 and 1,200 m, and its wall area with it (docs/plan/ce-outskirts-workshop-sizes.md §8.22).
+      plan = planPopulation(settings.population, settings.historicalPeriod, frame.extentMeters);
     const input = vectorInputFromEditor({ settings, seed, frame }),
       skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, wall: "ellipse" }).document;
     const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 5000 });
     const wall = { outer: sampledClosedRing(city, "auto-wall"), holes: [] },
       area = regionArea(wall);
-    expect(Math.abs(area / meshArea - 1)).toBeLessThan(0.05);
-    expect(city.frame.extentMeters).toBe(mesh.frame.extentMeters);
+    expect(Math.abs(area / plan.targetAreaM2 - 1)).toBeLessThan(0.1);
+    expect(city.frame.extentMeters).toBe(Math.max(frame.extentMeters, plan.extentMeters));
     // The skeleton may grow the site (the shanty faubourg, P6h); the urban stage keeps it.
     expect(city.urban!.domain).toEqual(skeleton.site!.domain);
     expect(city.urban!.report.unplacedPopulation).toBe(0);
@@ -104,6 +102,14 @@ describe("default standalone civic land and city envelope", () => {
     const saved = serializeVectorDocument(city);
     expect(parseVectorDocument(saved)).toEqual(city);
     if (process.env.CE_CIVIC_ACCEPTANCE_OUT) {
+      const mesh = generateCityOnDocument(
+        createGridDocument({ size: "small", grid: "voronoi", seed }),
+        settings,
+        seed
+      )!;
+      const meshArea = (mesh.defenseCircuits ?? [])
+        .filter(c => c.scope === "town")
+        .reduce((n, c) => n + Math.abs(polygonArea(circuitRing(mesh, c))), 0);
       const union = (polys: typeof reserved) => regionBoolean([], polys, "union");
       const areaWithin = (polys: typeof reserved) =>
         regionBoolean(union(polys), [wall], "intersection").reduce((n, p) => n + regionArea(p), 0);
