@@ -284,6 +284,8 @@ function* vectorUrbanSteps(
             .requests.filter(r => !(doc.placements[TOWN_GUILDHALL_ID] && r.id.endsWith(":guild:town")))
         )
       : [];
+  // programme-and-domain is reported in parts: the facility programme, the domain, and each reservation.
+  timed("programme-and-domain/facility-programme");
   const domain = structuredClone(continuation?.domain ?? sourceSite.domain);
   // Expansion is a suburb within the synthetic input's known frame; source geometry is never stretched.
   if (
@@ -378,6 +380,7 @@ function* vectorUrbanSteps(
   );
   const core = (p: Point) =>
     walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
+  timed("programme-and-domain/domain-and-walls");
   // The tanners' row is reserved on the bank below the town before the street plan, so streets and lots keep off it.
   const tanneryRow =
     !continuation && organicMode && settings.mode === "medieval-facilities"
@@ -389,6 +392,7 @@ function* vectorUrbanSteps(
           settings.tanneryBends ?? "continuous"
         )
       : { placed: [], unplaced: [], lanes: [], leats: [], islands: [] };
+  timed("programme-and-domain/tannery-row");
   // Ropewalks beside the roads out of the gates (docs/plan/ce-outskirts-workshop-sizes.md S1), laid as the tanners'
   // row is: the street plan keeps off them.
   const ropewalks =
@@ -400,6 +404,7 @@ function* vectorUrbanSteps(
         reserveRopewalks(doc, requests, walls.length ? inside : undefined)
       : { placed: [], sites: [], unplaced: [] };
   for (const site of ropewalks.sites) protectedRegions.push(structuredClone(site));
+  timed("programme-and-domain/ropewalks");
   // Kiln works (lime and tile yards, potters) past the houses along those roads, apart, as many as the map shows; the
   // rest lie beyond its edge (ce-outskirts-workshop-sizes.md §8.15).
   const edgeWorks =
@@ -410,6 +415,7 @@ function* vectorUrbanSteps(
       ? reserveEdgeWorks(doc, requests, walls.length ? inside : undefined)
       : { placed: [], sites: [], offMap: [] };
   for (const site of edgeWorks.sites) protectedRegions.push(structuredClone(site));
+  timed("programme-and-domain/edge-works");
   // The street plan keeps off the yards and their revetments.
   // A little wider than the yards themselves: a lane ending on the block's edge, rounded to the centimetre, must not
   // reach into a yard.
@@ -424,7 +430,7 @@ function* vectorUrbanSteps(
       });
     }
   protectedRegions.push(...tanneryRow.islands);
-  timed("programme-and-domain");
+  timed("programme-and-domain/reservation-margins");
   let blocks = deriveLaneBlocks();
   timed("base-blocks");
   const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
