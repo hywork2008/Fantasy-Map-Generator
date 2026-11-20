@@ -61,6 +61,7 @@ const VIEWER_ENTRIES: Record<string, ModelFacets> = {
   "ferry-smack": f("ship", span("ageOfExploration", "preIndustrialEra"), EU, ["ferry", "transport"]),
   "rope-ferry": f("ship", span("highMedieval", "steamEra"), EU, ["ferry", "transport"]),
   "ford-carrier": f("ship", ["rocketryEra"], ["american"], ["aviation", "military"], [2017, 2105]),
+  pavise: f("weapon", ["lateMedieval"], EU, ["armor", "military"]),
   "flintlock-musket": f("weapon", span("maritimeEra", "preIndustrialEra"), EU, ["military", "small-arms"]),
   "lumber-yard": f("structure", MEDIEVAL_ON, EU, ["storage", "woodworking"]),
   "town-curtain-wall": FORTRESS,

@@ -102,6 +102,11 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
     - 換算：布1幅を約1ヤードとした（W. McLean「The Cut of Henry VIII's Tents」2015 が、テントの図面の屋根の勾配から推定）。円形のテントは直径約7.3 m・頂部約7.3 m、広間は約12 × 4.7 m・棟約5.1 m になる。渡り廊下の幅、柱、張り綱、枝模様の配置は推定。
     - 残り：兵士用の簡素な丸形・楕円形・くさび形のテント（1544年のブローニュの陣の絵に描かれる）と、陣営を囲む幕（1529年の Altdorfer の絵、1544年の Marquison の陣の絵）。どちらも寸法の史料が見つかっていないため未着手。
 - [ ] B04. **大盾（パヴィス）と移動式の防壁** — 弩兵が立てる大盾と、車輪付きの板の防壁。14〜15世紀。
+  - 2026-11-20（一部完了）：パヴィスを [pavise.ts](../../src/buildings/arms/pavise.ts) として実装し、MVの新しい見出し Field defences に `pavise` で登録した（MV 専用、Low／High。author は Claude Opus 5.5）。
+    - 寸法：メトロポリタン美術館のボヘミア製パヴィス（1450年頃、Chomutov 製の可能性、所蔵番号23333）。高さ107.95 cm、幅52.07 cm、反りの高さ12.7 cm、厚さ約2.5 cm、重さ7.569 kg。木に革と石膏下地を張り、銀箔と彩色を施す。ボヘミア王の徽章（三本の駝鳥の羽根を戴く王冠）を描く。美術館は、支え棒で自立させることが多かったとする。
+    - 重さの照合：2.5 cm の菩提樹材（530 kg/m³）でこの断面を作ると約9.3 kgになり、記録より約4分の1重い。両翼の板が薄かったか、より軽い材（ポプラ材）だったと考えられる。説明文に記した。
+    - 推定の部分：中央の膨らみの断面形、支え棒、握り、運搬用の革帯。紋章は簡略化した。
+    - 残り：移動式の防壁（車輪付きの木の盾）。寸法・人数・時代の史料が見つからないため未着手。
 - [ ] B05. **据え置き式の大型弩（スプリンガルド）** — 城壁や攻城陣地に据える弩。13〜14世紀。
 - [ ] B06. **多銃身砲（リボードカン）と前車** — 車輪付きの台に小砲身を並べた砲と、砲を牽く二輪の前車。15世紀〜。
 - [ ] B07. **陣地の障害物** — 拒馬（シュヴォー・ド・フリーズ）、尖った杭の列、堡籃（ガビオン）。CEの柵と見張り塔は2Dで描かれているが、3Dのモデルは無い。
@@ -155,7 +160,7 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
 
 ## 着手の順番
 
-A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01・B02 は完了、B03 は王の宿営のみ完了。次は B04）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
+A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01・B02 は完了、B03 は王の宿営のみ、B04 はパヴィスのみ完了。次は B05）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
 
 上の各グループの中では番号順に進める。地域や時代が限られるモデル（E10、D04など）は、使う文化圏と年代の要望が出た時点で順位を上げる。
 
@@ -176,6 +181,7 @@ A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終�
 - W. T. S. Tarver, The Traction Trebuchet: A Reconstruction of an Early Medieval Siege Engine, Technology and Culture 36 (1995), 136–167（[UCCS Historical Engineering Society の PDF](https://uccshes.files.wordpress.com/2012/09/reconstruction-of-a-traction-trebuchet.pdf)）
 - [Mangonel（Wikipedia）](https://en.wikipedia.org/wiki/Mangonel)
 - [The Cut of Henry VIII's Tents ほか（A Commonplace Book、W. McLean）](http://willscommonplacebook.blogspot.com/search/label/Tents) — 1547年目録（D. Starkey 編『The Inventory of King Henry VIII』1998）の読み
+- [Infantry Shield (Pavise)（The Metropolitan Museum of Art, 23333）](https://www.metmuseum.org/art/collection/search/23333)
 - [Mons Meg（Wikipedia）](https://en.wikipedia.org/wiki/Mons_Meg)、[Dulle Griet（Wikipedia）](https://en.wikipedia.org/wiki/Dulle_Griet)
 - [Bombarda, 15. století（Cheb の解説板、HMdb）](https://www.hmdb.org/m.asp?m=285895)、[Medieval Siege Artillery（Warfare History Network）](https://warfarehistorynetwork.com/medieval-siege-artillery/)、[Belagerungsgeschütze（burgerbe.de）](https://www.burgerbe.de/2018/04/07/belagerungsgeschuetze-die-groessten-kanonen-der-fruehen-neuzeit/)
 - [Die Fährnachen（weldergoven.de）](http://www.weldergoven.de/?page_id=202) — 1846年のジーク川の渡しの一覧

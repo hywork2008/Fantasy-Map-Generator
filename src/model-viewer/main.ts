@@ -1,4 +1,5 @@
 import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flintlockMusket";
+import { createPavise, PAVISE } from "../buildings/arms/pavise";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
 import { createFordCarrier, FORD_CARRIER } from "../buildings/ships/fordCarrier";
@@ -2894,6 +2895,60 @@ musketButton.addEventListener("click", () => {
   queueMicrotask(() => showFlintlockMusket());
 });
 smallArmsHeading.append(musketButton);
+
+const fieldDefencesHeading = modelCategory("Field defences");
+const paviseButton = document.createElement("button");
+paviseButton.dataset.id = "pavise";
+paviseButton.type = "button";
+paviseButton.textContent = "Pavise · Bohemian standing shield, c. 1450";
+function showPavise(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === paviseButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Pavise side elevation";
+  levelTitle.textContent = "Pavise plan";
+  const model = createPavise(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(1.6, 1.1, 1.4);
+  controls.target.set(-0.2, 0.55, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const p = PAVISE;
+  appendFacts(
+    fact("Model", p.name),
+    fact("Author", p.author),
+    fact("Period", "Central Europe, 15th century; after the Metropolitan Museum's Bohemian pavise of about 1450"),
+    fact(
+      "Dimensions",
+      `${(p.height * 100).toFixed(2)} × ${(p.width * 100).toFixed(2)} cm, ${(p.curvature * 100).toFixed(1)} cm of curvature, about ${(p.thickness * 100).toFixed(1)} cm thick; ${p.recordedMass} kg recorded`
+    ),
+    fact("Use", "Set up on its prop in front of a crossbowman while he spanned and loaded"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain painted board and prop"),
+    fact("Note", p.note, "Pavise"),
+    ...(quality === "high" ? [fact("High detail", p.highNote)] : [])
+  );
+}
+paviseButton.addEventListener("click", () => showPavise());
+fieldDefencesHeading.append(paviseButton);
+AUTHORED_VARIANTS[paviseButton.dataset.id] = {
+  author: PAVISE.author,
+  primary: true,
+  quality: true,
+  show: () => showPavise()
+};
 
 const millsHeading = modelCategory("Mills");
 const postMillButton = document.createElement("button");
