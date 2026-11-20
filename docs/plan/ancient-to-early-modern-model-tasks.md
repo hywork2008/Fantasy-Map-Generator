@@ -93,7 +93,9 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
   - 性能（復元機）：引き手12〜20人で、2.5〜4.7 kgの石を約80〜105 m、最大は3.1 kgで145 m、1分間に4発強。al-Tarsusi は射程80〜120 mとする。
   - 時代：586年または597年のテッサロニキ包囲（アヴァール人）でヨーロッパに確認でき、12世紀末に平衡錘式へ主役を譲った。1291年のアッコン包囲でも多数が使われた。
   - 推定の部分：地面の梁・筋かい・柱の組み方と、休止の姿勢（長い腕を後ろの地面へ下ろす）。引き手は省いた。
-- [ ] B02. **攻城砲（ボンバード）** — 木の台に載せた大口径の鍛鉄砲。14〜15世紀。Mons MegやDulle Grietなど現存する砲の寸法を参照する。
+- [x] B02. **攻城砲（ボンバード）** — 木の台に載せた大口径の鍛鉄砲。14〜15世紀。Mons MegやDulle Grietなど現存する砲の寸法を参照する。2026-11-20に [bombard.ts](../../src/buildings/siege/bombard.ts) として実装し、`PLACEABLE_OBJECTS`（ID `bombard`、Artillery）、MVの Artillery の見出し、`object.bombard@high` に登録した（Low／High。author は Claude Opus 5.5）。
+  - 砲：Mons Meg に合わせた。1449年にモンスで試射され、ブルゴーニュ公の砲工 Jehan Cambier が作った。全長4.06 m、砲身2.80 m（鍛鉄の縦板25本を焼き嵌めの鉄輪で締める）、別に鍛造した薬室を砲尾にねじ込む。口径510 mm（20インチ）、重さ約6.6 t、石の弾は約175 kg。砲身の外径は記録が無いため、重さから約0.71 mと割り出した。薬室の外径と内径は写真からの推定。
+  - 陣地：大型の砲は車輪付きの台では反動に耐えられず、牛の引く車で運び、起重機で地面の梁の台（Lade）へ移した。後ろの梁で反動を受け（撃つたびに直した）、楔で仰角をつけ、撃つときだけ上げる回転式の板の盾の陰から撃った。1日に1〜7発、射程はおよそ500 m以内（Cheb の解説板、Warfare History Network、ドイツ語の解説）。台・反動受け・盾の組み方は、これらの記述からの解釈である。Mons Meg 自体は初め車輪の無い箱に載り、1497年に車輪を得て、今は1934年に作った1500年頃の台の複製に載る。
 - [ ] B03. **軍用テント・陣幕（パビリオン）** — 円錐形・寄棟形のテント、指揮官の陣幕、野営地の幕の囲い。中世〜近世。
 - [ ] B04. **大盾（パヴィス）と移動式の防壁** — 弩兵が立てる大盾と、車輪付きの板の防壁。14〜15世紀。
 - [ ] B05. **据え置き式の大型弩（スプリンガルド）** — 城壁や攻城陣地に据える弩。13〜14世紀。
@@ -149,7 +151,7 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
 
 ## 着手の順番
 
-A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01 は完了。B02〜B04 を先に）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
+A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01・B02 は完了。B03・B04 を先に）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
 
 上の各グループの中では番号順に進める。地域や時代が限られるモデル（E10、D04など）は、使う文化圏と年代の要望が出た時点で順位を上げる。
 
@@ -169,6 +171,8 @@ A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終�
 - H. W. Kuhn, Frühe Gierponten: fliegende Brücken auf dem Rhein im 17. und 18. Jahrhundert, Deutsches Schiffahrtsarchiv 6 (1983), 25–64（[SSOAR](https://www.ssoar.info/ssoar/handle/document/52531)）
 - W. T. S. Tarver, The Traction Trebuchet: A Reconstruction of an Early Medieval Siege Engine, Technology and Culture 36 (1995), 136–167（[UCCS Historical Engineering Society の PDF](https://uccshes.files.wordpress.com/2012/09/reconstruction-of-a-traction-trebuchet.pdf)）
 - [Mangonel（Wikipedia）](https://en.wikipedia.org/wiki/Mangonel)
+- [Mons Meg（Wikipedia）](https://en.wikipedia.org/wiki/Mons_Meg)、[Dulle Griet（Wikipedia）](https://en.wikipedia.org/wiki/Dulle_Griet)
+- [Bombarda, 15. století（Cheb の解説板、HMdb）](https://www.hmdb.org/m.asp?m=285895)、[Medieval Siege Artillery（Warfare History Network）](https://warfarehistorynetwork.com/medieval-siege-artillery/)、[Belagerungsgeschütze（burgerbe.de）](https://www.burgerbe.de/2018/04/07/belagerungsgeschuetze-die-groessten-kanonen-der-fruehen-neuzeit/)
 - [Die Fährnachen（weldergoven.de）](http://www.weldergoven.de/?page_id=202) — 1846年のジーク川の渡しの一覧
 - [Die Reisenachen（regionalgeschichte.net）](https://www.regionalgeschichte.net/bibliothek/aufsaetze/zimmer-reisenachen-personenschifffahrt-mosel.html)
 - [Cable ferry（Wikipedia）](https://en.wikipedia.org/wiki/Cable_ferry)

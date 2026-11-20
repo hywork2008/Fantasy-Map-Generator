@@ -88,6 +88,7 @@ import { assembleSailingParts, type SailingShipState } from "../buildings/ships/
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createSloopHigh, sloopHighParts } from "../buildings/ships/sloopHigh";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
+import { BOMBARD, createBombard } from "../buildings/siege/bombard";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
 import {
   assembleGrokTrebuchet,
@@ -2711,6 +2712,63 @@ cannonButton.addEventListener("click", () => {
   );
 });
 artilleryHeading.append(cannonButton);
+
+const bombardButton = document.createElement("button");
+bombardButton.dataset.id = "bombard";
+bombardButton.type = "button";
+bombardButton.textContent = "Great bombard · Siege emplacement after Mons Meg, 1449";
+function showBombard(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === bombardButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Bombard side elevation";
+  levelTitle.textContent = "Emplacement plan";
+  const model = createBombard(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(8, 4.5, 9);
+  controls.target.set(0.5, 1.2, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const b = BOMBARD;
+  appendFacts(
+    fact("Model", b.name),
+    fact("Author", b.author),
+    fact("Period", "Late medieval siege artillery; gun after Mons Meg, tested at Mons for Philip the Good in 1449"),
+    fact(
+      "Gun",
+      `${b.gunLength} m overall, ${b.barrelLength} m barrel of ${b.staves} wrought-iron staves and shrunk-on hoops, screwed-in chamber; ${(b.bore * 1000).toFixed(0)} mm (20 in) bore; barrel about ${b.barrelOuter.toFixed(2)} m across (from the 6.6 t mass)`
+    ),
+    fact("Shot", `Granite ball of about ${b.ballMass.toFixed(0)} kg; one to seven shots a day under about 500 m`),
+    fact(
+      "Emplacement",
+      "Timber bed on sleepers, saddles and elevation wedge, recoil block with raking shores, pivoting plank shield raised to fire"
+    ),
+    fact("Quality", quality === "high" ? "High" : "Low — four hoops, plain shield, no lashings or kit"),
+    fact("Note", b.note, "Mons Meg"),
+    ...(quality === "high" ? [fact("High detail", b.highNote)] : [])
+  );
+}
+bombardButton.addEventListener("click", () => showBombard());
+artilleryHeading.append(bombardButton);
+AUTHORED_VARIANTS[bombardButton.dataset.id] = {
+  author: BOMBARD.author,
+  primary: true,
+  quality: true,
+  show: () => showBombard()
+};
 
 const smallArmsHeading = modelCategory("Small arms", true);
 const musketButton = document.createElement("button");

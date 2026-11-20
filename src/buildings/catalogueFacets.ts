@@ -285,6 +285,7 @@ const PLACEABLE_IDS: Record<string, ModelFacets> = {
   waterMillLowBankDeepForward: WATER_MILL,
   waterMillLowBankDeepReverse: WATER_MILL,
   earlyFieldCannon: f("weapon", span("lateMedieval", "ageOfExploration"), EU, ["artillery", "military"]),
+  bombard: f("weapon", ["lateMedieval"], EU, ["artillery", "military", "siege"]),
   medievalWell: s(MEDIEVAL_ON, EU, "water"),
   publicBasin: s(MEDIEVAL_ON, EU_MED, "water"),
   spring: s(PRE_STEAM, ANY, "water"),

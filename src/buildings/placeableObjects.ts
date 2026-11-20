@@ -6,6 +6,7 @@ import { createTowerMill, TOWER_MILL } from "./mills/towerMill";
 import { createLowBankWaterMill, createWaterMill, LOW_BANK_WATER_MILLS, WATER_MILL } from "./mills/waterMill";
 import type { ModelFacets } from "./modelFacets";
 import { BATTERING_RAM, createBatteringRam } from "./siege/batteringRam";
+import { BOMBARD, createBombard } from "./siege/bombard";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createSiegeTower, SIEGE_TOWER } from "./siege/siegeTower";
 import { createTractionTrebuchet, TRACTION_TREBUCHET } from "./siege/tractionTrebuchet";
@@ -144,6 +145,7 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
     author: EARLY_FIELD_CANNON.author,
     create: createEarlyFieldCannon
   },
+  { id: "bombard", category: "Artillery", name: BOMBARD.name, author: BOMBARD.author, create: createBombard },
   {
     id: "medievalWell",
     category: "Wells",

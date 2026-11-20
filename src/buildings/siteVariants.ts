@@ -15,6 +15,7 @@ import {
   createMedievalContainerModel,
   MEDIEVAL_CONTAINERS
 } from "./props/medievalContainers";
+import { BOMBARD, createBombard } from "./siege/bombard";
 import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createGrokTrebuchet, GROK_TREBUCHET } from "./siege/grokTrebuchet";
 import { createTractionTrebuchet, TRACTION_TREBUCHET } from "./siege/tractionTrebuchet";
@@ -101,6 +102,14 @@ export const OBJECT_VARIANTS = [
     author: TRACTION_TREBUCHET.author,
     credits: [{ author: TRACTION_TREBUCHET.author, date: "2026-11-20", note: TRACTION_TREBUCHET.highNote }],
     create: () => createTractionTrebuchet("high")
+  },
+  {
+    id: variantId("object.bombard", "high", BOMBARD.author),
+    family: "object.bombard",
+    level: "high",
+    author: BOMBARD.author,
+    credits: [{ author: BOMBARD.author, date: "2026-11-20", note: BOMBARD.highNote }],
+    create: () => createBombard("high")
   }
 ];
 
