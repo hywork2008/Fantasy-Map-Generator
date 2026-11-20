@@ -11,6 +11,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { BUILDING_APPEARANCE_PROFILES, type BuildingAppearanceProfile } from "../buildings/appearance/types";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
+import { createTudorLodging, TUDOR_LODGING } from "../buildings/camps/tudorLodging";
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
 import { CODEX_TOWN_WALL_PERIOD, CODEX_TOWN_WALLS } from "../buildings/fortifications/codexTownWalls";
@@ -2768,6 +2769,67 @@ AUTHORED_VARIANTS[bombardButton.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showBombard()
+};
+
+const campsHeading = modelCategory("Camps");
+const tudorLodgingButton = document.createElement("button");
+tudorLodgingButton.dataset.id = "tudor-lodging";
+tudorLodgingButton.type = "button";
+tudorLodgingButton.textContent = "Tudor royal field lodging · Hall, round house and passage (1547)";
+function showTudorLodging(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === tudorLodgingButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Lodging side elevation";
+  levelTitle.textContent = "Lodging plan";
+  const model = createTudorLodging(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model.group);
+  const size = bounds.getSize(new THREE.Vector3());
+  const centre = bounds.getCenter(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(centre.x + 16, 10, centre.z + 14);
+  controls.target.set(centre.x, 3, centre.z);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const { round, hall, passage } = TUDOR_LODGING;
+  appendFacts(
+    fact("Model", TUDOR_LODGING.name),
+    fact("Author", TUDOR_LODGING.author),
+    fact("Period", "Henry VIII's field lodgings, inventory of 1547; camps such as Boulogne 1544"),
+    fact(
+      "Round house",
+      `${round.gores} gores, roof ${round.roofDepth.toFixed(2)} m deep; ${round.breadths} wall breadths, walls ${round.wall.toFixed(2)} m; about ${(2 * round.radius).toFixed(1)} m across, peak ${round.peak.toFixed(1)} m`
+    ),
+    fact(
+      "Hall",
+      `${hall.roofBreadths} roof breadths, ${hall.goresPerEnd} gores to each end, roof ${hall.roofDepth.toFixed(2)} m deep; ${hall.wallBreadths} wall breadths; about ${(hall.straight + 2 * hall.radius).toFixed(1)} × ${(2 * hall.radius).toFixed(1)} m, ridge ${hall.ridge.toFixed(1)} m`
+    ),
+    fact("Passage", `Tresaunte of ${passage.roofBreadths} roof breadths, ${passage.length.toFixed(2)} m long`),
+    fact("Scale", "One breadth of canvas taken as about a yard, inferred from the tent drawings"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain canvas shells, valances and vanes"),
+    fact("Note", TUDOR_LODGING.note, "Field of the Cloth of Gold"),
+    ...(quality === "high" ? [fact("High detail", TUDOR_LODGING.highNote)] : [])
+  );
+}
+tudorLodgingButton.addEventListener("click", () => showTudorLodging());
+campsHeading.append(tudorLodgingButton);
+AUTHORED_VARIANTS[tudorLodgingButton.dataset.id] = {
+  author: TUDOR_LODGING.author,
+  primary: true,
+  quality: true,
+  show: () => showTudorLodging()
 };
 
 const smallArmsHeading = modelCategory("Small arms", true);
