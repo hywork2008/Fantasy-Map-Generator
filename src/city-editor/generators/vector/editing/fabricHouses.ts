@@ -9,7 +9,7 @@ import { allocateVectorResidents, vectorPlacementDwellings } from "../generation
 import { matchesVectorUrbanFingerprint, vectorUrbanFingerprint } from "../generation/urbanState";
 import { evaluateAnchor } from "../geometry/curves";
 import { nearestRoadAnchor } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionArea, regionsOverlap } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
 import { samplePath } from "../geometry/sampling";
 import { assertVectorDocument } from "../validation/document";
@@ -212,9 +212,7 @@ export function reattachFabricEntrances(doc: VectorCityDocument): void {
       };
     const crossing =
       doc.fabric &&
-      fabricLinesNear(doc.fabric, box, 8).find(line =>
-        regionBoolean(reserved, [fabricLineSurface(line)], "intersection").some(r => regionArea(r) > 1e-5)
-      );
+      fabricLinesNear(doc.fabric, box, 8).find(line => regionsOverlap(reserved, [fabricLineSurface(line)], 1e-5));
     if (crossing) throw new Error(`dependency-protected-placement:${p.id}:${crossing.id}`);
     for (const e of p.building.entrances) {
       if (e.fabricLine === undefined) continue;

@@ -6,7 +6,7 @@ import { planGuildFacilities } from "../../guildFacilities";
 import { type GuildSpot, type GuildWorksSite, placeGuildWorks } from "../../guildFacilityPlacement";
 import { featureReservations } from "../environmentState";
 import { pathIsClosed } from "../geometry/curves";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionArea, regionBoolean, regionsExceed, regionsOverlap } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -66,7 +66,7 @@ export function vectorWorksSite(doc: VectorCityDocument, blocks: VectorBlock[]) 
     claimed: VectorPolygon[] = [],
     half = doc.frame.extentMeters / 2;
   const hits = (polygon: Point[], regions: VectorPolygon[], clearance = 0) =>
-    regionBoolean([ring(grown(polygon, clearance))], regions, "intersection").some(r => regionArea(r) > 1e-3);
+    regionsOverlap([ring(grown(polygon, clearance))], regions, 1e-3);
   // Inside: the land blocks of the town. Outside: square pieces beside each approach road beyond the town.
   // A block is bounded by the main roads alone; its lanes come later and reach every part of it, so a large block
   // offers a hall a spot every `HALL_SPOT_SPACING_METERS` as well as its middle.
@@ -168,9 +168,7 @@ export function raiseVectorGuilds(
   const placed = works.halls.length + works.yards.length;
   if (!placed) return { document: doc, wanted, placed };
   // The site takes in the yards placed beyond it.
-  const outside = works.yards
-    .map(y => ring(y.polygon))
-    .filter(y => regionBoolean([y], site.domain, "difference").some(r => regionArea(r) > 1e-3));
+  const outside = works.yards.map(y => ring(y.polygon)).filter(y => regionsExceed([y], site.domain, 1e-3));
   const next: VectorCityDocument = {
     ...doc,
     site: outside.length ? { ...site, domain: regionBoolean(site.domain, outside, "union") } : site,

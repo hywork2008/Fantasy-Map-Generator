@@ -36,7 +36,7 @@ import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import { packLines, packPoints, unpackPoints } from "../fabric/pack";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening, junctionSurface } from "../geometry/network";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { offsetRing, sampledClosedRing } from "../geometry/routing";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
@@ -760,7 +760,7 @@ export function joinPerimeterPlan(
         source: curveSource([p, target], "polyline", false),
         width: { leftMeters: settings.laneWidthMeters / 2, rightMeters: settings.laneWidthMeters / 2, stations: [] }
       };
-      if (regionBoolean([pathSurface(connector)], water, "intersection").some(r => regionArea(r) > 1e-5)) return;
+      if (regionsOverlap([pathSurface(connector)], water, 1e-5)) return;
     }
     return { target, nodeId: joiner.ensure(anchor) };
   };
@@ -975,7 +975,7 @@ function fitLot(
   cutters: ReadonlySet<VectorPolygon>
 ): { ring: number[]; polygon: Point[] } | undefined {
   const site = { outer: whole, holes: [] },
-    overlapping = near.filter(o => regionBoolean([site], [o], "intersection").some(r => regionArea(r) > 1e-5));
+    overlapping = near.filter(o => regionsOverlap([site], [o], 1e-5));
   if (!overlapping.length) return { ring: first, polygon: whole };
   // A lot a facility stands across keeps the rest of itself as a house lot, so the house closes up against the
   // facility's wall: at least half the lot and 15 m², in one piece.
@@ -997,7 +997,7 @@ function fitLot(
     const polygon = unpackPoints(ring, origin),
       kept = { outer: polygon, holes: [] };
     // Rounded to the centimetre, the rest must still keep off every site near it.
-    if (near.some(o => regionBoolean([kept], [o], "intersection").some(r => regionArea(r) > 1e-5))) return undefined;
+    if (near.some(o => regionsOverlap([kept], [o], 1e-5))) return undefined;
     return { ring, polygon };
   }
   // CE lots overlap their neighbours by slivers. Trimming the sliver keeps the row closed; a lot that loses
@@ -1011,13 +1011,7 @@ function fitLot(
   if (regionArea(trimmedSite) < before * (1 - MAX_SLIVER_SHARE)) return undefined;
   // The trimmed lot lies inside the whole one, so every site that can touch it is among `near`.
   const box = boxOf(next);
-  if (
-    near.some(
-      o =>
-        boxesMeet(boxOf(o.outer), box) &&
-        regionBoolean([trimmedSite], [o], "intersection").some(r => regionArea(r) > 1e-5)
-    )
-  ) {
+  if (near.some(o => boxesMeet(boxOf(o.outer), box) && regionsOverlap([trimmedSite], [o], 1e-5))) {
     // Rounded to the centimetre, the trimmed lot can still lap a neighbour by a sliver: trim it once more against
     // the neighbours widened by 2 cm (pre-acceptance U3: one lot in seven stayed empty for this alone).
     const again = regionBoolean([site], overlapping.map(grownCutter), "difference"),
@@ -1026,7 +1020,7 @@ function fitLot(
     const polygon = unpackPoints(ring, origin),
       retried = { outer: polygon, holes: [] };
     if (regionArea(retried) < before * (1 - MAX_SLIVER_SHARE)) return undefined;
-    if (near.some(o => regionBoolean([retried], [o], "intersection").some(r => regionArea(r) > 1e-5))) return undefined;
+    if (near.some(o => regionsOverlap([retried], [o], 1e-5))) return undefined;
     return { ring, polygon };
   }
   return { ring: kept, polygon: next };
@@ -1207,9 +1201,7 @@ export function placeVectorPerimeterHouses(
           squarePolygon &&
           squareSite &&
           perimeterHouseDwellings(regionArea(squareSite), storeys) === dwellings &&
-          !occupied
-            .search(boxOf(squarePolygon))
-            .some(o => regionBoolean([squareSite], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) &&
+          !occupied.search(boxOf(squarePolygon)).some(o => regionsOverlap([squareSite], [o.polygon], 1e-5)) &&
           !protectedIndex.search(boxOf(squarePolygon)).some(o => surfacesOverlap(squareSite, o.polygon))
         ) {
           ring = squareRing;

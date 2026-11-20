@@ -1,7 +1,7 @@
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
-import { regionArea, regionBoolean } from "./geometry/regions";
+import { regionsOverlap } from "./geometry/regions";
 import { allVectorWater } from "./geometry/water";
 
 const ring = (outer: Point[]): VectorPolygon => ({ outer, holes: [] });
@@ -37,7 +37,7 @@ export function validateVectorOpenLandmarks(doc: VectorCityDocument): string[] {
     // They stand on open ground in the frame, beyond the site's urban land as often as not.
     const sited = (polygon: Point[]) =>
       polygon.every(q => Math.abs(q[0]) <= half && Math.abs(q[1]) <= half) &&
-      !regionBoolean([ring(polygon)], water, "intersection").some(r => regionArea(r) > 1e-3);
+      !regionsOverlap([ring(polygon)], water, 1e-3);
     const ok =
       Array.isArray(marks.windmills) &&
       Array.isArray(marks.gallows) &&

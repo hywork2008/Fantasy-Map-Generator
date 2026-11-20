@@ -8,7 +8,7 @@ import { insetConvexKernel } from "../../lotGeometry";
 import { layoutMarketStalls } from "../../marketPlacement";
 import { corridor } from "../../parcelGeometry";
 import { defenseAccessSurface } from "../defense";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionBoolean, regionsOverlap } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -33,8 +33,7 @@ export function raiseVectorPlazaMarket(doc: VectorCityDocument): boolean {
   if (boundary.length < 3) return false;
   const water = allVectorWater(doc),
     roads = Object.values(doc.paths).filter(p => p.role === "road"),
-    wetRegion = (polygon: Point[]) =>
-      regionBoolean([{ outer: polygon, holes: [] }], water, "intersection").some(r => regionArea(r) > 1e-5),
+    wetRegion = (polygon: Point[]) => regionsOverlap([{ outer: polygon, holes: [] }], water, 1e-5),
     // Solid ground the aisles walk round: buildings, other precincts, walls.
     solids = [
       ...Object.values(doc.placements).map(p => p.site.outer),

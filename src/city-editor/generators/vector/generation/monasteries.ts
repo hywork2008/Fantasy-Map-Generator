@@ -8,7 +8,7 @@ import { fitMonastery, type Monastery } from "../../monasteryLayout";
 import { makeRng } from "../../prng";
 import { featureReservations } from "../environmentState";
 import { pathIsClosed } from "../geometry/curves";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionArea, regionsExceed, regionsOverlap } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -21,7 +21,7 @@ const MIN_BLOCK_AREA = 3600;
 
 const ring = (outer: Point[]): VectorPolygon => ({ outer, holes: [] });
 const hits = (polygon: Point[], regions: VectorPolygon[], grow = 0) =>
-  regionBoolean(
+  regionsOverlap(
     [
       ring(
         grow
@@ -33,8 +33,8 @@ const hits = (polygon: Point[], regions: VectorPolygon[], grow = 0) =>
       )
     ],
     regions,
-    "intersection"
-  ).some(r => regionArea(r) > 1e-3);
+    1e-3
+  );
 
 /**
  * Religious houses by the mesh editor's rules (P6c): the faith and period found abbeys, friaries or Orthodox
@@ -130,7 +130,7 @@ export function raiseVectorMonasteries(
         hits(precinct, roadSurfaces) ||
         hits(precinct, blocked) ||
         Object.values(houses).some(m => hits(precinct, [ring(m.precinct)])) ||
-        regionBoolean([ring(precinct)], site.domain, "difference").some(r => regionArea(r) > 1)
+        regionsExceed([ring(precinct)], site.domain, 1)
       )
         continue;
       const score =

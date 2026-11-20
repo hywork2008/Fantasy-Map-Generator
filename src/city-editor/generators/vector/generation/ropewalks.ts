@@ -15,7 +15,7 @@ import { facilityUseOf } from "../../facilityUses";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon } from "../../geom";
 import { evaluateAnchor } from "../geometry/curves";
 import { nearestRoadAnchor } from "../geometry/network";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionBoolean, regionsOverlap } from "../geometry/regions";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { facilityLand } from "./facilityLots";
@@ -202,7 +202,7 @@ export function reserveRopewalks(
       ...roads,
       ...water
     ];
-    return !regionBoolean([site], others, "intersection").some(r => regionArea(r) > 1e-5);
+    return !regionsOverlap([site], others, 1e-5);
   };
   /** The walk's rectangle (with its margin) joined to its lane (in its own plan), if the ground is clear. */
   const ground = (

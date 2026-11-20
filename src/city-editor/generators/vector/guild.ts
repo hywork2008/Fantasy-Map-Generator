@@ -1,7 +1,7 @@
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
-import { regionArea, regionBoolean } from "./geometry/regions";
+import { regionArea, regionBoolean, regionsOverlap } from "./geometry/regions";
 import { simpleContour } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
 
@@ -39,7 +39,7 @@ export function validateVectorGuilds(doc: VectorCityDocument): string[] {
         p =>
           polygon(p) &&
           regionBoolean([ring(p)], domain, "difference").every(r => regionArea(r) < 1e-3) &&
-          !regionBoolean([ring(p)], water, "intersection").some(r => regionArea(r) > 1e-3)
+          !regionsOverlap([ring(p)], water, 1e-3)
       );
     return ok ? [] : ["guilds"];
   } catch {

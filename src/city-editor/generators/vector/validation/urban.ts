@@ -17,7 +17,7 @@ import {
 } from "../generation/urbanCapacity";
 import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
 import { evaluateAnchor } from "../geometry/curves";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionArea, regionsExceed, regionsOverlap } from "../geometry/regions";
 import { simpleContour } from "../geometry/surfaces";
 import { vectorOccupiedSites } from "../occupancy";
 import { validateVectorGeneration } from "./generation";
@@ -437,29 +437,15 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
           maxX: Math.max(...polygon.outer.map(p => p[0])),
           maxY: Math.max(...polygon.outer.map(p => p[1]))
         };
-        if (
-          tree
-            .search(box)
-            .some(
-              q =>
-                q.id !== p.id && regionBoolean([polygon], [q.polygon], "intersection").some(r => regionArea(r) > 1e-5)
-            )
-        )
+        if (tree.search(box).some(q => q.id !== p.id && regionsOverlap([polygon], [q.polygon], 1e-5)))
           errors.push("urban-overlap");
         tree.insert({ ...box, id: p.id, polygon });
-        if (
-          u.ownedPlacements.includes(p.id) &&
-          regionBoolean([polygon], u.domain, "difference").some(r => regionArea(r) > 1e-5)
-        )
-          errors.push("urban-domain");
+        if (u.ownedPlacements.includes(p.id) && regionsExceed([polygon], u.domain, 1e-5)) errors.push("urban-domain");
       }
     for (const p of owned) {
       if (!p?.building) continue;
       const b = p.building;
-      if (
-        regionBoolean(b.footprint, [p.site], "difference").some(r => regionArea(r) > 1e-5) ||
-        regionBoolean([p.site], b.reserved, "difference").some(r => regionArea(r) > 1e-5)
-      )
+      if (regionsExceed(b.footprint, [p.site], 1e-5) || regionsExceed([p.site], b.reserved, 1e-5))
         errors.push("urban-footprint");
       for (const entrance of b.entrances) {
         if (entrance.accessIndex === undefined) {
@@ -556,7 +542,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
             maxX: Math.max(...house.outer.map(p => p[0])),
             maxY: Math.max(...house.outer.map(p => p[1]))
           })
-          .some(q => regionBoolean([house], [q.polygon], "intersection").some(a => regionArea(a) > 1e-5))
+          .some(q => regionsOverlap([house], [q.polygon], 1e-5))
       );
       if (fabricHousesOverlap) errors.push("urban-overlap");
     }

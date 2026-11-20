@@ -1,7 +1,7 @@
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
-import { regionArea, regionBoolean } from "./geometry/regions";
+import { regionArea, regionsOverlap } from "./geometry/regions";
 import { simpleContour } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
 
@@ -35,7 +35,7 @@ export function validateVectorForest(doc: VectorCityDocument): string[] {
             r.outer.every(p => Math.abs(p[0]) <= half && Math.abs(p[1]) <= half)
         ) &&
         Math.abs(forest.regions.reduce((n, r) => n + regionArea(r), 0) - forest.areaM2) < 1 &&
-        !regionBoolean(forest.regions, allVectorWater(doc), "intersection").some(r => regionArea(r) > 1);
+        !regionsOverlap(forest.regions, allVectorWater(doc), 1);
     return ok ? [] : ["forest"];
   } catch {
     return ["forest"];

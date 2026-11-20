@@ -15,7 +15,7 @@ import { joinVectorGenerationAnchors, rebuildRoadGraph } from "../editing/networ
 import { curveSource } from "../editing/paths";
 import { evaluateAnchor } from "../geometry/curves";
 import { nearestRoadAnchor } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionArea, regionBoolean, regionsExceed, regionsOverlap } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -139,13 +139,7 @@ export function seedVectorCivicCentre(
       if (options.burial === "extramural") doc.site.domain = regionBoolean(doc.site.domain, [sited.boundary], "union");
     }
   }
-  if (
-    specs.some(
-      s =>
-        regionBoolean([s.boundary], water, "intersection").some(p => regionArea(p) > 1e-5) ||
-        regionBoolean([s.boundary], doc.site!.domain, "difference").some(p => regionArea(p) > 1e-5)
-    )
-  )
+  if (specs.some(s => regionsOverlap([s.boundary], water, 1e-5) || regionsExceed([s.boundary], doc.site!.domain, 1e-5)))
     throw Error("civic-site-space");
   doc.environment ??= { features: {}, hidden: [] };
   for (const s of specs) {
@@ -362,13 +356,12 @@ function siteVectorCemetery(
           const ccw = (ring: Point[]) => (polygonArea(ring) < 0 ? ring.reverse() : ring),
             boundary: VectorPolygon = { outer: ccw(outer), holes: [] },
             grown: VectorPolygon = { outer: ccw(rect(CEMETERY_CLEARANCE_METERS)), holes: [] },
-            wet = (regions: VectorPolygon[]) =>
-              regionBoolean([grown], regions, "intersection").some(r => regionArea(r) > 1e-5);
+            wet = (regions: VectorPolygon[]) => regionsOverlap([grown], regions, 1e-5);
           if (wet(water) || wet(blocked)) continue;
           if (
             site === "extramural"
-              ? regionBoolean([boundary], doc.site!.domain, "intersection").some(r => regionArea(r) > 1e-5)
-              : regionBoolean([boundary], doc.site!.domain, "difference").some(r => regionArea(r) > 1e-5)
+              ? regionsOverlap([boundary], doc.site!.domain, 1e-5)
+              : regionsExceed([boundary], doc.site!.domain, 1e-5)
           )
             continue;
           // The mesh editor's scores: near the gate road some 120 m out, or the bank nearest the centre.

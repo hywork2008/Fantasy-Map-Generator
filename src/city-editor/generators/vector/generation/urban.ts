@@ -16,7 +16,7 @@ import { rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { featureReservations } from "../environmentState";
 import { evaluateAnchor, pathIsClosed } from "../geometry/curves";
-import { containsRegion, indexedContains, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, indexedContains, regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
@@ -631,7 +631,7 @@ function* vectorUrbanSteps(
       if (
         Object.values(doc.paths)
           .filter(p => p.role === "road" && p.id !== parentId)
-          .some(p => regionBoolean([surface], [pathSurface(p)], "intersection").some(r => regionArea(r) > 1e-5))
+          .some(p => regionsOverlap([surface], [pathSurface(p)], 1e-5))
       )
         return false;
       doc.paths[id] = lane;

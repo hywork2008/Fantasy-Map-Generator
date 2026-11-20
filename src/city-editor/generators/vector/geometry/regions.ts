@@ -273,3 +273,71 @@ export function regionBoolean(
     (a, b) => regionArea(b) - regionArea(a) || JSON.stringify(a.outer).localeCompare(JSON.stringify(b.outer))
   );
 }
+
+/** Outline pairs above this many edge pairs are left to the clipping kernel rather than tested edge by edge. */
+const QUICK_PAIR_BUDGET = 20000;
+const boxesApart = (a: ReturnType<typeof ringBox>, b: ReturnType<typeof ringBox>) =>
+  a.maxX < b.minX || a.minX > b.maxX || a.maxY < b.minY || a.minY > b.maxY;
+/** Whether `p` and `q` surely share no area (false: unknown). */
+function surelyApart(
+  p: VectorPolygon,
+  q: VectorPolygon,
+  pb: ReturnType<typeof ringBox>,
+  qb: ReturnType<typeof ringBox>
+) {
+  if (boxesApart(pb, qb)) return true;
+  return p.outer.length * q.outer.length <= QUICK_PAIR_BUDGET && ringSurelyApart(p.outer, q);
+}
+/** Whether `p` surely lies inside `q`'s area (false: unknown). */
+function surelyWithin(p: VectorPolygon, q: VectorPolygon) {
+  if (p.outer.length * q.outer.length > QUICK_PAIR_BUDGET || !ringSurelyInside(p.outer, q.outer)) return false;
+  // Inside `q`'s outline and clear of each of its holes.
+  return q.holes.every(h => {
+    const hb = ringBox(h);
+    return (
+      boxesApart(ringBox(p.outer), hb) ||
+      (p.outer.length * h.length <= QUICK_PAIR_BUDGET && ringSurelyApart(h, { outer: p.outer, holes: [] }))
+    );
+  });
+}
+
+/**
+ * Whether `a` and `b` overlap by more than `minArea` m²: the answer of
+ * `regionBoolean(a, b, "intersection").some(r => regionArea(r) > minArea)` without building the overlap where the
+ * outlines alone decide it. Pieces that surely meet nothing are left out of the kernel; it runs only when unsure.
+ */
+export function regionsOverlap(a: VectorPolygon[], b: VectorPolygon[], minArea: number): boolean {
+  if (!a.length || !b.length) return false;
+  const ab = a.map(p => ringBox(p.outer)),
+    bb = b.map(q => ringBox(q.outer)),
+    meets = a.map((p, i) => b.map((q, j) => !surelyApart(p, q, ab[i], bb[j])));
+  for (const [i, p] of a.entries())
+    for (const [j, q] of b.entries()) {
+      if (!meets[i][j]) continue;
+      // One wholly inside the other: their overlap is at least its area.
+      if ((surelyWithin(p, q) && regionArea(p) > minArea) || (surelyWithin(q, p) && regionArea(q) > minArea))
+        return true;
+    }
+  const left = a.filter((_, i) => meets[i].some(Boolean)),
+    right = b.filter((_, j) => meets.some(row => row[j]));
+  if (!left.length || !right.length) return false;
+  return regionBoolean(left, right, "intersection").some(r => regionArea(r) > minArea);
+}
+
+/**
+ * Whether more than `minArea` m² of `a` lies outside `b`: the answer of
+ * `regionBoolean(a, b, "difference").some(r => regionArea(r) > minArea)`, decided from the outlines where they
+ * settle it.
+ */
+export function regionsExceed(a: VectorPolygon[], b: VectorPolygon[], minArea: number): boolean {
+  if (!a.length) return false;
+  const ab = a.map(p => ringBox(p.outer)),
+    bb = b.map(q => ringBox(q.outer)),
+    meets = a.map((p, i) => b.map((q, j) => !surelyApart(p, q, ab[i], bb[j])));
+  // A piece clear of all of `b` lies wholly outside it.
+  for (const [i, p] of a.entries()) if (!meets[i].some(Boolean) && regionArea(p) > minArea) return true;
+  // Every piece inside one of `b`'s: nothing lies outside.
+  if (a.every((p, i) => b.some((q, j) => meets[i][j] && surelyWithin(p, q)))) return false;
+  const right = b.filter((_, j) => meets.some(row => row[j]));
+  return regionBoolean(a, right, "difference").some(r => regionArea(r) > minArea);
+}

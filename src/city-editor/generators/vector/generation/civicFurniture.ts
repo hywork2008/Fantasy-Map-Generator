@@ -5,7 +5,7 @@ import { polygonOverlaps } from "../../fortifications";
 import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
 import { civicSizeForPopulation } from "../../housing";
 import { insetConvexKernel } from "../../lotGeometry";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionsOverlap } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { CIVIC_PLAZA_ID } from "./market";
@@ -104,7 +104,7 @@ export function raiseVectorPlazaFurniture(doc: VectorCityDocument): boolean {
     const site = plot(modelId, at, 0);
     if (!site?.every(p => pointInPolygon(p, kernel))) continue;
     if (blocked.some(b => polygonOverlaps(site, b))) continue;
-    if (regionBoolean([{ outer: site, holes: [] }], water, "intersection").some(r => regionArea(r) > 1e-5)) continue;
+    if (regionsOverlap([{ outer: site, holes: [] }], water, 1e-5)) continue;
     place(doc, "civic:plaza-furniture", modelId, at, 0, site);
     return true;
   }

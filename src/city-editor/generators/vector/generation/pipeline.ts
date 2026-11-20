@@ -25,7 +25,7 @@ import { featureReservations } from "../environmentState";
 import { evaluateAnchor, pathIsClosed, pathSegmentIds } from "../geometry/curves";
 import { pathIntersections } from "../geometry/intersections";
 import { bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { compactRing, offsetRing } from "../geometry/routing";
 import { pointSegmentDistance, samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
@@ -193,7 +193,7 @@ function extendApproachesThroughWall(
       source: curveSource([from, to], "polyline", false),
       width: { leftMeters: road.width.leftMeters, rightMeters: road.width.rightMeters, stations: [] }
     };
-    if (regionBoolean([pathSurface(path)], water, "intersection").some(r => regionArea(r) > 1e-5)) continue;
+    if (regionsOverlap([pathSurface(path)], water, 1e-5)) continue;
     doc.paths[id] = path;
     joinVectorGenerationAnchors(doc, [inner, { pathId: id, segmentId: pathSegmentIds(path)[0], t: 0 }]);
     extended.add(road.id);
@@ -224,12 +224,7 @@ function wallCrossingsFit(
       return u[0] * v[0] + u[1] * v[1] < Math.cos((15 * Math.PI) / 180);
     }),
     gates: { at: Point; opening: number }[] = [];
-  if (
-    blocked &&
-    !crossSites &&
-    regionBoolean([pathSurface(wall)], blocked, "intersection").some(r => regionArea(r) > 1e-5)
-  )
-    return false;
+  if (blocked && !crossSites && regionsOverlap([pathSurface(wall)], blocked, 1e-5)) return false;
   for (const other of crossers)
     for (const hit of pathIntersections(wall, other)) {
       const a = unit(evaluateAnchor(wall, hit.a, true)),
@@ -969,10 +964,7 @@ function skeleton(
         })),
         steepEnough = (path: VectorPath) => {
           try {
-            return (
-              wallCrossingsFit(path, crossers, settings) &&
-              !regionBoolean([pathSurface(path)], siteDecks, "intersection").some(r => regionArea(r) > 1e-5)
-            );
+            return wallCrossingsFit(path, crossers, settings) && !regionsOverlap([pathSurface(path)], siteDecks, 1e-5);
           } catch {
             // An outline the polygon operations cannot take is no candidate.
             return false;
@@ -1178,8 +1170,7 @@ function skeleton(
   for (const road of Object.values(doc.paths).filter(p => p.role === "road")) {
     const inDomain = regionBoolean([pathSurface(road)], doc.site!.domain, "intersection");
     const exposed = regionBoolean(inDomain, decks, "difference");
-    if (regionBoolean(exposed, waters, "intersection").some(r => regionArea(r) > 1e-5))
-      throw new Error(`unbridged-road:${road.id}`);
+    if (regionsOverlap(exposed, waters, 1e-5)) throw new Error(`unbridged-road:${road.id}`);
   }
   timed("walls-gates-bridges");
   if (settings.layout === "circulade" || settings.layout === "bram") layConcentricStreets(doc, settings, extended);
