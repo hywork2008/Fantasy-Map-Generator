@@ -1,7 +1,13 @@
+import type { PerimeterCellResult, PerimeterStreetPlan } from "../generators/vector/generation/perimeter";
 import { generateVectorSkeleton } from "../generators/vector/generation/pipeline";
+import type { VectorUrbanDistrictRequest } from "../generators/vector/generation/urban";
 import { generateVectorUrbanAsync } from "../generators/vector/generation/urban";
 import { createVectorDistrictPool, vectorDistrictWorkerCount } from "./vectorDistrictPool";
-import type { VectorGenerationReply, VectorGenerationRequest } from "./vectorGenerationWorkerClient";
+import type {
+  VectorGenerationPlans,
+  VectorGenerationReply,
+  VectorGenerationRequest
+} from "./vectorGenerationWorkerClient";
 
 self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
   const { id, inputRevision, source, task } = data;
@@ -17,6 +23,10 @@ self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
       total?: number
     ) => self.postMessage({ id, inputRevision, progress: { phase, completed, total } } satisfies VectorGenerationReply);
     const plan = pool.plan.bind(pool);
+    // Sent with the result in one message, so the plans' street blocks stay the objects their requests name.
+    const planned: VectorGenerationPlans = [];
+    const keep = (request: VectorUrbanDistrictRequest, results: PerimeterStreetPlan[] | PerimeterCellResult[]) =>
+      planned.push({ request, results });
     progress("skeleton");
     const result =
       task.kind === "city"
@@ -26,17 +36,20 @@ self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
               task.urban,
               plan,
               undefined,
-              { progress }
+              { progress, planned: keep }
             ),
             stages: []
           }
         : task.kind === "skeleton"
           ? generateVectorSkeleton(source, task.settings)
           : {
-              document: await generateVectorUrbanAsync(source, task.settings, plan, undefined, { progress }),
+              document: await generateVectorUrbanAsync(source, task.settings, plan, undefined, {
+                progress,
+                planned: keep
+              }),
               stages: []
             };
-    self.postMessage({ id, inputRevision, result } satisfies VectorGenerationReply);
+    self.postMessage({ id, inputRevision, result, planned } satisfies VectorGenerationReply);
   } catch (error) {
     self.postMessage({
       id,

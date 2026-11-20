@@ -1,4 +1,10 @@
+import {
+  type PerimeterCellResult,
+  type PerimeterStreetPlan,
+  rememberPerimeterResults
+} from "../generators/vector/generation/perimeter";
 import type { VectorGenerationResult } from "../generators/vector/generation/pipeline";
+import type { VectorUrbanDistrictRequest } from "../generators/vector/generation/urban";
 import type { VectorCityDocument } from "../types/vector/document";
 import type { VectorGenerationSettings } from "../types/vector/generation";
 import type { VectorUrbanSettings } from "../types/vector/urban";
@@ -19,8 +25,13 @@ export interface VectorGenerationProgress {
   completed?: number;
   total?: number;
 }
+/** The district plans a generation computed, in request order. */
+export type VectorGenerationPlans = {
+  request: VectorUrbanDistrictRequest;
+  results: PerimeterStreetPlan[] | PerimeterCellResult[];
+}[];
 export type VectorGenerationReply = { id: number; inputRevision: number } & (
-  | { result: VectorGenerationResult; error?: never }
+  | { result: VectorGenerationResult; planned?: VectorGenerationPlans; error?: never }
   | { error: string; result?: never; progress?: never }
   | { progress: VectorGenerationProgress; error?: never; result?: never }
 );
@@ -63,7 +74,11 @@ export function startVectorGeneration(
         return;
       }
       if (data.error !== undefined) finish(null, new Error(data.error));
-      else if (data.result) finish(data.result);
+      else if (data.result) {
+        // Kept here, so the page need not plan the shown city again on the main thread before its first edit.
+        for (const { request, results } of data.planned ?? []) rememberPerimeterResults(request, results);
+        finish(data.result);
+      }
     };
     worker.onerror = event => finish(null, new Error(event.message || "generation-worker"));
     worker.onmessageerror = () => finish(null, new Error("generation-worker"));

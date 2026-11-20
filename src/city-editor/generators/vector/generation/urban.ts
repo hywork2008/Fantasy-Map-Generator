@@ -99,6 +99,8 @@ export interface VectorUrbanRun {
   profile?: VectorUrbanProfile;
   timings?: GenerationTimingObserver;
   progress?: (phase: "lanes" | "facilities" | "housing" | "validation", completed?: number, total?: number) => void;
+  /** Each district request with its plans, in order; a worker hands them to the page to keep (async runs only). */
+  planned?: (request: VectorUrbanDistrictRequest, results: PerimeterStreetPlan[] | PerimeterCellResult[]) => void;
 }
 export interface VectorUrbanContinuation {
   retainedPlacements: string[];
@@ -147,6 +149,7 @@ export async function generateVectorUrbanAsync(
     const results = await plan(step.value);
     if (results.length !== step.value.jobs.length) throw new Error("urban-district-plans");
     rememberPerimeterResults(step.value, results);
+    run?.planned?.(step.value, results);
     step = steps.next(results);
   }
   return step.value;
