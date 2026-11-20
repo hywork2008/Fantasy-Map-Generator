@@ -239,8 +239,9 @@ function wallCrossingsFit(
         at = evaluateAnchor(wall, hit.a),
         opening = (width.left + width.right) / sine + 2 * settings.clearanceMeters + 0.1;
       if (corners.some(c => distance(c, at) < opening * 0.75 + thickness)) return false;
+      // Two openings in one stretch of wall (a meander grazing it, in and out) would overlap.
+      if (gates.some(g => distance(g.at, at) < (g.opening + opening) / 2 + thickness)) return false;
       if (blocked) {
-        if (gates.some(g => distance(g.at, at) < (g.opening + opening) / 2 + thickness)) return false;
         const reach = opening / 2 + thickness;
         if (blocked.some(r => containsRegion([r], at) || ringDistance(at, r.outer) < reach)) return false;
       }
@@ -982,7 +983,13 @@ function skeleton(
               steepEnough(wallPath(curveSource(ringAt(rotation, innerScale * scale), "polyline", true), innerId)))
         );
       // The checks above are geometric; a rotation whose gates still fail validation gives way to the next one.
-      attempts.push(...fits, ...turns.filter(t => t.scale === 1 && !fits.includes(t)));
+      // A river that grazes the outline (in and out within one stretch of wall) does so at every turn of a round
+      // outline; drawn a little smaller, the wall stands clear of the bend.
+      attempts.push(
+        ...fits,
+        ...turns.filter(t => t.scale === 1 && !fits.includes(t)),
+        ...turns.filter(t => t.scale !== 1 && !fits.includes(t))
+      );
     }
     // A preset outline cannot turn; eased in or out a little it meets a river or road that grazes it (a meandering
     // river can run along it) at a steeper angle (docs/plan/ce-outskirts-workshop-sizes.md §8.23).
@@ -999,7 +1006,13 @@ function skeleton(
       failure = undefined;
       if (!withMoat && settings.townMoat && !openCoast)
         diagnostics.push({ code: "town-moat-unplaced", entityId: TOWN_MOAT_ID, severity: "warning" });
-      for (const { rotation, scale: outerScale } of attempts) {
+      // A bastioned town's roads enter through its curtains where any turn allows it; otherwise through a bastion,
+      // whose ground then stays open (`reserveVectorBastions`).
+      const tries =
+        shape === "bastioned"
+          ? [true, false].flatMap(curtainGates => attempts.map(a => ({ ...a, curtainGates })))
+          : attempts.map(a => ({ ...a, curtainGates: false }));
+      for (const { rotation, scale: outerScale, curtainGates } of tries) {
         try {
           const tried = new Set(extended);
           let next = structuredClone(start);
@@ -1020,6 +1033,32 @@ function skeleton(
           // With a moat the straight run reaches past it, so its bridge stands on one straight piece of road.
           squareWallCrossings(next, id, withMoat ? MOAT_BERM_METERS + TOWN_MOAT_WIDTH_METERS + 4 : undefined);
           next = gateWall(next, id, settings);
+          // Two gates whose openings overlap (a meander grazing the wall, in and out) fail validation: the next turn.
+          {
+            const openings = Object.values(next.connections.gates)
+              .filter(g => g.wallPathId === id)
+              .map(g => ({ at: evaluateAnchor(next.paths[id], g.anchor), width: g.widthMeters }));
+            if (
+              openings.some((g, i) =>
+                openings.slice(i + 1).some(h => distance(g.at, h.at) < (g.width + h.width) / 2 + 1)
+              )
+            )
+              throw new Error("gate-overlap");
+          }
+          // A road enters a bastioned town through a curtain: the bastion is the gun platform, and its narrow gorge
+          // can leave a road through it no way on to the streets.
+          if (curtainGates) {
+            const unit = vectorUnitWallRing(settings.seed, "bastioned", sides, rotation).map(
+                ([x, y]) => [center[0] + x * half * outerScale, center[1] + y * halfY * outerScale] as Point
+              ),
+              bastions = Array.from({ length: unit.length / 5 }, (_, i) => unit.slice(i * 5, i * 5 + 5));
+            for (const gate of Object.values(next.connections.gates))
+              if (gate.wallPathId === id && gate.kind === "passage") {
+                const at = evaluateAnchor(next.paths[id], gate.anchor);
+                if (bastions.some(b => pointInPolygon(at, b) || ringDistance(at, b) < gate.widthMeters / 2))
+                  throw new Error("gate-in-bastion");
+              }
+          }
           if (withMoat) {
             next = addTownMoat(next, id, settings);
             assertVectorDocument(next);

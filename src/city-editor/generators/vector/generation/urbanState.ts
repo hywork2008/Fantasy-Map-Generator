@@ -34,11 +34,13 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // (§8.24).
 // v57–v59: no main roads to points on a ring (`branches` 0); a port lays one street to its bank, and a large block
 // offers a guild hall more than its middle (§8.25).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v57";
+// v58–v60: a bastioned town's roads enter through its curtains where a turn allows; no two gates overlap; a wall a
+// river grazes may be drawn a little smaller (§8.26).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v58";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v58";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v59";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v59";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v60";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(
