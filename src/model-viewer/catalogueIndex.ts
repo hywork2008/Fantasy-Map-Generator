@@ -39,6 +39,7 @@ const CONTAINER = f("prop", span("classicalAntiquity", "steamEra"), ["any"], ["s
 
 /** Entries built directly in the viewer, outside the medieval, landmark, placeable and record registries. */
 const VIEWER_ENTRIES: Record<string, ModelFacets> = {
+  "roman-insula": f("structure", ["classicalAntiquity"], ["mediterranean"], ["dwelling", "trade"]),
   "pont-du-gard": f("structure", ["classicalAntiquity"], ["european", "mediterranean"], ["water"]),
   "st-georges-chapel": f("structure", ["lateMedieval"], EU, ["worship"]),
   "bojnice-castle": f("structure", span("highMedieval", "steamEra"), EU, ["fortification", "residence"]),

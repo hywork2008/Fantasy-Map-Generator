@@ -116,7 +116,10 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
 
 属性は `periods: ["classicalAntiquity"]` と `"lateAntiquity"`、`regions: ["mediterranean"]` を基本にする。
 
-- [ ] C01. **インスラ（集合住宅）** — 1階に店舗、上階に住戸を持つ3〜5階建て。オスティアの遺構を参照する。
+- [x] C01. **インスラ（集合住宅）** — 1階に店舗、上階に住戸を持つ3〜5階建て。オスティアの遺構を参照する。2026-11-20に [insula.ts](../../src/buildings/roman/insula.ts) として実装し、MVの新しい見出し Roman buildings に `roman-insula` で登録した（MV 専用、Low／High。author は Claude Opus 5.5）。
+  - 基準：オスティアのディアナの家（Caseggiato di Diana、Regio I, III, 3-4）。ハドリアヌス帝の時代、130年頃。40 × 22 m の長方形で、黄色のレンガ張りのコンクリート（opus latericium）。中央の中庭は北と南からだけ入る。Via dei Balconi と Via di Diana に面して店（tabernae）と中二階の窓が並び、トラバーチンの石段で通りから上階へ上がる。2階の正面には細いバルコニーがあり、上の階が壊されたときに通りへ崩れ落ちた（Calza）。1階の壁の厚さは0.90〜1.00 m。中庭には東壁沿いに貯水槽があり、150年頃に大理石の噴水が加わった（ostia-antica.org、オスティア遺跡公園）。
+  - 階数：公園の解説は「おそらく4階」、構造の研究は5階とする。4階とし、トラヤヌス帝の高さ制限60ローマ・フィート（約17.75 m）の下に軒（14.9 m）を収めた。
+  - 推定の部分：中庭の寸法（14 × 8 m）、各階の高さ（1階は中二階込みで5.0 m、上階3.3 m）、窓の配置、バルコニーの支え、瓦の寄棟屋根。現存するのは1階と2階の床付近までである。
 - [ ] C02. **浴場（テルマエ）** — 冷浴室・温浴室・熱浴室、床下暖房、運動場。町の小浴場から始め、大浴場はその後にする。
 - [ ] C03. **円形闘技場** — 楕円の観客席、アーチを重ねた外壁、闘技場の床。地方都市の規模から始める。
 - [ ] C04. **凱旋門** — 単拱式と三拱式。ティトゥス帝の凱旋門・コンスタンティヌス帝の凱旋門を参照する。
@@ -160,7 +163,7 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
 
 ## 着手の順番
 
-A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01・B02 は完了、B03 は王の宿営のみ、B04 はパヴィスのみ完了。次は B05）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
+A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01・B02 は完了、B03 は王の宿営のみ、B04 はパヴィスのみ完了。次は B05）→ C（C01 は完了。C02〜C07 を先に）→ D01・D02 → E01〜E03 → 残り。
 
 上の各グループの中では番号順に進める。地域や時代が限られるモデル（E10、D04など）は、使う文化圏と年代の要望が出た時点で順位を上げる。
 
@@ -182,6 +185,7 @@ A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終�
 - [Mangonel（Wikipedia）](https://en.wikipedia.org/wiki/Mangonel)
 - [The Cut of Henry VIII's Tents ほか（A Commonplace Book、W. McLean）](http://willscommonplacebook.blogspot.com/search/label/Tents) — 1547年目録（D. Starkey 編『The Inventory of King Henry VIII』1998）の読み
 - [Infantry Shield (Pavise)（The Metropolitan Museum of Art, 23333）](https://www.metmuseum.org/art/collection/search/23333)
+- [Caseggiato di Diana (I,III,3-4)（ostia-antica.org）](http://www.ostia-antica.org/regio1/3/3-3.htm)、[Casa di Diana（オスティア遺跡公園）](https://parcoarcheologicostiantica.it/en/educational-panels/the-central-area-and-the-official-complexes/casa-di-diana/)、[Insula (building)（Wikipedia）](https://en.wikipedia.org/wiki/Insula_(building))
 - [Mons Meg（Wikipedia）](https://en.wikipedia.org/wiki/Mons_Meg)、[Dulle Griet（Wikipedia）](https://en.wikipedia.org/wiki/Dulle_Griet)
 - [Bombarda, 15. století（Cheb の解説板、HMdb）](https://www.hmdb.org/m.asp?m=285895)、[Medieval Siege Artillery（Warfare History Network）](https://warfarehistorynetwork.com/medieval-siege-artillery/)、[Belagerungsgeschütze（burgerbe.de）](https://www.burgerbe.de/2018/04/07/belagerungsgeschuetze-die-groessten-kanonen-der-fruehen-neuzeit/)
 - [Die Fährnachen（weldergoven.de）](http://www.weldergoven.de/?page_id=202) — 1846年のジーク川の渡しの一覧

@@ -2,6 +2,7 @@ import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flint
 import { createPavise, PAVISE } from "../buildings/arms/pavise";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
+import { createInsula, INSULA } from "../buildings/roman/insula";
 import { createFordCarrier, FORD_CARRIER } from "../buildings/ships/fordCarrier";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
@@ -2895,6 +2896,61 @@ musketButton.addEventListener("click", () => {
   queueMicrotask(() => showFlintlockMusket());
 });
 smallArmsHeading.append(musketButton);
+
+const romanHeading = modelCategory("Roman buildings");
+const insulaButton = document.createElement("button");
+insulaButton.dataset.id = "roman-insula";
+insulaButton.type = "button";
+insulaButton.textContent = "Insula · Roman apartment block, Ostia c. AD 130";
+function showInsula(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === insulaButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Street elevation";
+  levelTitle.textContent = "Roof plan";
+  const model = createInsula(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: INSULA.length, depth: INSULA.depth } }, INSULA.ridge);
+  camera.position.set(-38, 22, -40);
+  controls.target.set(0, 7, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const i = INSULA;
+  appendFacts(
+    fact("Model", i.name),
+    fact("Author", i.author),
+    fact("Period", "Ostia, Hadrianic, about AD 130; altered into the 3rd century"),
+    fact(
+      "Dimensions",
+      `${i.length} × ${i.depth} m block round a courtyard; ${i.floors.length} storeys (${i.floors.join(" + ")} m), eaves ${i.eaves.toFixed(1)} m under Trajan's limit of ${i.heightLimit.toFixed(2)} m (60 Roman feet)`
+    ),
+    fact(
+      "Ground floor",
+      `${i.shops} shops with mezzanine windows, two passages to the courtyard, stairs from the street; walls about ${i.wall} m thick`
+    ),
+    fact("Quality", quality === "high" ? "High" : "Low — massing, openings, balcony and tiled roofs"),
+    fact("Note", i.note, "Insula (building)"),
+    ...(quality === "high" ? [fact("High detail", i.highNote)] : [])
+  );
+}
+insulaButton.addEventListener("click", () => showInsula());
+romanHeading.append(insulaButton);
+AUTHORED_VARIANTS[insulaButton.dataset.id] = {
+  author: INSULA.author,
+  primary: true,
+  quality: true,
+  show: () => showInsula()
+};
 
 const fieldDefencesHeading = modelCategory("Field defences");
 const paviseButton = document.createElement("button");
