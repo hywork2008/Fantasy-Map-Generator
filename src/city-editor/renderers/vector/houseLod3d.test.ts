@@ -49,14 +49,7 @@ describe("meshless houses with the mesh editor's housing LOD and façade details
       expect(detailed.length).toBeGreaterThan(0);
       // Façade details go to near massing houses; those already detailed are excluded, as in the mesh editor.
       expect(details).toBeDefined();
-      // Further out, past the detailed-model budget, the massing houses take the façade details.
-      const far = camera.clone();
-      far.position.set(x + 160, 140, -y + 160);
-      far.lookAt(x, 0, -y);
-      far.updateMatrixWorld(true);
-      scene.updateCamera(far, 900);
-      expect(details.children.length).toBeGreaterThan(0);
-      // A ray down onto the detailed house resolves to the saved house id.
+      // A ray down onto the detailed house resolves to the saved house id, while the near view keeps it detailed.
       const ray = new THREE.Raycaster(new THREE.Vector3(x, 200, -y), new THREE.Vector3(0, -1, 0)),
         hit = ray.intersectObjects(detailed, false)[0];
       const any = new THREE.Box3().setFromObject(detailed[0]).getCenter(new THREE.Vector3()),
@@ -65,6 +58,13 @@ describe("meshless houses with the mesh editor's housing LOD and façade details
           false
         )[0];
       expect(houses.houses!.ids).toContain(scene.pickHouse(hit ?? down));
+      // Further out, past the detailed-model budget, the massing houses take the façade details.
+      const far = camera.clone();
+      far.position.set(x + 160, 140, -y + 160);
+      far.lookAt(x, 0, -y);
+      far.updateMatrixWorld(true);
+      scene.updateCamera(far, 900);
+      expect(details.children.length).toBeGreaterThan(0);
     } finally {
       scene.dispose();
     }

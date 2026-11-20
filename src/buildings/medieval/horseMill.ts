@@ -29,7 +29,8 @@ function shell(high: boolean) {
   if (high) {
     for (const x of [-W / 2 + 0.15, W / 2 - 0.15])
       k.beam("corner-brace", [x, 0.4, D / 2 - 0.05], [x, EAVE - 0.3, D / 2 - 1.4], 0.12);
-    k.box("hay-loft-door", [W / 2 - 2.2, EAVE + 0.9, D / 2 + 0.38], [1.1, 0.9, 0.06], "wood");
+    // Within the gable's own front, so High keeps Low's envelope and a placed mill draws at either quality.
+    k.box("hay-loft-door", [W / 2 - 2.2, EAVE + 0.9, D / 2 + 0.34], [1.1, 0.9, 0.06], "wood");
   }
   return k.finish();
 }
