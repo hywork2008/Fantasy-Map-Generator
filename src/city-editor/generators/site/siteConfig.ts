@@ -2,6 +2,9 @@ import type {
   CityFeatureSet,
   CityLayout,
   CoastShape,
+  RiverForm,
+  RiverPlacement,
+  RiverSetting,
   RiverShape,
   SiteConfig,
   WallChoice,
@@ -31,6 +34,36 @@ export const DEFAULT_WALL_CHOICE: WallChoice = { envelope: "auto", coast: "auto"
 
 export const COAST_SHAPES: CoastShape[] = ["none", "straight", "bay", "cape"];
 export const RIVER_SHAPES: RiverShape[] = ["through", "beside", "toCoast", "straight", "meander", "greatBend"];
+export const RIVER_PLACEMENTS: RiverPlacement[] = ["through", "beside", "toCoast"];
+export const RIVER_FORMS: RiverForm[] = ["straight", "gentle", "meander", "greatBend"];
+
+/** Each river's placement and form. A `rivers` value naming a form (older settings) is a river through the town of
+ * that form; a placement takes its form from `riverForms`, else a gentle meander. */
+export function riverSettings(config: Pick<SiteConfig, "rivers" | "riverForms">): RiverSetting[] {
+  return config.rivers.map((value, i): RiverSetting => {
+    if (value === "straight" || value === "meander" || value === "greatBend")
+      return { placement: "through", form: config.riverForms?.[i] ?? value };
+    return { placement: value, form: config.riverForms?.[i] ?? "gentle" };
+  });
+}
+
+/** A river's setting as one `rivers` value where an older value says the same (so the synth RNG stream of an
+ * unchanged setting stays as it was), else `placement/form`. */
+export function riverSettingKey({ placement, form }: RiverSetting): string {
+  if (form === "gentle") return placement;
+  if (placement === "through") return form;
+  return `${placement}/${form}`;
+}
+
+/** The `rivers` / `riverForms` pair for these settings, in the older single-value form wherever it says the same. */
+export function riverConfig(settings: RiverSetting[]): Pick<SiteConfig, "rivers" | "riverForms"> {
+  const rivers = settings.map(s =>
+      s.form !== "gentle" && s.placement === "through" ? s.form : s.placement
+    ) as RiverShape[],
+    forms = settings.map(s => s.form);
+  const implied = riverSettings({ rivers }).every((s, i) => s.form === forms[i]);
+  return implied ? { rivers } : { rivers, riverForms: forms };
+}
 export const FEATURE_KEYS: (keyof CityFeatureSet)[] = ["port", "walls", "citadel", "plaza", "temple", "shanty"];
 export const WALL_ENVELOPE_CHOICES: WallEnvelopeChoice[] = ["auto", "hull", "notchFilled"];
 export const WALL_COAST_CHOICES: WallCoastChoice[] = ["auto", "open", "seaWall", "opening"];
@@ -65,7 +98,7 @@ export const DEFAULT_SITE_CONFIG: SiteConfig = {
  * only churn the grid / coast / river RNG stream (and the S0–S3 regression net)
  * for no visible gain. */
 export function siteConfigKey(config: SiteConfig): string {
-  return `${config.coast}|${config.rivers.join(",") || "-"}|${config.relief ? "relief" : "flat"}`;
+  return `${config.coast}|${riverSettings(config).map(riverSettingKey).join(",") || "-"}|${config.relief ? "relief" : "flat"}`;
 }
 
 /** A coherent random combination for the "Randomize site" button. */

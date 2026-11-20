@@ -13,6 +13,7 @@ import type { VectorPolygon, VectorSite } from "../../../types/vector/generation
 import { closeCorridor } from "../../generation/skeleton/vector";
 import { azimuthToVec, segmentsIntersect } from "../../geom";
 import { makeRng } from "../../prng";
+import { gentleRiverCourse } from "../../site/synthSite";
 import { coarseFromHeightfield } from "../../terrainField/build";
 import { createVectorDocument } from "../document";
 import { connectVectorAnchors, rebuildRoadGraph } from "../editing/network";
@@ -480,7 +481,10 @@ export function syntheticVectorInput(
   keepClear: Point[][] = [],
   /** Half the frame in site radii; the approaches run out to just inside it and the river across it. A walled town
    * takes more, so its roadside can grow out along the approaches (gate-ribbon plan). */
-  reach = 1.5
+  reach = 1.5,
+  /** The varied river's channel: nearly straight, or a gentle meander as `synthSite` lays one
+   * (docs/plan/ce-outskirts-workshop-sizes.md §8.21). */
+  riverForm: "straight" | "gentle" = "straight"
 ): VectorCityDocument {
   if (!(radius >= 30 && radius <= 3000 && Number.isFinite(radius))) throw new Error("site-frame");
   const doc = createVectorDocument(seed, radius * 2 * reach),
@@ -517,7 +521,13 @@ export function syntheticVectorInput(
       // The bend only bulges away from the centre and stays mild, so every in-town crossing
       // keeps within the bridge skew limits.
       bend = side * rng.range(0, 0.06) * radius,
-      points = [at(-radius * reach, offset), at(0, offset + bend), at(radius * reach, offset)];
+      points =
+        riverForm === "gentle"
+          ? smoothCourse(
+              gentleRiverCourse(rng, along, normal, offset, radius * reach, radius, 0.22 * radius),
+              Array.from({ length: 21 }, () => RIVER_WIDTH)
+            ).points
+          : [at(-radius * reach, offset), at(0, offset + bend), at(radius * reach, offset)];
     if (!river || keepClear.every(ring => riverClears(points, ring, RIVER_WIDTH / 2 + 12))) {
       layout = { normal, side, offset, points };
       break;

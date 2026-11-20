@@ -2,12 +2,13 @@ import { BUILDING_APPEARANCE_PROFILES, type BuildingAppearanceProfile } from "..
 import { BURIAL_CULTURE_PRESETS, getBurialCulturePreset } from "../../../data/burialCultures";
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
 import { HISTORICAL_PERIODS } from "../../../types/historicalPeriod";
+import { RIVER_FORMS, RIVER_PLACEMENTS, riverConfig, riverSettings } from "../../generators/site/siteConfig";
 import type { VectorEditorGenerationInput } from "../../generators/vector/generation/editorInput";
 import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
 import { matchesVectorUrbanFingerprint, vectorUrbanFingerprint } from "../../generators/vector/generation/urbanState";
 import { VECTOR_WALL_SHAPES } from "../../generators/vector/generation/wallShape";
 import type { EditorLifetime } from "../../services/editorLifetime";
-import type { CoastShape, RiverShape } from "../../types/contracts/siteConfig";
+import type { CoastShape, RiverForm, RiverPlacement, RiverSetting } from "../../types/contracts/siteConfig";
 import type { GenerationSettings } from "../../types/generation";
 import type { VectorCityDocument } from "../../types/vector/document";
 
@@ -102,21 +103,37 @@ export function createVectorCitySettingsPanel(
       v => (s().config = { ...s().config, coast: v })
     )
   );
-  const riverValues = ["", "through", "beside", "toCoast", "straight", "meander", "greatBend"] as const;
-  const riverAt = (i: number) =>
-    select<(typeof riverValues)[number]>(
+  // Each river by where it runs and, apart, by its channel's form (docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+  const setRivers = (next: RiverSetting[]) => {
+    const { riverForms: _forms, ...rest } = s().config;
+    s().config = { ...rest, ...riverConfig(next.slice(0, 2)) };
+  };
+  const placementAt = (i: number) =>
+    select<RiverPlacement | "">(
       `river${i + 1}`,
-      riverValues,
-      () => s().config.rivers[i] ?? "",
+      ["", ...RIVER_PLACEMENTS],
+      () => riverSettings(s().config)[i]?.placement ?? "",
       v => {
-        const rivers = [...s().config.rivers];
-        if (v) rivers[i] = v as RiverShape;
-        else rivers.splice(i, 1);
-        s().config = { ...s().config, rivers: rivers.filter(Boolean).slice(0, 2) };
+        const next = riverSettings(s().config);
+        if (v) next[i] = { placement: v, form: next[i]?.form ?? "gentle" };
+        else next.splice(i, 1);
+        setRivers(next.filter(Boolean));
       },
       value => (value ? value : text("noRiver"))
     );
-  const rivers = [add(riverAt(0)), add(riverAt(1))];
+  const formAt = (i: number) =>
+    select<RiverForm>(
+      `river${i + 1}Form`,
+      RIVER_FORMS,
+      () => riverSettings(s().config)[i]?.form ?? "gentle",
+      v => {
+        const next = riverSettings(s().config);
+        if (!next[i]) return;
+        next[i] = { ...next[i], form: v };
+        setRivers(next);
+      }
+    );
+  const rivers = [add(placementAt(0)), add(formAt(0)), add(placementAt(1)), add(formAt(1))];
   for (const feature of ["walls", "citadel", "plaza", "temple", "port", "shanty"] as const)
     add(
       check(
@@ -288,6 +305,10 @@ export function createVectorCitySettingsPanel(
     for (const c of controls) c.sync();
     const fixedSite = linked();
     for (const c of [coast, ...rivers]) (c.element as HTMLSelectElement).disabled = fixedSite;
+    // A river's form is chosen once the river is.
+    const count = riverSettings(s().config).length;
+    (rivers[1].element as HTMLSelectElement).disabled ||= count < 1;
+    (rivers[3].element as HTMLSelectElement).disabled ||= count < 2;
   }
   sync();
   return { refresh: sync };

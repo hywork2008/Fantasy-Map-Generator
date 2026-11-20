@@ -556,6 +556,8 @@
         "coast": "Coast",
         "river1": "River 1",
         "river2": "River 2",
+        "river1Form": "River 1 form",
+        "river2Form": "River 2 form",
         "walls": "City walls",
         "citadel": "Citadel",
         "plaza": "Plaza",

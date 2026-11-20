@@ -5,6 +5,7 @@ import { monasteryCountFor, monasteryKindsFor } from "../../aerialLandmarks";
 import { supportsBuildingHeightVariation } from "../../buildingHeightPolicy";
 import { burgageLandFactor } from "../../burgage/profiles";
 import { planPopulation } from "../../populationPlan";
+import { riverSettings } from "../../site/siteConfig";
 import { synthSite } from "../../site/synthSite";
 import { featureReservations } from "../environmentState";
 import { regionArea, regionBoolean } from "../geometry/regions";
@@ -62,7 +63,9 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     settings.config.coast === "none" &&
     !settings.config.relief &&
     settings.config.rivers.length <= 1 &&
-    settings.config.rivers.every(r => r === "through" || r === "straight");
+    riverSettings(settings.config).every(
+      r => r.placement === "through" && (r.form === "straight" || r.form === "gentle")
+    );
   // A wall shape narrower than the round site it is drawn in would leave the houses it was sized for outside it:
   // the site grows so the walled area matches (P4a). A walled town is sized to fill its interior (gate-ribbon §3.6);
   // what the estimate misses goes to the roadside beyond the gates.
@@ -134,24 +137,32 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       descriptor.burg.dwellings = getUrbanDwellings(descriptor.burg.population);
     }
   }
+  // The editor's own plain site. A gently meandering river can bend across an approach, which is then laid to cross
+  // it square on a bridge as a synthesized site's roads are (`bridgeSyntheticCrossings`).
+  const plainForm = riverSettings(settings.config)[0]?.form === "gentle" ? "gentle" : "straight";
+  const plainSite = (radius: number, civic: boolean) => {
+    const site = syntheticVectorInput(
+      seed,
+      radius,
+      settings.config.rivers.length > 0,
+      true,
+      civic
+        ? vectorCivicLayout(settings.population?.targetPopulation ?? 5000, civicOptions).specs.map(
+            s => s.boundary.outer
+          )
+        : [],
+      ownFrame ? WALLED_REACH : undefined,
+      plainForm
+    );
+    return plainForm === "gentle" && settings.config.rivers.length ? bridgeSyntheticCrossings(site) : site;
+  };
   const build = (radius: number, civic = true) => {
     let doc = descriptor
       ? // A synthesized site's roads run over its rivers; an FMG city's bring their certified crossings (P5a).
         settings.descriptor
         ? vectorInputFromDescriptor(descriptor)
         : bridgeSyntheticCrossings(vectorInputFromDescriptor(descriptor, { curvedRivers }))
-      : syntheticVectorInput(
-          seed,
-          radius,
-          settings.config.rivers.length > 0,
-          true,
-          civic
-            ? vectorCivicLayout(settings.population?.targetPopulation ?? 5000, civicOptions).specs.map(
-                s => s.boundary.outer
-              )
-            : [],
-          ownFrame ? WALLED_REACH : undefined
-        );
+      : plainSite(radius, civic);
     doc.recipe.seed = seed;
     doc.context.historicalPeriod = period;
     doc.context.targetPopulation = settings.population?.targetPopulation ?? descriptor?.burg.population ?? 5000;
