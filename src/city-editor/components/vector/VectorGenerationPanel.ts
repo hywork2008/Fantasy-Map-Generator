@@ -279,15 +279,16 @@ export function createVectorGenerationPanel(
     pending = undefined;
     adopt.disabled = true;
     status.textContent = text("running");
+    // The current city is copied and serialised only when it is needed: after a first city it is large, and a
+    // generation from the panel's own input does not read it.
     const token = epoch,
-      source = read(),
       entry = readEntryKey?.(),
-      snapshot = JSON.stringify(source);
+      snapshot = readEntryKey ? undefined : JSON.stringify(peek());
     const current = () =>
       scope.active &&
       token === epoch &&
-      (readEntryKey ? readEntryKey() === entry : JSON.stringify(read()) === snapshot);
-    job = start(sourceOverride ?? source, task, undefined, progress => {
+      (readEntryKey ? readEntryKey() === entry : JSON.stringify(peek()) === snapshot);
+    job = start(sourceOverride ?? read(), task, undefined, progress => {
       if (!current()) return;
       const count = progress.total === undefined ? "" : ` (${progress.completed ?? 0}/${progress.total})`;
       status.textContent = `${text("running")} ${text(`progress.${progress.phase}`)}${count}`;
