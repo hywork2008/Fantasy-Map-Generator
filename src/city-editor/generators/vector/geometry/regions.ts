@@ -1,7 +1,7 @@
 import polygonClipping, { type MultiPolygon } from "polygon-clipping";
 import RBush from "rbush";
 import type { Point } from "../../../types/primitives";
-import { pointInPolygon, polygonArea } from "../../geom";
+import { pointInPolygon, polygonArea, segmentsIntersect } from "../../geom";
 import type { PathSurface } from "./surfaces";
 
 export type VectorPolygon = PathSurface;
@@ -47,15 +47,50 @@ export function indexedContains(polygons: VectorPolygon[]) {
  * Worth it for outlines of many vertices, such as a meandering river's water.
  */
 export function regionContains(polygon: VectorPolygon): (p: Point) => boolean {
+  return regionProbe(polygon).contains;
+}
+/**
+ * `regionContains`, and whether any edge's box comes within `d` of a point. With no edge that near, every point
+ * within `d` (by either axis) is inside exactly when the point is: no edge can lie between them.
+ */
+export function regionProbe(polygon: VectorPolygon): {
+  contains: (p: Point) => boolean;
+  near: (p: Point, d: number) => boolean;
+} {
+  type Edge = { minX: number; minY: number; maxX: number; maxY: number; i: number };
   const rings = [polygon.outer, ...polygon.holes].map(r => {
-    const tree = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; i: number }>();
+    const edges = r.map((pi, i) => {
+      const pj = r[(i + r.length - 1) % r.length];
+      return { pi, pj, i };
+    });
+    // By height alone for the crossing test; by box, built on first use, for nearness.
+    const tree = new RBush<Edge>();
     tree.load(
-      r.map((pi, i) => {
-        const pj = r[(i + r.length - 1) % r.length];
-        return { minX: 0, maxX: 0, minY: Math.min(pi[1], pj[1]), maxY: Math.max(pi[1], pj[1]), i };
-      })
+      edges.map(({ pi, pj, i }) => ({
+        minX: 0,
+        maxX: 0,
+        minY: Math.min(pi[1], pj[1]),
+        maxY: Math.max(pi[1], pj[1]),
+        i
+      }))
     );
-    return { r, tree };
+    let boxes: RBush<Edge> | undefined;
+    const box = () => {
+      if (!boxes) {
+        boxes = new RBush<Edge>();
+        boxes.load(
+          edges.map(({ pi, pj, i }) => ({
+            minX: Math.min(pi[0], pj[0]),
+            maxX: Math.max(pi[0], pj[0]),
+            minY: Math.min(pi[1], pj[1]),
+            maxY: Math.max(pi[1], pj[1]),
+            i
+          }))
+        );
+      }
+      return boxes;
+    };
+    return { r, tree, box };
   });
   // pointInPolygon's test, edge by edge; the crossings are counted the same, so their order does not matter.
   const inside = ({ r, tree }: (typeof rings)[number], p: Point) => {
@@ -71,7 +106,57 @@ export function regionContains(polygon: VectorPolygon): (p: Point) => boolean {
     }
     return yes;
   };
-  return p => inside(rings[0], p) && !rings.slice(1).some(h => inside(h, p));
+  return {
+    contains: p => inside(rings[0], p) && !rings.slice(1).some(h => inside(h, p)),
+    near: (p, d) =>
+      rings.some(({ box }) => box().collides({ minX: p[0] - d, maxX: p[0] + d, minY: p[1] - d, maxY: p[1] + d }))
+  };
+}
+const ringBox = (r: Point[]) => {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [x, y] of r) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return { minX, minY, maxX, maxY };
+};
+/** True only when the outlines neither cross nor touch: each ring then lies wholly inside or outside the other. */
+function outlinesApart(a: Point[], b: Point[]): boolean {
+  const box = ringBox(a);
+  for (let j = 0; j < b.length; j++) {
+    const p = b[j],
+      q = b[(j + 1) % b.length];
+    if (
+      Math.max(p[0], q[0]) < box.minX ||
+      Math.min(p[0], q[0]) > box.maxX ||
+      Math.max(p[1], q[1]) < box.minY ||
+      Math.min(p[1], q[1]) > box.maxY
+    )
+      continue;
+    for (let i = 0; i < a.length; i++) if (segmentsIntersect(a[i], a[(i + 1) % a.length], p, q)) return false;
+  }
+  return true;
+}
+/** A quick sufficient test that `inner` lies inside `outer`; false means unknown. It spares the clipping kernel the
+ * common case of a difference that is certainly empty. */
+export function ringSurelyInside(inner: Point[], outer: Point[]): boolean {
+  return outlinesApart(inner, outer) && pointInPolygon(inner[0], outer);
+}
+/** A quick sufficient test that `ring` and `polygon` share no area; false means unknown. */
+export function ringSurelyApart(ring: Point[], polygon: VectorPolygon): boolean {
+  const a = ringBox(ring),
+    b = ringBox(polygon.outer);
+  if (a.maxX < b.minX || a.minX > b.maxX || a.maxY < b.minY || a.minY > b.maxY) return true;
+  return (
+    outlinesApart(ring, polygon.outer) &&
+    !pointInPolygon(ring[0], polygon.outer) &&
+    !pointInPolygon(polygon.outer[0], ring)
+  );
 }
 /** Only derived boundaries enter the clipping kernel; source paths and surveyed rings remain untouched. */
 export function regionBoolean(

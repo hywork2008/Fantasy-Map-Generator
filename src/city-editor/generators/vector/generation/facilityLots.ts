@@ -16,7 +16,15 @@ import { builtFeatureReservations, featureReservations } from "../environmentSta
 import { fabricLaneId, fabricStreetId } from "../fabric/lines";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening, junctionSurface, nearestRoadAnchor } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean, regionContains } from "../geometry/regions";
+import {
+  containsRegion,
+  regionArea,
+  regionBoolean,
+  regionContains,
+  regionProbe,
+  ringSurelyApart,
+  ringSurelyInside
+} from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -107,7 +115,11 @@ export function placeFacilitiesOnLots(
         const line = lines[item.k];
         if (!line.fabric) return false;
         const surface = surfaceOf(item.k);
-        return !!surface && regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6);
+        return (
+          !!surface &&
+          !ringSurelyApart(site.outer, surface) &&
+          regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6)
+        );
       }),
     { occupied, protectedLand } = facilityLand(doc);
   // Each street block's outline, indexed once: the sites are sampled against it point by point.
@@ -321,11 +333,19 @@ export function placeFacilitiesOnLots(
         // leaves of them, so the row runs on wall to wall (pre-acceptance U3). Its outline keeps off land taken.
         let site: VectorPolygon = { outer: hull, holes: [] };
         // The samples can miss a corner of the outline across the block's edge, which the whole lots used to hide.
-        if (regionBoolean([site], [{ outer: ring, holes: [] }], "difference").some(r => regionArea(r) > 0.01)) continue;
+        if (
+          !ringSurelyInside(hull, ring) &&
+          regionBoolean([site], [{ outer: ring, holes: [] }], "difference").some(r => regionArea(r) > 0.01)
+        )
+          continue;
         if (
           occupied
             .search(boxOf(site.outer))
-            .some(o => regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5))
+            .some(
+              o =>
+                !ringSurelyApart(site.outer, o.polygon) &&
+                regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)
+            )
         )
           continue;
         if (protectedLand.search(boxOf(site.outer, 1e-6)).some(o => surfacesOverlap(site, o.polygon))) continue;
@@ -337,7 +357,11 @@ export function placeFacilitiesOnLots(
           holes: p.holes.map(h => h.map(transform))
         }));
         // The building stands wholly on its parcel (the samples above can miss a corner across the block's edge).
-        if (regionBoolean(footprint, [site], "difference").some(r => regionArea(r) > 1e-5)) continue;
+        if (
+          !footprint.every(f => ringSurelyInside(f.outer, site.outer)) &&
+          regionBoolean(footprint, [site], "difference").some(r => regionArea(r) > 1e-5)
+        )
+          continue;
         if (wantsWater && waterDistance(doc, [site]) > request.riverbankMaxDistanceMeters!) continue;
         // The door on the front, joined to the line the lots face.
         const door = transform(entrance.point),
@@ -1253,28 +1277,34 @@ function layTannersLanes(
    * on a grid of LANE_GRID_METERS cells to the nearest road, its corners then pulled straight.
    */
   // The grid search tests thousands of points against the same obstacles; each obstacle's outline is indexed once.
-  const tests = new Map<VectorPolygon, (p: Point) => boolean>(),
-    inPolygon = (polygon: VectorPolygon) => {
+  const tests = new Map<VectorPolygon, ReturnType<typeof regionProbe>>(),
+    tested = (polygon: VectorPolygon) => {
       let test = tests.get(polygon);
       if (!test) {
-        test = regionContains(polygon);
+        test = regionProbe(polygon);
         tests.set(polygon, test);
       }
       return test;
+    },
+    inPolygon = (polygon: VectorPolygon) => tested(polygon).contains,
+    /** Whether `p` or a point `c` from it along either axis lies in `polygon`. Far from every edge, all five lie
+     * as `p` does. */
+    probedIn = (polygon: VectorPolygon, p: Point, c: number) => {
+      const test = tested(polygon);
+      if (test.contains(p)) return true;
+      if (!test.near(p, c)) return false;
+      return (
+        test.contains([p[0] + c, p[1]]) ||
+        test.contains([p[0] - c, p[1]]) ||
+        test.contains([p[0], p[1] + c]) ||
+        test.contains([p[0], p[1] - c])
+      );
     };
   const routeAround = (head: Point) => {
     const g = LANE_GRID_METERS,
       r = Math.ceil(LANE_REACH_METERS / g),
       clearance = TANNERS_LANE_METERS / 2 + 1.5,
-      at = (i: number, j: number): Point => [head[0] + i * g, head[1] + j * g],
-      probe = (p: Point, clearance: number) =>
-        [
-          p,
-          [p[0] + clearance, p[1]],
-          [p[0] - clearance, p[1]],
-          [p[0], p[1] + clearance],
-          [p[0], p[1] - clearance]
-        ] as Point[];
+      at = (i: number, j: number): Point => [head[0] + i * g, head[1] + j * g];
     const cellCache = new Map<number, 0 | 1 | 2>();
     // 0 free, 1 blocked, 2 on a road.
     const cell = (i: number, j: number): 0 | 1 | 2 => {
@@ -1286,9 +1316,7 @@ function layTannersLanes(
       if (Math.abs(p[0]) > ctx.half - clearance || Math.abs(p[1]) > ctx.half - clearance) v = 1;
       else
         for (const o of obstacles.search(boxOf([p], clearance)))
-          if (
-            o.road ? inPolygon(o.polygon)(p) : probe(p, o.yard ? YARD_CLEARANCE : clearance).some(inPolygon(o.polygon))
-          ) {
+          if (o.road ? inPolygon(o.polygon)(p) : probedIn(o.polygon, p, o.yard ? YARD_CLEARANCE : clearance)) {
             v = o.road ? 2 : 1;
             if (v === 1) break;
           }
@@ -1307,7 +1335,7 @@ function layTannersLanes(
           Math.abs(p[1]) > ctx.half - clearance ||
           obstacles
             .search(boxOf([p], clearance))
-            .some(o => !o.road && probe(p, o.yard ? YARD_CLEARANCE : clearance).some(inPolygon(o.polygon)));
+            .some(o => !o.road && probedIn(o.polygon, p, o.yard ? YARD_CLEARANCE : clearance));
         blockedAt.set(k, v);
       }
       return v;
