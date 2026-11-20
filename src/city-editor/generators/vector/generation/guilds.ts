@@ -1,7 +1,7 @@
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
-import { bufferPolygon, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
+import { bufferPolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import { planGuildFacilities } from "../../guildFacilities";
 import { type GuildSpot, type GuildWorksSite, placeGuildWorks } from "../../guildFacilityPlacement";
 import { featureReservations } from "../environmentState";
@@ -31,6 +31,9 @@ const grown = (polygon: Point[], by: number) =>
  * site outline as the town, its land blocks inside, square pieces beside the approach roads beyond it, and the
  * site's water, roads, walls and reserved ground as obstacles. Claimed pieces block the next.
  */
+/** Spacing of the spots a large block offers a guild hall. */
+const HALL_SPOT_SPACING_METERS = 60;
+
 export function vectorWorksSite(doc: VectorCityDocument, blocks: VectorBlock[]) {
   const site = doc.site!;
   const walls = Object.values(doc.paths).filter(p => p.role === "wall"),
@@ -65,19 +68,29 @@ export function vectorWorksSite(doc: VectorCityDocument, blocks: VectorBlock[]) 
   const hits = (polygon: Point[], regions: VectorPolygon[], clearance = 0) =>
     regionBoolean([ring(grown(polygon, clearance))], regions, "intersection").some(r => regionArea(r) > 1e-3);
   // Inside: the land blocks of the town. Outside: square pieces beside each approach road beyond the town.
+  // A block is bounded by the main roads alone; its lanes come later and reach every part of it, so a large block
+  // offers a hall a spot every `HALL_SPOT_SPACING_METERS` as well as its middle.
   const inner: GuildSpot[] = blocks.flatMap(b => {
     if (Math.abs(polygonArea(b.outer)) < 180) return [];
-    const centre = polygonCentroid(b.outer);
-    return insideTown(centre)
-      ? [
-          {
-            id: b.id,
-            centre,
-            polygon: b.outer,
-            dist: Math.hypot(centre[0] - site.center[0], centre[1] - site.center[1])
-          }
-        ]
-      : [];
+    const xs = b.outer.map(p => p[0]),
+      ys = b.outer.map(p => p[1]),
+      edge = [...b.outer, b.outer[0]],
+      centres = [polygonCentroid(b.outer)];
+    for (let x = Math.min(...xs); x <= Math.max(...xs); x += HALL_SPOT_SPACING_METERS)
+      for (let y = Math.min(...ys); y <= Math.max(...ys); y += HALL_SPOT_SPACING_METERS)
+        if (pointInPolygon([x, y], b.outer) && nearestOnPolyline([x, y], edge).dist >= 15) centres.push([x, y]);
+    return centres.flatMap((centre, k) =>
+      insideTown(centre) && pointInPolygon(centre, b.outer)
+        ? [
+            {
+              id: k ? `${b.id}:${k}` : b.id,
+              centre,
+              polygon: b.outer,
+              dist: Math.hypot(centre[0] - site.center[0], centre[1] - site.center[1])
+            }
+          ]
+        : []
+    );
   });
   const outer: GuildSpot[] = [];
   for (const road of roads) {

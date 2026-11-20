@@ -80,7 +80,9 @@ export const DEFAULT_VECTOR_GENERATION: VectorGenerationSettings = {
   seed: "meshless",
   roadWidthMeters: 5,
   clearanceMeters: 0.5,
-  branches: 8,
+  // A town's streets come from its approaches and the lanes round every block (§8.25): no extra main road is laid
+  // out to fixed points on a ring.
+  branches: 0,
   wall: "none"
 };
 export function generationFingerprint(doc: VectorCityDocument, ids: Set<string>): string {
@@ -1174,6 +1176,26 @@ function skeleton(
     if (containsRegion(free, p)) {
       ports.push(p);
       bindings.push([]);
+    }
+  }
+  // A port's quays need a street down to the water (P5b): one to the bank nearest the centre, ended a few metres
+  // inland. The rest of the town is reached by the lanes round its blocks.
+  if (settings.port) {
+    const shore = allVectorWater(doc)
+      .flatMap(w => [w.outer, ...w.holes])
+      .flatMap(r => densify([...r, r[0]], 4))
+      .filter(p => containsRegion(doc.site!.domain, p))
+      .sort((a, b) => distance(a, center) - distance(b, center));
+    quay: for (const p of shore.slice(0, 40)) {
+      const d = distance(p, center);
+      if (d < 1) continue;
+      for (const inland of [12, 20, 30, 45]) {
+        const q: Point = [p[0] + ((center[0] - p[0]) / d) * inland, p[1] + ((center[1] - p[1]) / d) * inland];
+        if (!containsRegion(free, q)) continue;
+        ports.push(q);
+        bindings.push([]);
+        break quay;
+      }
     }
   }
   const links: RouteLink[] = Object.values(doc.connections.bridges).map(b => {

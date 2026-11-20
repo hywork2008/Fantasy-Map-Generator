@@ -173,7 +173,7 @@ export function createVectorGenerationPanel(
   field("river", river);
   const width = number("roadWidth", 5),
     clearance = number("clearance", 0.5),
-    branches = number("branches", 8),
+    branches = number("branches", 0),
     wall = document.createElement("select");
   wall.dataset.generationField = "wall";
   for (const value of ["none", "rectangle", "ellipse", ...VECTOR_WALL_SHAPES]) {
@@ -580,7 +580,7 @@ export function createVectorGenerationPanel(
         doc.generation?.settings.seed ?? (doc.site ? doc.recipe.seed : (editorInput?.seed ?? doc.recipe.seed));
       width.value = String(doc.generation?.settings.roadWidthMeters ?? 5);
       clearance.value = String(doc.generation?.settings.clearanceMeters ?? 0.5);
-      branches.value = String(doc.generation?.settings.branches ?? 8);
+      branches.value = String(doc.generation?.settings.branches ?? 0);
       // Before any generation, the wall follows the editor's settings, as Generate city used to.
       wall.value =
         doc.generation?.settings.wall ??

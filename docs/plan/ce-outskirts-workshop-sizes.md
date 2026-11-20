@@ -906,3 +906,34 @@ A・B の共通の作り:
 
 - [wallShape.test.ts](../../src/city-editor/generators/vector/generation/wallShape.test.ts) に、町が大きくなると稜堡が増えて前線が 350 m 以内に収まること、指定した数はそのままになることを加えた。
 - [townMoat.test.ts](../../src/city-editor/generators/vector/generation/townMoat.test.ts) の「堀を置けない町」の種を `m39` から `m59` に替えた。`m39` は稜堡の数が変わって堀を置けるようになった。種 `m0`〜`m79`（5,000 人、壁の形は自動）で、生成できない稜堡式の町は前も後も 2 つ（前 `m30`・`m76`、後 `m30`・`m65`）。
+
+### 8.25 輪の上の点へ伸ばす太い道（branch）をやめる（2026-11-20、実装）
+
+ユーザー: 郊外の街道から都市中心に伸びる太い道以外の、branch の数で描く太い道は、都市地図として要らない。街区の周りはすべて小路で、街区があれば道は通じている。
+
+#### 変えたこと
+
+- メッシュなしの生成の既定 `branches` を 8 から 0 にした（[pipeline.ts](../../src/city-editor/generators/vector/generation/pipeline.ts) の `DEFAULT_VECTOR_GENERATION`、生成パネルの既定値）。設定の項目は残し、手で数を入れれば今までどおり引ける。
+- 港のある町は、町の中心に一番近い岸から 12〜45 m 内側の点まで、通りを 1 本引く。岸壁は、骨格の段階で通りに繋がっていないと置けない（`harbor-road-access`）ため。小路は骨格の後に作られる。
+- ギルドの会館は、街区ごとに真ん中の 1 か所にしか置けなかった。branch が無くなると街区が大きくなり、置ける所が減る。そこで、大きな街区では真ん中に加えて 60 m おきの点（街区の縁から 15 m 以上内側）にも置けるようにした（[guilds.ts](../../src/city-editor/generators/vector/generation/guilds.ts)）。
+- 多角形の演算の結果に出る -0 を 0 にした（[regions.ts](../../src/city-editor/generators/vector/geometry/regions.ts)）。保存して読み直すと 0 になり、文書が一致しなかったため。
+
+#### 測定（5,000 人、既定の設定、branch 8 → 0）
+
+| 種 | 道の本数 | 街区 | 未収容 | 主な警告の変化 |
+| --- | --- | --- | --- | --- |
+| sw0〜sw7（8 種） | 21〜32 → 12〜21 | 7〜12 → 8〜14 | 0 → 0 | 修道院を置けない: 2 → 1 |
+| w2〜w5（港あり、4 種） | 27〜31 → 12〜19 | 24〜37 → 27〜32 | 0 → 0 | 港: 4/4 → 4/4。修道院を置けない: 1 → 0。`branch-unreachable`: 1 → 0 |
+| w2・r1〜r5（壁なしの川港、6 種） | 24〜42 → 12〜17 | — | 0 → 0 | 港: 6/6 → 岸への通りを足す前は 5/6（w2 が `harbor-road-access`）。足した後に w2・r1・r3 を測り直し、すべて港あり。修道院を置けない: 3 → 0 |
+
+#### 試験
+
+- 種で結果が変わったので、次の試験の種を替えた。
+  - [market.test.ts](../../src/city-editor/generators/vector/generation/market.test.ts): m1 → m0。m1・m2 の屋台が 6 から 5 になった。m0〜m9 で 5 になったのは m1 だけ。
+  - [parks.test.ts](../../src/city-editor/generators/vector/generation/parks.test.ts): p7c-c → p7c-a。p7c-c に木のある公園が無くなった。
+- [doubleWalls.test.ts](../../src/city-editor/generators/vector/generation/doubleWalls.test.ts) の「内側の壁を置けない時」は、branch 0 だと d0〜d15 のすべてで内側の壁を置けた。そのため、この試験だけ branch 8 の d3 で確かめる。
+- [renderers/vector](../../src/city-editor/renderers/vector) の `facilities3d.test.ts`・`houseLod3d.test.ts` は、HEAD でも失敗する。
+
+#### 版
+
+- compact v57、burgage v58、burgage-dense v59 に上げた。

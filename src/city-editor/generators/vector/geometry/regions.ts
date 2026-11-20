@@ -122,7 +122,8 @@ export function regionBoolean(
           const points: Point[] = [];
           for (const p of r.slice(0, -1))
             if (!points.length || Math.hypot(p[0] - points.at(-1)![0], p[1] - points.at(-1)![1]) > 1e-7)
-              points.push([p[0], p[1]]);
+              // `+ 0` turns the kernel's -0 into 0, which a saved document reads back as.
+              points.push([p[0] + 0, p[1] + 0]);
           if (
             points.length > 1 &&
             Math.hypot(points[0][0] - points.at(-1)![0], points[0][1] - points.at(-1)![1]) <= 1e-7

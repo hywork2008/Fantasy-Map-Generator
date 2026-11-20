@@ -32,11 +32,13 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // (§8.21).
 // v56–v58: a bastioned wall left to the generator takes more bastions as the town grows, each front within 350 m
 // (§8.24).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v56";
+// v57–v59: no main roads to points on a ring (`branches` 0); a port lays one street to its bank, and a large block
+// offers a guild hall more than its middle (§8.25).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v57";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v57";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v58";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v58";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v59";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(
