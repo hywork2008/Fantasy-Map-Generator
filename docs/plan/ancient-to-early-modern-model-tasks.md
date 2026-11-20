@@ -120,7 +120,10 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
   - 基準：オスティアのディアナの家（Caseggiato di Diana、Regio I, III, 3-4）。ハドリアヌス帝の時代、130年頃。40 × 22 m の長方形で、黄色のレンガ張りのコンクリート（opus latericium）。中央の中庭は北と南からだけ入る。Via dei Balconi と Via di Diana に面して店（tabernae）と中二階の窓が並び、トラバーチンの石段で通りから上階へ上がる。2階の正面には細いバルコニーがあり、上の階が壊されたときに通りへ崩れ落ちた（Calza）。1階の壁の厚さは0.90〜1.00 m。中庭には東壁沿いに貯水槽があり、150年頃に大理石の噴水が加わった（ostia-antica.org、オスティア遺跡公園）。
   - 階数：公園の解説は「おそらく4階」、構造の研究は5階とする。4階とし、トラヤヌス帝の高さ制限60ローマ・フィート（約17.75 m）の下に軒（14.9 m）を収めた。
   - 推定の部分：中庭の寸法（14 × 8 m）、各階の高さ（1階は中二階込みで5.0 m、上階3.3 m）、窓の配置、バルコニーの支え、瓦の寄棟屋根。現存するのは1階と2階の床付近までである。
-- [ ] C02. **浴場（テルマエ）** — 冷浴室・温浴室・熱浴室、床下暖房、運動場。町の小浴場から始め、大浴場はその後にする。
+- [x] C02. **浴場（テルマエ）** — 冷浴室・温浴室・熱浴室、床下暖房、運動場。町の小浴場から始め、大浴場はその後にする。2026-11-21に [forumBaths.ts](../../src/buildings/roman/forumBaths.ts) として実装し、MVの Roman buildings に `forum-baths` で登録した（MV 専用、Low／High。author は Claude Opus 5.5）。
+  - 基準：ポンペイのフォルム浴場の男湯。前80年の植民市化の直後に、L. Caesius と按察官 C. Occius・L. Niraemius が公費で建て、79年の噴火の時に唯一営業していた浴場（Mau 1899）。脱衣室（I）、小さな円形の冷浴室（II、中央の水槽と4つの半円の壁がん）、火鉢だけで温めた微温浴室（III）、南端に熱湯の浴槽（alveus）、北の半円の張り出しに冷水の鉢（labrum）を置く熱浴室（IV）、男湯と女湯の間の細長い炉室（V）。
+  - 寸法：各室の内寸は、A. Mau『Pompeii: Its Life and Art』（1899）の図86（0〜50 m の縮尺付き平面図、Internet Archive のスキャン）から測った。脱衣室約5.4 × 10.3 m、冷浴室の直径約5.3 m（水槽約3.7 m）、微温浴室約6.6 × 10 m、熱浴室は幅約4.9 m・長さ約13.7 m、熱湯の浴槽約4.8 × 2.2 m、壁の厚さ約0.75 m。
+  - 推定の部分：天井と屋根の高さ、ヴォールトの形、屋根、窓は平面図に無いため推定。女湯・中庭と柱廊・周りの店は含めていない。網目積み（quasi-reticulate）の外装は Mau の記述による。
 - [ ] C03. **円形闘技場** — 楕円の観客席、アーチを重ねた外壁、闘技場の床。地方都市の規模から始める。
 - [ ] C04. **凱旋門** — 単拱式と三拱式。ティトゥス帝の凱旋門・コンスタンティヌス帝の凱旋門を参照する。
 - [ ] C05. **バリスタ・スコルピオ** — ねじり式の弩砲。大型と、軍団兵が扱う小型。
@@ -163,7 +166,7 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
 
 ## 着手の順番
 
-A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01・B02 は完了、B03 は王の宿営のみ、B04 はパヴィスのみ完了。次は B05）→ C（C01 は完了。C02〜C07 を先に）→ D01・D02 → E01〜E03 → 残り。
+A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01・B02 は完了、B03 は王の宿営のみ、B04 はパヴィスのみ完了。次は B05）→ C（C01・C02 は完了。C03〜C07 を先に）→ D01・D02 → E01〜E03 → 残り。
 
 上の各グループの中では番号順に進める。地域や時代が限られるモデル（E10、D04など）は、使う文化圏と年代の要望が出た時点で順位を上げる。
 
@@ -186,6 +189,7 @@ A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終�
 - [The Cut of Henry VIII's Tents ほか（A Commonplace Book、W. McLean）](http://willscommonplacebook.blogspot.com/search/label/Tents) — 1547年目録（D. Starkey 編『The Inventory of King Henry VIII』1998）の読み
 - [Infantry Shield (Pavise)（The Metropolitan Museum of Art, 23333）](https://www.metmuseum.org/art/collection/search/23333)
 - [Caseggiato di Diana (I,III,3-4)（ostia-antica.org）](http://www.ostia-antica.org/regio1/3/3-3.htm)、[Casa di Diana（オスティア遺跡公園）](https://parcoarcheologicostiantica.it/en/educational-panels/the-central-area-and-the-official-complexes/casa-di-diana/)、[Insula (building)（Wikipedia）](https://en.wikipedia.org/wiki/Insula_(building))
+- A. Mau, Pompeii: Its Life and Art（1899）、第26・27章と図86（[Internet Archive](https://archive.org/details/pompeiiitslifear00mauauoft)）
 - [Mons Meg（Wikipedia）](https://en.wikipedia.org/wiki/Mons_Meg)、[Dulle Griet（Wikipedia）](https://en.wikipedia.org/wiki/Dulle_Griet)
 - [Bombarda, 15. století（Cheb の解説板、HMdb）](https://www.hmdb.org/m.asp?m=285895)、[Medieval Siege Artillery（Warfare History Network）](https://warfarehistorynetwork.com/medieval-siege-artillery/)、[Belagerungsgeschütze（burgerbe.de）](https://www.burgerbe.de/2018/04/07/belagerungsgeschuetze-die-groessten-kanonen-der-fruehen-neuzeit/)
 - [Die Fährnachen（weldergoven.de）](http://www.weldergoven.de/?page_id=202) — 1846年のジーク川の渡しの一覧

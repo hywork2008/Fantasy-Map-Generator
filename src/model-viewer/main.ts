@@ -2,6 +2,7 @@ import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flint
 import { createPavise, PAVISE } from "../buildings/arms/pavise";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
+import { createForumBaths, FORUM_BATHS } from "../buildings/roman/forumBaths";
 import { createInsula, INSULA } from "../buildings/roman/insula";
 import { createFordCarrier, FORD_CARRIER } from "../buildings/ships/fordCarrier";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
@@ -2950,6 +2951,63 @@ AUTHORED_VARIANTS[insulaButton.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showInsula()
+};
+
+const forumBathsButton = document.createElement("button");
+forumBathsButton.dataset.id = "forum-baths";
+forumBathsButton.type = "button";
+forumBathsButton.textContent = "Thermae · Pompeii Forum Baths, men's section, c. 80 BC";
+function showForumBaths(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === forumBathsButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "South elevation";
+  levelTitle.textContent = "Roof plan";
+  const model = createForumBaths(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model.group);
+  const size = bounds.getSize(new THREE.Vector3());
+  const centre = bounds.getCenter(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(centre.x - 22, 18, centre.z + 26);
+  controls.target.set(centre.x, 3.5, centre.z);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const { plan } = FORUM_BATHS;
+  const size2 = (r: { x0: number; x1: number; z0: number; z1: number }) =>
+    `${(r.x1 - r.x0).toFixed(1)} × ${(r.z1 - r.z0).toFixed(1)} m`;
+  appendFacts(
+    fact("Model", FORUM_BATHS.name),
+    fact("Author", FORUM_BATHS.author),
+    fact("Period", "Built soon after 80 BC; the only baths working at Pompeii in AD 79"),
+    fact(
+      "Rooms",
+      `Apodyterium ${size2(plan.apodyterium)}; round frigidarium ${(2 * plan.frigidarium.radius).toFixed(1)} m across; tepidarium ${size2(plan.tepidarium)}; caldarium ${size2(plan.caldarium)} with apse and alveus; furnace room with three boilers`
+    ),
+    fact("Source", `Room sizes measured from ${FORUM_BATHS.scale}; heights, vaults and roofs proportioned`),
+    fact("Quality", quality === "high" ? "High" : "Low — room masses, tiled roofs and doorways"),
+    fact("Note", FORUM_BATHS.note, "Thermae"),
+    ...(quality === "high" ? [fact("High detail", FORUM_BATHS.highNote)] : [])
+  );
+}
+forumBathsButton.addEventListener("click", () => showForumBaths());
+romanHeading.append(forumBathsButton);
+AUTHORED_VARIANTS[forumBathsButton.dataset.id] = {
+  author: FORUM_BATHS.author,
+  primary: true,
+  quality: true,
+  show: () => showForumBaths()
 };
 
 const fieldDefencesHeading = modelCategory("Field defences");
