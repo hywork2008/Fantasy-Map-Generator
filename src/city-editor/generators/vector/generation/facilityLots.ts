@@ -1239,12 +1239,15 @@ function layTannersLanes(
     obstacles.insert({ ...boxOf(polygon.outer), polygon, road: p.id });
   };
   for (const p of roadPaths) addRoad(p);
-  const blocked = (surface: VectorPolygon, except?: string) =>
+  /** `except`: the road the lane leaves, or every road (`true`). */
+  const blocked = (surface: VectorPolygon, except?: string | true) =>
     surface.outer.some(p => Math.abs(p[0]) > ctx.half || Math.abs(p[1]) > ctx.half) ||
     obstacles
       .search(boxOf(surface.outer))
       .some(
-        o => o.road !== except && regionBoolean([surface], [o.polygon], "intersection").some(a => regionArea(a) > 1e-5)
+        o =>
+          (except === true ? !o.road : o.road !== except) &&
+          regionBoolean([surface], [o.polygon], "intersection").some(a => regionArea(a) > 1e-5)
       );
   const drop = (group: typeof fronts) => {
     for (const f of group) {
@@ -1371,9 +1374,11 @@ function layTannersLanes(
           nj = j + dj;
         if (Math.abs(ni) > r || Math.abs(nj) > r) continue;
         const v = cell(ni, nj);
-        if (v === 1 || !wayClear(at(i, j), at(ni, nj))) continue;
+        if (v === 1) continue;
         const c = base + Math.hypot(di, dj);
-        if (c >= (cost.get(key(ni, nj)) ?? Infinity)) continue;
+        // The way between the cells is sampled only for a move that would improve the cell: most moves reach a cell
+        // already reached more cheaply, and the samples are the search's costliest test.
+        if (c >= (cost.get(key(ni, nj)) ?? Infinity) || !wayClear(at(i, j), at(ni, nj))) continue;
         cost.set(key(ni, nj), c);
         came.set(key(ni, nj), key(i, j));
         if (v === 2) {
@@ -1406,8 +1411,9 @@ function layTannersLanes(
     };
   };
   // The way round is searched only when no straight route served the whole run: it is the costliest, and last.
-  function* routesFrom(head: Point) {
+  function* routesFrom(head: Point, worthSearching: () => boolean) {
     yield* straightRoutes(head);
+    if (!worthSearching()) return;
     const around = routeAround(head);
     if (around) yield around;
   }
@@ -1467,6 +1473,39 @@ function layTannersLanes(
   };
   // A run of yards is served from either end by the longest lane that keeps clear (a burial ground or a creek before
   // some fronts cuts the run); the yards beyond it are served from their own end, or give their bank back.
+  /**
+   * The most yards any lane from `order`'s end could serve: its run along their fronts alone, kept clear of all but
+   * the roads, before any way to a road is added. A lane only grows from it, so no route serves more.
+   */
+  const reachAlong = (order: typeof fronts) => {
+    const clearTo = (m: number) => {
+      const points = order.slice(0, m).map(f => f.point);
+      try {
+        return !blocked(
+          pathSurface({
+            id: "tanners-lane-probe",
+            revision: 0,
+            role: "road",
+            origin: "automatic",
+            editPolicy: "editable",
+            source: curveSource(points, "polyline", false),
+            width: { leftMeters: TANNERS_LANE_METERS / 2, rightMeters: TANNERS_LANE_METERS / 2, stations: [] }
+          }),
+          true
+        );
+      } catch {
+        return true;
+      }
+    };
+    let lo = 1,
+      hi = order.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (clearTo(mid)) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  };
   const queue = [...groups];
   while (queue.length) {
     const group = queue.shift()!;
@@ -1478,7 +1517,7 @@ function layTannersLanes(
         }
       | undefined;
     for (const order of [group, [...group].reverse()])
-      for (const route of routesFrom(order[0].point)) {
+      for (const route of routesFrom(order[0].point, () => !best || best.k < reachAlong(order))) {
         if (best && best.k === group.length) break;
         if (!lay(laneFor(order.slice(0, 1), route), route, true)) continue;
         // The longest prefix that keeps clear: blocking only grows with the lane.
