@@ -15,6 +15,7 @@ import { createMerchantShipHigh } from "./merchantShipHigh";
 import { createOpusGalleon } from "./opusGalleon";
 import { createOpusShipOfTheLine } from "./opusShipOfTheLine";
 import { createOpusTrireme } from "./opusTrireme";
+import { createReactionFerryModel } from "./reactionFerry";
 import { createRopeFerryModel } from "./ropeFerry";
 import { createSloop } from "./sloop";
 import { createSloopHigh } from "./sloopHigh";
@@ -144,6 +145,14 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     author: "Claude Opus 5.5" as const,
     // Not placed by CE yet; the default tier is Low.
     create: () => createFerryNachenModel(level === "high" ? "high" : "low")
+  })),
+  ...(["default", "low", "high"] as const).map(level => ({
+    id: variantId("ship.reaction-ferry", level, "Claude Opus 5.5"),
+    family: "ship.reaction-ferry",
+    level,
+    author: "Claude Opus 5.5" as const,
+    // Not placed by CE yet; the default tier is Low.
+    create: () => createReactionFerryModel(level === "high" ? "high" : "low")
   })),
   ...(["default", "low", "high"] as const).map(level => ({
     id: variantId("ship.ferry-smack", level, "Claude Opus 5.5"),

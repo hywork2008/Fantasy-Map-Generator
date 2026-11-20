@@ -82,6 +82,7 @@ import {
   type OpusTriremeQuality,
   opusTriremeParts
 } from "../buildings/ships/opusTrireme";
+import { createReactionFerry, REACTION_FERRY } from "../buildings/ships/reactionFerry";
 import { createRopeFerry, ROPE_FERRY } from "../buildings/ships/ropeFerry";
 import { assembleSailingParts, type SailingShipState } from "../buildings/ships/sailingAssembly";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
@@ -2325,6 +2326,59 @@ AUTHORED_VARIANTS[ferryNachenButton.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showFerryNachen()
+};
+
+const reactionFerryButton = document.createElement("button");
+reactionFerryButton.type = "button";
+reactionFerryButton.dataset.id = "reaction-ferry";
+reactionFerryButton.textContent = "Gierponte · Rhine reaction ferry (flying bridge)";
+function showReactionFerry(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === reactionFerryButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Ferry side elevation";
+  levelTitle.textContent = "Load floor plan";
+  const model = createReactionFerry(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  frame({ occupancyMeters: { width: REACTION_FERRY.length, depth: REACTION_FERRY.width } }, REACTION_FERRY.height);
+  camera.position.set(22, 13, 24);
+  controls.target.set(0, 4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const { hull } = REACTION_FERRY;
+  appendFacts(
+    fact("Model", REACTION_FERRY.name),
+    fact("Author", REACTION_FERRY.author),
+    fact("Period", "Rhine and Waal, 1657 to the 19th century; after the St. Goar ferry of 1772"),
+    fact(
+      "Dimensions",
+      `Two ships of ${hull.length.toFixed(1)} × ${hull.beam.toFixed(2)} × ${hull.depth.toFixed(2)} m (82.5 × 12.5 × 5.2 Schuh), ${REACTION_FERRY.gap} m apart; load floor ${REACTION_FERRY.deckLength.toFixed(1)} × ${REACTION_FERRY.width.toFixed(1)} m; ${REACTION_FERRY.height.toFixed(1)} m to the bell house roof`
+    ),
+    fact("Propulsion", "The current, steered across on a rope and an anchored chain; two rudders"),
+    fact("Load", "Carts and coaches with their teams, riders, cattle and foot passengers through gates on both sides"),
+    fact("CE adoption", "Not placed by CE yet; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain rails, masts and crossbars without rigging or fittings"),
+    fact("Note", REACTION_FERRY.note, "Reaction ferry"),
+    ...(quality === "high" ? [fact("High detail", REACTION_FERRY.highNote)] : [])
+  );
+}
+reactionFerryButton.addEventListener("click", () => showReactionFerry());
+shipsHeading.append(reactionFerryButton);
+AUTHORED_VARIANTS[reactionFerryButton.dataset.id] = {
+  author: REACTION_FERRY.author,
+  primary: true,
+  quality: true,
+  show: () => showReactionFerry()
 };
 
 const ferrySmackState: { sails: "set" | "furled" } = { sails: "set" };
