@@ -1,0 +1,397 @@
+/**
+ * Opus shop-house workhome: the street front of a craftsman's house, with no interior ledger
+ * (docs/plan/bv-workhome-facade-variation.md §4). Free of three.js so CE generators can lay plots and entrances.
+ * Coordinates are metres, +Z toward the street, the envelope centred on the origin.
+ */
+
+import { historicalPeriodIndex } from "../../types/historicalPeriod";
+import type { BuildingPaletteId } from "../appearance/palette";
+import type { BuildingAppearanceProfile } from "../appearance/types";
+import { REGIONAL_HOUSE_STYLES } from "../houses/regionalHouseStyles";
+import type { OpusRearTrade } from "./opusRearWorksProfiles";
+import type { WorkhomeForm } from "./workhomeFormProfiles";
+import type { WorkhomeRole } from "./workhomeTradeProfiles";
+
+/** The trades an Opus shop-house sells for: the Codex workhome trades, and the trades that keep rear works behind
+ * their house (docs/plan/ce-town-trade-rear-works.md). */
+export type OpusShopRole = WorkhomeRole | OpusRearTrade;
+
+export type OpusWorkhomeCulture = Exclude<BuildingAppearanceProfile, "legacy">;
+
+export const OPUS_WORKHOME_CULTURES: readonly OpusWorkhomeCulture[] = [
+  "atlantic",
+  "northern-urban",
+  "mediterranean",
+  "stone-upland",
+  "northern-wooded"
+];
+
+export interface OpusWorkhomeSpec {
+  role: OpusShopRole;
+  culture: OpusWorkhomeCulture;
+  /** Plot frontage, the envelope's X extent: 3.0–7.7 m on a 0.01 m grid. */
+  widthMeters: number;
+  /** Envelope depth along Z: 8–12 m (CE presets keep the Codex 8.93 and 10.53 m envelopes). */
+  depthMeters: number;
+  /** Ground storey plus upper storeys; the garret under the roof is not counted. */
+  storeys: 2 | 3;
+  /** Gable or eaves to the street. The footprint and the door never turn, only the ridge. */
+  entranceFace: "gable" | "eave";
+  /** One shop window beside the door, or a door between two (Treswell's Cheapside, plan §4.3); needs 6 m. */
+  fronts: 1 | 2;
+  shop: "open" | "closed";
+  door: "closed" | "ajar";
+  sign: "board" | "none";
+  shade: 0 | 1 | 2;
+  /** Door on the left (false) or the right (true), seen from the street. */
+  mirror: boolean;
+}
+
+/** Narrowest frontage: a shop window and a door side by side (Bennell p.193; Poultry p.56). */
+export const OPUS_WORKHOME_MIN_WIDTH = 3;
+export const OPUS_WORKHOME_MAX_WIDTH = 7.7;
+/** Double fronts need a window either side of the door (Bennell p.194: 6.1–7.32 m). */
+export const OPUS_WORKHOME_DOUBLE_FRONT_WIDTH = 6;
+
+/** A third storey needs this frontage: a tall house on a narrow plot is a tower, not a shop-house (plan §4.6). */
+export const OPUS_WORKHOME_TALL_WIDTH = 5;
+/** Share of tall shop-houses where they are allowed (provisional, plan §8). */
+export const OPUS_WORKHOME_TALL_SHARE = 0.35;
+
+/**
+ * Storeys of a shop-house (plan §4.6): a ground storey and one upper storey under a garret, as most London shops by
+ * 1300 (Bennell pp.193–194); a third storey from the late Middle Ages on frontages of 5 m and more, as Cheapside's
+ * goldsmiths in 1547. `roll` is the facility's own draw in [0, 1).
+ */
+export function opusWorkhomeStoreys(period: string | undefined, widthMeters: number, roll: number): 2 | 3 {
+  const late = historicalPeriodIndex(period) >= historicalPeriodIndex("lateMedieval");
+  return late && widthMeters >= OPUS_WORKHOME_TALL_WIDTH && roll < OPUS_WORKHOME_TALL_SHARE ? 3 : 2;
+}
+
+/** Street-side reach in front of the ground-storey wall: stall board, propped shutter, sign. */
+const STREET_REACH = 0.8;
+/** Eave overhang past the wall, and the verge of a gable on the party wall (a terrace has none to speak of). */
+const EAVE = 0.12;
+const VERGE = 0.05;
+/** A framed back gable and its window sills stand proud of the wall by this much (TradeKit). */
+const GABLE_FRAME = 0.14;
+const DOOR_WIDTH = 0.9;
+/** Wall left between openings and at the corners. */
+const POST = 0.2;
+/** The narrowest shop window worth the name; a gable front that leaves less turns its eaves to the street. */
+const MIN_SHOP = 1;
+const GROUND = 3.0;
+const UPPER = 2.7;
+
+interface CultureFront {
+  /** Shop openings under round arches with a stone counter sill (the Midi's maison polyvalente). */
+  arched: boolean;
+  /** Ground storey in stone under the upper storeys' finish. */
+  stoneGround: boolean;
+  /** Fixed street face; undefined follows the spec. */
+  face?: "gable" | "eave";
+  pitch: number;
+  /** Loft door with a hoist beam in the street gable (Hanseatic warehouse lofts). */
+  hoist: boolean;
+}
+
+/** Ground-storey types by culture (plan §4.3; Garrigou Grandchamp 2002 p.94, Reinle RDK VII). */
+export const OPUS_WORKHOME_FRONTS: Record<OpusWorkhomeCulture, CultureFront> = {
+  atlantic: { arched: false, stoneGround: false, pitch: 50, hoist: false },
+  "northern-urban": { arched: false, stoneGround: false, face: "gable", pitch: 55, hoist: true },
+  mediterranean: { arched: true, stoneGround: true, face: "eave", pitch: 22, hoist: false },
+  "stone-upland": { arched: true, stoneGround: true, pitch: 35, hoist: false },
+  "northern-wooded": { arched: false, stoneGround: false, pitch: 45, hoist: false }
+};
+
+export interface OpusWorkhomeOpening {
+  a: number;
+  b: number;
+}
+
+/** The walls, roof and finish of an Opus street house, shared by shop-houses and guild houses (plan §4.1, §6.1). */
+export interface OpusStreetShell {
+  /** Ground-storey walls; z1 is the street front, z0 the back. */
+  x0: number;
+  x1: number;
+  z0: number;
+  z1: number;
+  ground: number;
+  upper: number;
+  jetty: number;
+  ridge: "x" | "z";
+  pitch: number;
+  /** Roof slab thickness and eave overhang the model must use to stay inside the envelope. */
+  roofThickness: number;
+  eaveOverhang: number;
+  vergeOverhang: number;
+  arched: boolean;
+  stoneGround: boolean;
+  colors: { wall: BuildingPaletteId; roof: BuildingPaletteId; frame?: BuildingPaletteId; plinth: BuildingPaletteId };
+  finish: "frame" | "boarding" | "masonry";
+  cover: (typeof REGIONAL_HOUSE_STYLES)[OpusWorkhomeCulture]["cover"];
+}
+
+/** What the shell's builder reads of a street house's spec. */
+export interface OpusStreetHouseSpec {
+  culture: OpusWorkhomeCulture;
+  widthMeters: number;
+  depthMeters: number;
+  storeys: 2 | 3;
+  entranceFace: "gable" | "eave";
+  shade: 0 | 1 | 2;
+  mirror: boolean;
+}
+
+export interface OpusStreetLayout extends OpusStreetShell {
+  spec: OpusStreetHouseSpec;
+  /** The street door; the back door lines up with it. */
+  door: OpusWorkhomeOpening;
+  /** Upper-storey window centres along X. */
+  windows: number[];
+  /** Loft door with a hoist beam in the street gable. */
+  hoist: boolean;
+  /** Main entrance on the street front, model metres. */
+  entrance: { id: "main"; position: readonly [number, number, number]; clearWidth: number };
+}
+
+export interface OpusWorkhomeLayout extends OpusStreetLayout {
+  spec: OpusWorkhomeSpec;
+  shops: OpusWorkhomeOpening[];
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+const grid = (v: number) => Math.round(v * 100) / 100;
+
+/** The spec on its grids and inside its ranges, so equal keys mean equal models. */
+export function normalizeOpusWorkhomeSpec(spec: OpusWorkhomeSpec): OpusWorkhomeSpec {
+  const widthMeters = grid(clamp(spec.widthMeters, OPUS_WORKHOME_MIN_WIDTH, OPUS_WORKHOME_MAX_WIDTH));
+  const face = OPUS_WORKHOME_FRONTS[spec.culture].face ?? spec.entranceFace;
+  return {
+    ...spec,
+    widthMeters,
+    depthMeters: grid(clamp(spec.depthMeters, 8, 12)),
+    entranceFace: face,
+    storeys: spec.storeys === 3 && widthMeters >= OPUS_WORKHOME_TALL_WIDTH ? 3 : 2,
+    fronts: spec.fronts === 2 && widthMeters >= OPUS_WORKHOME_DOUBLE_FRONT_WIDTH ? 2 : 1
+  };
+}
+
+export function opusWorkhomeSpecKey(spec: OpusWorkhomeSpec): string {
+  const s = normalizeOpusWorkhomeSpec(spec);
+  return [
+    s.role,
+    s.culture,
+    s.widthMeters,
+    s.depthMeters,
+    s.storeys,
+    s.entranceFace,
+    s.fronts,
+    s.shop,
+    s.door,
+    s.sign,
+    s.shade,
+    s.mirror ? "r" : "l"
+  ].join("|");
+}
+
+/** Walls, openings and the entrance of a spec: shared by the model and by CE placement. */
+export function opusWorkhomeLayout(input: OpusWorkhomeSpec): OpusWorkhomeLayout {
+  const first = layoutFor(normalizeOpusWorkhomeSpec(input));
+  // A gable front's eaves eat into a narrow plot; where they leave no shop the house turns its eaves to the street.
+  if (
+    first.spec.entranceFace === "gable" &&
+    !OPUS_WORKHOME_FRONTS[first.spec.culture].face &&
+    first.shops.some(o => o.b - o.a < MIN_SHOP)
+  )
+    return layoutFor({ ...first.spec, entranceFace: "eave" });
+  return first;
+}
+
+/**
+ * The walls of a street house on its envelope: margins kept for the roof slab, the eaves and the street reach (stall
+ * board, sign) so the model never leaves its plot.
+ */
+export function opusStreetShell(
+  spec: Pick<OpusStreetHouseSpec, "culture" | "entranceFace" | "widthMeters" | "depthMeters">
+): OpusStreetShell {
+  const style = REGIONAL_HOUSE_STYLES[spec.culture],
+    front = OPUS_WORKHOME_FRONTS[spec.culture],
+    ridge = spec.entranceFace === "gable" ? "z" : "x",
+    roofThickness = style.cover === "thatch" ? 0.3 : 0.14,
+    pitch = (front.pitch * Math.PI) / 180;
+  // The roof slab's outer corner reaches past its eave line by its end allowance and its thickness (TradeKit).
+  const eaveReach = EAVE + 0.3 * roofThickness * Math.cos(pitch) + roofThickness * Math.sin(pitch) + 0.01;
+  const side = ridge === "x" ? VERGE : eaveReach,
+    backMargin = ridge === "x" ? eaveReach : GABLE_FRAME;
+  const half = spec.widthMeters / 2,
+    jetty = Math.min(style.jetty, 0.4);
+  return {
+    x0: -half + side,
+    x1: half - side,
+    z0: -spec.depthMeters / 2 + backMargin,
+    // The stall board and the sign reach into the street; an eaves front also must keep its eave on the plot.
+    z1: spec.depthMeters / 2 - Math.max(STREET_REACH, jetty + (ridge === "x" ? eaveReach : VERGE)),
+    ground: GROUND,
+    upper: UPPER,
+    jetty,
+    ridge,
+    pitch: front.pitch,
+    roofThickness,
+    eaveOverhang: EAVE,
+    vergeOverhang: VERGE,
+    arched: front.arched,
+    stoneGround: front.stoneGround,
+    colors: { wall: style.wall, roof: style.roof, frame: style.frame, plinth: style.plinth },
+    finish: style.boarding ? "boarding" : style.frame ? "frame" : "masonry",
+    cover: style.cover
+  };
+}
+
+/** Upper-storey window centres: bays of about 1.6 m across the front. */
+export function opusStreetWindows(shell: Pick<OpusStreetShell, "x0" | "x1">, per = 1.6, max = 4): number[] {
+  const inner = shell.x1 - shell.x0,
+    bays = clamp(Math.round(inner / per), 1, max);
+  return Array.from({ length: bays }, (_, i) => grid(shell.x0 + ((i + 0.5) * inner) / bays));
+}
+
+function layoutFor(spec: OpusWorkhomeSpec): OpusWorkhomeLayout {
+  const shell = opusStreetShell(spec),
+    front = OPUS_WORKHOME_FRONTS[spec.culture],
+    { x0, x1, z1, ridge } = shell,
+    inner = x1 - x0;
+  // The door stands at one side (or the middle of a double front); the shop fills the rest.
+  const left = !spec.mirror;
+  let door: OpusWorkhomeOpening, shops: OpusWorkhomeOpening[];
+  if (spec.fronts === 2) {
+    door = { a: -DOOR_WIDTH / 2, b: DOOR_WIDTH / 2 };
+    const span = Math.min(2.2, (inner - DOOR_WIDTH) / 2 - 2 * POST);
+    shops = [
+      { a: door.a - POST - span, b: door.a - POST },
+      { a: door.b + POST, b: door.b + POST + span }
+    ];
+  } else {
+    door = left ? { a: x0 + POST, b: x0 + POST + DOOR_WIDTH } : { a: x1 - POST - DOOR_WIDTH, b: x1 - POST };
+    const from = left ? door.b + POST : x0 + POST,
+      to = left ? x1 - POST : door.a - POST,
+      span = Math.min(front.arched ? 2.2 : 2.6, to - from),
+      c = (from + to) / 2;
+    shops = [{ a: c - span / 2, b: c + span / 2 }];
+  }
+  return {
+    ...shell,
+    spec,
+    door,
+    shops,
+    windows: opusStreetWindows(shell),
+    hoist: front.hoist && ridge === "z",
+    entrance: { id: "main", position: [grid((door.a + door.b) / 2), 0, grid(z1)], clearWidth: DOOR_WIDTH }
+  };
+}
+
+/** Codex envelopes the CE presets keep, so compact placement is unchanged (plan §4.7). */
+export const OPUS_WORKHOME_PRESET_ENVELOPES: Record<WorkhomeForm, readonly [number, number]> = {
+  standard: [6.44, 10.53],
+  narrow: [5.24, 8.93],
+  wide: [7.64, 10.53]
+};
+
+/** The catalogue's preset of a trade and Codex form: an English shop-house of the form's envelope. */
+export function opusWorkhomePreset(
+  role: OpusShopRole,
+  form: WorkhomeForm,
+  overrides: Partial<OpusWorkhomeSpec> = {}
+): OpusWorkhomeSpec {
+  const [widthMeters, depthMeters] = OPUS_WORKHOME_PRESET_ENVELOPES[form];
+  return {
+    role,
+    culture: "atlantic",
+    widthMeters,
+    depthMeters,
+    storeys: form === "narrow" ? 3 : 2,
+    entranceFace: "eave",
+    fronts: 1,
+    shop: "open",
+    door: "closed",
+    sign: "board",
+    shade: 1,
+    mirror: false,
+    ...overrides
+  };
+}
+
+/**
+ * What CE keeps per placed workhome (plan §4.7): the street front a facility was given. The trade and the plot come
+ * from its model id, so a saved exterior and its model id rebuild the same model.
+ */
+export type OpusWorkhomeExterior = Pick<
+  OpusWorkhomeSpec,
+  "culture" | "entranceFace" | "storeys" | "shop" | "door" | "sign" | "shade"
+> &
+  /** A workhome fitted to its burgage plot (W4): its frontage and depth on their grids, and its door side. Without
+   * them it keeps its Codex form's envelope with the door on the left. */
+  Partial<Pick<OpusWorkhomeSpec, "widthMeters" | "depthMeters" | "mirror">>;
+
+/** Grids of a plot-fitted workhome, so a town shares few models (plan §4.2). */
+export const OPUS_WORKHOME_WIDTH_STEP = 0.25;
+export const OPUS_WORKHOME_DEPTH_STEP = 0.5;
+
+/** A Codex form's workhome, or the shop-house before a trade's rear works (its envelope the standard form's). */
+const MODEL_ID = /^trade-workhome\.(?:workhome-(standard|narrow|wide)|shop-house)\.([A-Za-z]+)$/;
+
+export const opusShopHouseModelId = (trade: OpusRearTrade) => `trade-workhome.shop-house.${trade}`;
+
+/** The trade and Codex form of a task-51 model id, or undefined for any other model. */
+export function opusWorkhomeModel(modelId: string): { role: OpusShopRole; form: WorkhomeForm } | undefined {
+  const m = MODEL_ID.exec(modelId);
+  return m ? { form: (m[1] ?? "standard") as WorkhomeForm, role: m[2] as OpusShopRole } : undefined;
+}
+
+/** The full spec of a placed workhome: its model's preset with the saved exterior. */
+export function opusWorkhomeSpecOf(modelId: string, exterior: OpusWorkhomeExterior): OpusWorkhomeSpec | undefined {
+  const model = opusWorkhomeModel(modelId);
+  const given = Object.fromEntries(Object.entries(exterior).filter(([, v]) => v !== undefined));
+  return model && opusWorkhomePreset(model.role, model.form, given as Partial<OpusWorkhomeSpec>);
+}
+
+/** A workhome's envelope (width, depth): its fitted plot, or its Codex form's. */
+export function opusWorkhomeEnvelope(modelId: string, exterior?: OpusWorkhomeExterior): readonly [number, number] {
+  const preset = OPUS_WORKHOME_PRESET_ENVELOPES[opusWorkhomeModel(modelId)?.form ?? "standard"];
+  return [exterior?.widthMeters ?? preset[0], exterior?.depthMeters ?? preset[1]];
+}
+
+const onGrid = (v: unknown, step: number, lo: number, hi: number) =>
+  typeof v === "number" && v >= lo && v <= hi && Math.abs(v / step - Math.round(v / step)) < 1e-9;
+
+export function isOpusWorkhomeExterior(value: unknown): value is OpusWorkhomeExterior {
+  const v = value as Record<string, unknown>;
+  return (
+    !!v &&
+    typeof v === "object" &&
+    Object.keys(v).every(k =>
+      [
+        "culture",
+        "entranceFace",
+        "storeys",
+        "shop",
+        "door",
+        "sign",
+        "shade",
+        "widthMeters",
+        "depthMeters",
+        "mirror"
+      ].includes(k)
+    ) &&
+    (v.widthMeters === undefined ||
+      onGrid(v.widthMeters, OPUS_WORKHOME_WIDTH_STEP, OPUS_WORKHOME_MIN_WIDTH, OPUS_WORKHOME_MAX_WIDTH)) &&
+    (v.depthMeters === undefined || onGrid(v.depthMeters, OPUS_WORKHOME_DEPTH_STEP, 8, 12)) &&
+    (v.mirror === undefined || typeof v.mirror === "boolean") &&
+    (OPUS_WORKHOME_CULTURES as readonly unknown[]).includes(v.culture) &&
+    (v.entranceFace === "gable" || v.entranceFace === "eave") &&
+    (v.storeys === 2 || v.storeys === 3) &&
+    (v.shop === "open" || v.shop === "closed") &&
+    (v.door === "closed" || v.door === "ajar") &&
+    (v.sign === "board" || v.sign === "none") &&
+    (v.shade === 0 || v.shade === 1 || v.shade === 2)
+  );
+}

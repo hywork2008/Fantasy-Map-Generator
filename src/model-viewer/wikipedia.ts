@@ -210,6 +210,9 @@ const modelArticles: Record<string, string> = {
   "churchyard-cross": "Churchyard cross",
   "lych-gate": "Lychgate",
   "trade-workshop.dedicated-ropewalk": "Ropewalk",
+  "trade-workshop.dedicated-ropewalk-108": "Ropewalk",
+  "trade-workshop.dedicated-ropewalk-180": "Ropewalk",
+  "trade-workshop.dedicated-ropewalk-300": "Ropewalk",
   "trade-workshop.dedicated-horse-mill": "Horse mill",
   "trade-workshop.dedicated-butchery": "Butcher",
   "trade-workshop.dedicated-chandlery": "Chandler (profession)",
@@ -217,7 +220,14 @@ const modelArticles: Record<string, string> = {
   "trade-workshop.dedicated-fishmongery": "Fishmonger",
   "trade-workshop.dedicated-cutlery": "Cutler",
   "trade-workshop.dedicated-lime-tile-yard": "Lime kiln",
-  "trade-workshop.dedicated-glaziers-workshop": "Glazier"
+  "trade-workshop.dedicated-glaziers-workshop": "Glazier",
+  "trade-workshop.rear-works.baking": "Bakery",
+  "trade-workshop.rear-works.cutlery": "Cutler",
+  "trade-workshop.rear-works.metalwares": "Pewter",
+  "trade-workshop.rear-works.glazing": "Glazier",
+  "trade-workshop.rear-works.chandlery": "Chandler (profession)",
+  "trade-workshop.rear-works.fishmongery": "Fishmonger",
+  "trade-workshop.rear-works.butchery": "Butcher"
 };
 
 export function medievalWikipediaArticle(model: Pick<MedievalModel, "id" | "task">): string {

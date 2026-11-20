@@ -3,10 +3,7 @@ import { isDetachedFabricHouse } from "../../../generators/vector/editing/fabric
 import { isDetachedFabricLinePath } from "../../../generators/vector/editing/fabricLines";
 import { removeVectorPath } from "../../../generators/vector/editing/paths";
 import { generationFingerprint } from "../../../generators/vector/generation/pipeline";
-import {
-  matchesVectorUrbanFingerprint,
-  VECTOR_URBAN_ALGORITHM
-} from "../../../generators/vector/generation/urbanState";
+import { matchesVectorUrbanFingerprint, vectorUrbanAlgorithm } from "../../../generators/vector/generation/urbanState";
 import { vectorWallSettings } from "../../../generators/vector/generation/wallShape";
 import { vectorUrbanStages } from "../../../generators/vector/validation/urban";
 import type { VectorCityDocument } from "../../../types/vector/document";
@@ -139,6 +136,7 @@ function validateShare(value: unknown): VectorShare | null {
       typeof u.allowExpansion !== "boolean" ||
       (u.lotOccupancy !== undefined &&
         (!Number.isFinite(u.lotOccupancy) || u.lotOccupancy < 0.1 || u.lotOccupancy > 1)) ||
+      (u.plotFabric !== undefined && !["compact", "burgage", "burgage-dense"].includes(u.plotFabric)) ||
       Object.keys(u).some(
         k =>
           ![
@@ -150,7 +148,8 @@ function validateShare(value: unknown): VectorShare | null {
             "maxLanes",
             "clearanceMeters",
             "allowExpansion",
-            "lotOccupancy"
+            "lotOccupancy",
+            "plotFabric"
           ].includes(k)
       ))
   )
@@ -166,7 +165,7 @@ export function vectorRecipe(document: VectorCityDocument): VectorRecipe {
   if (u && (u.inputRevision !== document.revision || !matchesVectorUrbanFingerprint(document, u.adoptedFingerprint)))
     throw new Error("vector-recipe-edited");
   // Replaying a recipe runs the current algorithm, so it would not reproduce older adopted output.
-  if (u && u.algorithm !== VECTOR_URBAN_ALGORITHM) throw new Error("vector-recipe-outdated");
+  if (u && u.algorithm !== vectorUrbanAlgorithm(u.settings)) throw new Error("vector-recipe-outdated");
   if (
     !u &&
     (document.generation!.inputRevision !== document.revision ||

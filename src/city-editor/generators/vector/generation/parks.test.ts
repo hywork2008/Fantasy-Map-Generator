@@ -17,7 +17,10 @@ describe("park wards laid out by the mesh editor's park fabric (feature parity P
         ...defaultGenerationSettings(),
         population: defaultPopulationSettings(3000),
         historicalPeriod: "lateMedieval" as const,
-        buildingPattern: "medieval" as const
+        buildingPattern: "medieval" as const,
+        // A straight river, as the default `through` river was when these cases were set (it is now a gentle
+        // meander, docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+        config: { ...defaultGenerationSettings().config, riverForms: ["straight" as const] }
       },
       input = vectorInputFromEditor({
         settings,
@@ -34,8 +37,9 @@ describe("park wards laid out by the mesh editor's park fabric (feature parity P
   };
   it("turns each park ward into a lawn with no house, trees kept off the wall", () => {
     // A town whose parks include one planted with trees (the seed decides whether a park is large and clear of
-    // the wall; seed p7c-f's parks are small esplanades along the wall since the interior is sized to be built out).
-    const doc = build("ellipse", "p7c-c"),
+    // the wall; seed p7c-f's parks are small esplanades along the wall since the interior is sized to be built out; p7c-c
+    // plants none since the ring branch roads were dropped, §8.25).
+    const doc = build("ellipse", "p7c-a"),
       parkBlocks = new Set(doc.urban!.districts.filter(d => d.ward === "park").map(d => streetBlockOf(d.id))),
       parks = doc.urban!.parks ?? [];
     expect(parkBlocks.size).toBeGreaterThan(0);

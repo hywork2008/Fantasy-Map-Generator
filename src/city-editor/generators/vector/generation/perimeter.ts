@@ -12,6 +12,13 @@ import type {
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
 import type { VectorUrbanSettings } from "../../../types/vector/urban";
 import type { ResidentialHeightKind } from "../../buildingHeightPolicy";
+import {
+  type BurgagePlanContext,
+  burgagePerimeterCell,
+  burgageSetting,
+  burgageStreetCellMeters
+} from "../../burgage/perimeterCell";
+import { burgageProfileFor, isBurgageFabric } from "../../burgage/profiles";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import {
   buildOrganicStreetCell,
@@ -30,16 +37,17 @@ import { packLines, packPoints, unpackPoints } from "../fabric/pack";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening, junctionSurface } from "../geometry/network";
 import { regionArea, regionBoolean } from "../geometry/regions";
-import { offsetRing } from "../geometry/routing";
+import { offsetRing, sampledClosedRing } from "../geometry/routing";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
 import { vectorDistrictId } from "./districtId";
+import { vectorHousingCulture } from "./housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "./housingHeights";
 import { perimeterHouseDwellings } from "./urbanCapacity";
 import { nearestRoadAnchor } from "./urbanPacking";
-import { VECTOR_URBAN_ALGORITHM } from "./urbanState";
+import { vectorUrbanAlgorithm } from "./urbanState";
 
 export const PERIMETER_HOUSE_MODEL = "ce-perimeter-house";
 type FabricLine = { points: Point[]; widthMeters: number };
@@ -50,6 +58,10 @@ interface CellPlan {
   lanes: FabricLine[];
   attachments: VectorFabricCell["attachments"];
   mouths: VectorFabricCell["mouths"];
+  /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md); absent on compact street blocks. */
+  plots?: { ring: Point[]; front: [Point, Point]; kind: "plot" | "head" | "row" }[];
+  /** Binaire venelles (plan §5.7). */
+  drains?: FabricLine[];
 }
 interface DistrictPlan {
   id: string;
@@ -61,10 +73,13 @@ interface DistrictPlan {
 }
 export interface VectorPerimeterPlan {
   districts: DistrictPlan[];
-  houses: { cellId: string; districtId: string; polygon: Point[]; draw: number }[];
+  /** `rear`: a burgage rear house (B5), built only once the town's front houses fall short. */
+  houses: { cellId: string; districtId: string; polygon: Point[]; draw: number; rear?: true }[];
   /** Parcels of every street block, for district classification and residual land. */
   blocks: VectorBlock[];
   laneWidthMeters: number;
+  /** Street blocks laid out as burgage plots (v19). */
+  plotFabric?: "burgage" | "burgage-dense";
 }
 const lineLength = (points: Point[]) =>
   points.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0);
@@ -96,6 +111,8 @@ export interface PerimeterPlanContext {
   extentMeters: number;
   /** The mesh editor's classic plan (P4d): each district filled by its classic block infill, no organic streets. */
   classic?: boolean;
+  /** Street blocks of burgage plots instead of compact lots (docs/plan/ce-burgage-plot-fabric.md). */
+  burgage?: BurgagePlanContext;
 }
 /** One reachable skeleton block without holes, with its stable district id. */
 export interface PerimeterDistrictJob {
@@ -136,11 +153,11 @@ function centimetreRing(points: Point[]): Point[] | undefined {
   return undefined;
 }
 
-/** A CE district plan needs a simple outline. A reachable block with holes (a civic precinct or a dead-end road
+/** A CE district plan needs a simple outline. A block with holes (a civic precinct or a dead-end road
  * standing free inside it) is cut by a 0.2 m slit through each hole into parts without holes; the parts become
  * districts of their own. Without this the whole block, the largest quarter of some cities, stayed empty. */
 function withoutHoles(block: VectorBlock): VectorBlock[] {
-  if (!block.reachable || !block.holes.length) return [block];
+  if (!block.holes.length) return [block];
   let parts: VectorPolygon[] = [{ outer: block.outer, holes: block.holes }];
   for (let guard = 0; guard < 16 && parts.some(p => p.holes.length); guard++)
     parts = parts.flatMap(part => {
@@ -201,7 +218,9 @@ export function perimeterJobs(
     let districtId = vectorDistrictId(sourceBlock);
     for (let n = 2; districtIds.has(districtId); n++) districtId = `${vectorDistrictId(sourceBlock)}:${n}`;
     districtIds.add(districtId);
-    if (!sourceBlock.reachable || sourceBlock.holes.length) continue;
+    // Every street block of the town is laid out, a main road at its edge or not: lanes run round every block, along
+    // the river and the wall too, so each opens onto its neighbours (docs/plan/ce-outskirts-workshop-sizes.md §8.20).
+    if (sourceBlock.holes.length) continue;
     // The record keeps the outline in whole centimetres, so the plan works on that outline. Rounding can fold a
     // fine outline onto itself; a coarser simplification is tried before the block is left without a district.
     const outline = [0.05, 0.2, 0.5]
@@ -223,9 +242,26 @@ export function perimeterJobs(
       walls,
       hub: doc.site!.center,
       extentMeters: doc.frame.extentMeters,
-      ...(doc.generation?.settings.layout === "classic" ? { classic: true } : {})
+      ...(doc.generation?.settings.layout === "classic"
+        ? { classic: true }
+        : isBurgageFabric(settings.plotFabric)
+          ? { burgage: burgagePlanContext(doc, settings.plotFabric === "burgage-dense") }
+          : {})
     },
     jobs
+  };
+}
+
+/** The plot type from the housing culture, and the wall rings that tell intramural street blocks. */
+function burgagePlanContext(doc: VectorCityDocument, dense: boolean): BurgagePlanContext {
+  const culture = vectorHousingCulture(doc);
+  return {
+    ...(dense ? { dense: true } : {}),
+    profile: burgageProfileFor(culture),
+    wallRings: Object.values(doc.connections.circuits)
+      .filter(c => !c.parentCircuitId)
+      .map(c => sampledClosedRing(doc, c.pathId)),
+    ...(culture === "stone-upland" ? { shallow: true } : {})
   };
 }
 
@@ -265,7 +301,8 @@ function planKey(context: PerimeterPlanContext): string {
       context.hub,
       context.extentMeters,
       context.walls,
-      !!context.classic
+      !!context.classic,
+      context.burgage ?? null
     ]);
     planKeys.set(context, key);
   }
@@ -399,7 +436,16 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
         fullBoundaries,
         ceParameters(context),
         context.seed,
-        ceContext(context)
+        context.burgage
+          ? {
+              ...ceContext(context),
+              // Burgage street blocks are two plot depths across (plan §5.3).
+              streetCellMeters: burgageStreetCellMeters(
+                context.burgage,
+                burgageSetting(context.burgage, polygonCentroid(outline))
+              )
+            }
+          : ceContext(context)
       );
   const result: PerimeterStreetPlan = {
     districtId,
@@ -449,6 +495,7 @@ const freshCell = (r: PerimeterCellResult): PerimeterCellResult => ({
   houses: [...r.houses]
 });
 function computePerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJob): PerimeterCellResult {
+  if (context.burgage) return computeBurgageCell(context, context.burgage, job);
   const { districtId, cell, nearby } = job,
     local = context.classic
       ? buildPerimeterBlocks(
@@ -495,6 +542,80 @@ function computePerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJ
       polygon: b.polygon,
       draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
     }))
+  };
+}
+
+/** One street block of burgage plots: its lanes, plots and house fronts (plan §5). */
+function computeBurgageCell(
+  context: PerimeterPlanContext,
+  burgage: BurgagePlanContext,
+  job: PerimeterCellJob
+): PerimeterCellResult {
+  const { districtId, cell, nearby } = job,
+    local = burgagePerimeterCell(
+      burgage,
+      cell,
+      context.seed,
+      context.laneWidthMeters,
+      nearby.map(n => n.street)
+    );
+  const attachments: CellPlan["attachments"] = [];
+  local.lanes.forEach((lane, laneIndex) => {
+    for (const end of [0, 1] as const) {
+      const p = end === 0 ? lane.points[0] : lane.points.at(-1)!;
+      const street = nearby.find(n => nearestOnPolyline(p, n.street.points).dist <= 1e-4);
+      if (street)
+        attachments.push({ lane: laneIndex, end, street: street.index, t: lineParameter(street.street.points, p) });
+    }
+  });
+  // In whole centimetres, as the houses on them are recorded: their shared edges then coincide exactly, and the
+  // residual land's clipping does not meet two edges a few millimetres apart.
+  const parcel = (ring: Point[], id: string): VectorBlock => {
+    const outer = ring.map((p): Point => [Math.round(p[0] * 100) / 100 || 0, Math.round(p[1] * 100) / 100 || 0]);
+    return {
+      id,
+      outer,
+      holes: [],
+      areaMeters2: regionArea({ outer, holes: [] }),
+      frontage: [],
+      reachable: true
+    };
+  };
+  return {
+    cell: {
+      id: cell.id,
+      districtId,
+      ring: cell.ring,
+      lanes: local.lanes,
+      attachments,
+      mouths: [],
+      plots: local.plots,
+      ...(local.drains.length ? { drains: local.drains } : {})
+    },
+    // The plots and the open ground are the street block's parcels: what no house covers is yard and garden.
+    // Clipping can leave a ring a validated block refuses (a repeated or collinear point); that land is left out.
+    blocks: [
+      // Named as compact parcels are (`<street block>:parcel:<n>`): the wards, the parks and the facilities' barred
+      // blocks find their street block from that name (`streetBlockOf`).
+      ...local.plots.map((p, i) => parcel(p.ring, `${cell.id}:parcel:${i}`)),
+      ...local.open.map((ring, i) => parcel(ring, `${cell.id}:parcel:${local.plots.length + i}`))
+    ].filter(b => simpleContour(b.outer, true) && b.areaMeters2 > 1e-6),
+    houses: [
+      ...local.houses.map(polygon => ({
+        cellId: cell.id,
+        districtId,
+        polygon,
+        draw: growthRandom(JSON.stringify(polygon))
+      })),
+      // Rear houses draw in the upper half: their recorded draw orders them among themselves.
+      ...local.rearHouses.map(polygon => ({
+        cellId: cell.id,
+        districtId,
+        polygon,
+        draw: 0.5 + 0.5 * growthRandom(JSON.stringify(polygon)),
+        rear: true as const
+      }))
+    ]
   };
 }
 
@@ -605,7 +726,8 @@ export function joinPerimeterPlan(
     districts: districts.map(d => d.district),
     houses: districts.flatMap(d => d.houses),
     blocks: districts.flatMap(d => d.blocks),
-    laneWidthMeters: settings.laneWidthMeters
+    laneWidthMeters: settings.laneWidthMeters,
+    ...(isBurgageFabric(settings.plotFabric) ? { plotFabric: settings.plotFabric } : {})
   };
   // Street and lane ends on a main road join it through an explicit node. A short connector closes any gap.
   const joiner = createGenerationJoiner(doc);
@@ -704,6 +826,28 @@ function packedRing(points: Point[], origin: Point): number[] | undefined {
   while (kept.length >= 4 && kept[0] === kept.at(-2) && kept[1] === kept.at(-1)) kept.splice(-2, 2);
   if (kept.length < 6 || !isSimplePolygon(unpackPoints(kept, origin), 1e-12)) return;
   return kept;
+}
+
+/** A street block's burgage plots as the record keeps them; a plot that rounding breaks is left out. */
+function packedPlots(
+  plots: NonNullable<CellPlan["plots"]>,
+  origin: Point,
+  drains: CellPlan["drains"]
+): NonNullable<VectorFabricCell["plots"]> {
+  const out: NonNullable<VectorFabricCell["plots"]> = {
+    offsets: [],
+    coords: [],
+    fronts: [],
+    ...(drains?.length ? { venelles: packLines(drains, origin) } : {})
+  };
+  for (const plot of plots) {
+    const ring = packedRing(plot.ring, origin);
+    if (!ring) continue;
+    out.offsets.push(out.coords.length / 2);
+    out.coords.push(...ring);
+    out.fronts.push(...packPoints(plot.front, origin));
+  }
+  return out;
 }
 
 /** The share of a lot, and the least area, a facility standing across it must leave for a house. */
@@ -1020,7 +1164,12 @@ export function placeVectorPerimeterHouses(
     // Lots beyond the wall come after every lot inside it, so no lot inside stays empty while people live outside
     // (pre-acceptance U3).
     beyond = (h: (typeof plan.houses)[number]) => (wall && cells.has(h.cellId) && !cellInside(h.cellId) ? 1 : 0),
-    order = plan.houses.slice().sort((a, b) => beyond(a) - beyond(b) || rank.get(a)! - rank.get(b)! || a.draw - b.draw);
+    // A burgage rear house (B5) comes after every front house on its side of the wall: the yards fill up only once
+    // the fronts are built (the burgage cycle). Compact lots have none, so their order is as it was.
+    rear = (h: (typeof plan.houses)[number]) => (h.rear ? 1 : 0),
+    order = plan.houses
+      .slice()
+      .sort((a, b) => beyond(a) - beyond(b) || rear(a) - rear(b) || rank.get(a)! - rank.get(b)! || a.draw - b.draw);
   for (let pass = 0; pass < 2; pass++) {
     if (pass && capacity >= required) break;
     for (const house of pass ? held.splice(0) : order) {
@@ -1097,7 +1246,7 @@ export function placeVectorPerimeterHouses(
       count++;
     }
   }
-  const algorithm = VECTOR_URBAN_ALGORITHM,
+  const algorithm = vectorUrbanAlgorithm(plan),
     districts: VectorFabric["districts"] = {},
     fabricCells: VectorFabric["cells"] = {};
   for (const district of plan.districts) {
@@ -1167,7 +1316,8 @@ export function placeVectorPerimeterHouses(
         detached: [],
         ...(cleared[cell.id]?.length ? { cleared: [...cleared[cell.id]] } : {}),
         ...(detachedLines[cell.id]?.length ? { detachedLines: carried(cell.id, cell.lanes) } : {}),
-        inside: cellInside(cell.id)
+        inside: cellInside(cell.id),
+        ...(cell.plots ? { plots: packedPlots(cell.plots, cellOrigin, cell.drains) } : {})
       };
       fabricCells[cell.id] = { ...value, hash: fabricCellHash(value) };
     }
@@ -1228,7 +1378,15 @@ export function vectorPerimeterResidual(doc: VectorCityDocument, blocks: VectorB
       key = JSON.stringify(sites),
       known = residuals.get(block);
     if (known?.key === key) return structuredClone(known.land);
-    const land = regionBoolean([block], sites, "difference").filter(p => valid(p.outer) && p.holes.every(valid));
+    let land: VectorPolygon[];
+    try {
+      land = regionBoolean([block], sites, "difference").filter(p => valid(p.outer) && p.holes.every(valid));
+    } catch {
+      // The clipping kernel can fail on near-degenerate parcels; residual land is display-only, so that parcel shows
+      // none. Burgage parcels are recorded in whole centimetres like their houses, which removed the failures measured
+      // in B2 (plan §8.4); this stays as the guard.
+      land = [];
+    }
     residuals.set(block, { key, land });
     return structuredClone(land);
   });

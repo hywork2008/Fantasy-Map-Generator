@@ -64,7 +64,8 @@ describe("population facilities on the CE street blocks (facility mode)", () => 
       footprintArea = 0;
     for (const id of city.urban!.ownedPlacements) {
       const p = city.placements[id];
-      if (p.building?.kind !== "facility") continue;
+      // The kiln works out on the roads stand on ground of their own, laid before the street plan (§8.15).
+      if (p.building?.kind !== "facility" || p.building.districtId === "edge-works") continue;
       // The facility takes its own outline and only the pieces of lots no house takes, no yard of whole lots (U3).
       siteArea += regionArea(p.site);
       footprintArea += p.building.footprint.reduce((n, f) => n + regionArea(f), 0);

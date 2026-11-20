@@ -1,8 +1,9 @@
 import type { BurgSiteDescriptor } from "../../../types/contracts/burgSiteDescriptor";
-import type { RiverShape, SiteConfig } from "../../../types/contracts/siteConfig";
+import type { RiverSetting, SiteConfig } from "../../../types/contracts/siteConfig";
 import type { Point } from "../../../types/primitives";
 import { azimuthToVec } from "../../geom";
 import { makeRng, type Rng } from "../../prng";
+import { riverSettings } from "../../site/siteConfig";
 
 /**
  * Smooth meandering courses for a synthesized meshless site. The synthesized descriptor's corridor is a coarse
@@ -13,9 +14,11 @@ import { makeRng, type Rng } from "../../prng";
  * and is drawn as a smooth curve through the course points (`smoothCourse`).
  */
 
-/** Effective river shapes in descriptor order, as `synthSite` resolves them. */
-function effectiveShapes(config: SiteConfig): RiverShape[] {
-  return config.rivers.map(s => (s === "toCoast" && config.coast === "none" ? "through" : s));
+/** Effective river settings in descriptor order, as `synthSite` resolves them. */
+function effectiveShapes(config: SiteConfig): RiverSetting[] {
+  return riverSettings(config).map(s =>
+    s.placement === "toCoast" && config.coast === "none" ? { ...s, placement: "through" as const } : s
+  );
 }
 
 /** Rewrites the course of every synthesized `meander` river in place. */
@@ -24,7 +27,8 @@ export function curveSynthesizedRivers(descriptor: BurgSiteDescriptor, config: S
     // Two rivers share the site: the second keeps a wide berth from the first.
     laid: Point[][] = [];
   descriptor.rivers.forEach((river, i) => {
-    if (shapes[i] !== "meander") {
+    // A meandering river through the town is laid as a Kinoshita curve.
+    if (shapes[i].placement !== "through" || shapes[i].form !== "meander") {
       laid.push(river.segments.flatMap(s => s.points));
       return;
     }

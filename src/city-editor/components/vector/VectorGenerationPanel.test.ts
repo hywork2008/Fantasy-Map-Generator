@@ -293,6 +293,8 @@ describe("M5 adopted urban checkpoints", () => {
     );
     click("adopt");
     fill("mode", "medieval-facilities");
+    // The capacities below are the compact lots'; the panel opens on burgage plots while they are developed.
+    fill("plotFabric", "compact");
     fill("population", "500");
     fill("maxLanes", "4");
     const index = history.index;

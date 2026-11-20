@@ -89,12 +89,8 @@ export function vectorCountryside(doc: VectorCityDocument, townLand: VectorPolyg
     },
     { bands } = vectorApproachBands(doc),
     glacis = Math.max(STANDARD_GLACIS_METERS, ...bands.map(b => b.clearance)),
-    keepOut: VectorPolygon[] = [
-      ...doc.site.domain,
-      ...townLand,
-      ...allVectorWater(doc),
-      ...featureReservations(doc),
-      ...vectorOccupiedSites(doc, "reserved"),
+    keepOut: VectorPolygon[] = [...doc.site.domain, ...townLand, ...allVectorWater(doc), ...featureReservations(doc)],
+    corridors: VectorPolygon[] = [
       ...Object.values(doc.paths).flatMap(p =>
         p.role === "road"
           ? corridor(
@@ -109,9 +105,22 @@ export function vectorCountryside(doc: VectorCityDocument, townLand: VectorPolyg
             : []
       )
     ];
-  return regionBoolean([frame], keepOut, "difference").filter(
-    r => regionArea(r) >= MIN_REGION_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
-  );
+  const occupied = vectorOccupiedSites(doc, "reserved");
+  const land = (cut: VectorPolygon[]) =>
+    regionBoolean([frame], cut, "difference").filter(
+      r => regionArea(r) >= MIN_REGION_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
+    );
+  try {
+    return land([...keepOut, ...occupied, ...corridors]);
+  } catch {
+    // The clipping kernel can fail on many small sites at once (burgage houses along the roads beyond the wall).
+    // Sites beyond the town land are few and small; the countryside is laid without them rather than not at all.
+    try {
+      return land([...keepOut, ...corridors]);
+    } catch {
+      return [];
+    }
+  }
 }
 
 /**

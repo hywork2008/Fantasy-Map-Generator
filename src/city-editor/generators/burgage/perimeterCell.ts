@@ -1,0 +1,445 @@
+import type { BurgageCellPlan, BurgagePlot, BurgageProfileId, BurgageSetting } from "../../types/contracts/burgage";
+import type { Point } from "../../types/geometry";
+import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../geom";
+import { insetConvexKernel } from "../lotGeometry";
+import { makeRng } from "../prng";
+import type { BlockBoundary } from "../streetBlockGeometry";
+import { regionBoolean } from "../vector/geometry/regions";
+import { planBinaireCell } from "./binaireCell";
+import { clipToBox } from "./frame";
+import { BURGAGE_PROFILES } from "./profiles";
+import { planBurgageCell } from "./stripCell";
+
+/** What a CE street plan needs to lay burgage plots (docs/plan/ce-burgage-plot-fabric.md §5): plain data, so it
+ * crosses to a worker unchanged. */
+export interface BurgagePlanContext {
+  profile: BurgageProfileId;
+  /** Town wall rings: a street block inside one is intramural. */
+  wallRings: Point[][];
+  /** Upland towns keep the shallower intramural depths everywhere (plan §5.1, a game adjustment). */
+  shallow?: boolean;
+  /** Dense burgage (plan §8.7): inside the wall the plots are halved and their yards built over as the town needs. */
+  dense?: boolean;
+}
+
+/** Street-block size of the CE street plan for this plot type: two plot depths, or a binaire block's length. */
+export function burgageStreetCellMeters(burgage: BurgagePlanContext, setting: BurgageSetting): number {
+  const profile = BURGAGE_PROFILES[burgage.profile];
+  if (profile.kind === "binaire") return (profile.blockLengthMeters[0] + profile.blockLengthMeters[1]) / 2;
+  const [min, max] =
+    burgage.dense && setting === "intramural" && !burgage.shallow
+      ? DENSE_DEPTH_METERS
+      : profile.depthMeters[burgage.shallow ? "intramural" : setting];
+  return min + max;
+}
+
+export function burgageSetting(burgage: BurgagePlanContext, point: Point): BurgageSetting {
+  return burgage.shallow || burgage.wallRings.some(ring => pointInPolygon(point, ring)) ? "intramural" : "extramural";
+}
+
+/** House depth on a strip plot, behind its front (plan §5.4). */
+const HOUSE_DEPTH: readonly [number, number] = [8, 12];
+/** Lanes are carried out to the street block's edge, the street's centre line, at most this far. */
+const LANE_REACH_METERS = 12;
+
+export interface BurgagePerimeterCell {
+  lanes: { points: Point[]; widthMeters: number }[];
+  plots: { ring: Point[]; front: [Point, Point]; kind: BurgagePlot["kind"] }[];
+  open: Point[][];
+  /** Binaire venelles between the house backs (plan §5.7). */
+  drains: { points: Point[]; widthMeters: number }[];
+  /** House footprints: the front of each strip plot, or the whole binaire house plot. */
+  houses: Point[][];
+  /** Rear houses of deep strip plots, behind a yard (plan §5.4, B5). */
+  rearHouses: Point[][];
+}
+
+/**
+ * One CE street block laid out as burgage plots. The block's ring runs on the street centre lines and the district
+ * outline; it is inset by each edge's setback as the compact fill does, the edges on a street become the plots'
+ * fronts, and the plots' lanes are carried out to the streets they open on.
+ */
+export function burgagePerimeterCell(
+  burgage: BurgagePlanContext,
+  cell: { id: string; ring: Point[]; boundaries: BlockBoundary[] },
+  seed: string,
+  laneWidthMeters: number,
+  /** District streets near the block: an edge on one keeps off its surface. */
+  streets: readonly { points: Point[]; widthMeters: number }[] = []
+): BurgagePerimeterCell {
+  const result: BurgagePerimeterCell = { lanes: [], plots: [], open: [], houses: [], rearHouses: [], drains: [] };
+  const ring = cell.ring;
+  const sides: Side[] = ring.map((a, i) => {
+    const b = ring[(i + 1) % ring.length],
+      mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+      matches = cell.boundaries.filter(e => nearestOnPolyline(mid, [e.a, e.b]).dist < 1e-3 && parallel(a, b, e.a, e.b)),
+      street = streets.filter(s => nearestOnPolyline(mid, s.points).dist < 1e-3);
+    // As the compact fill: at least a lane's setback; any edge but a wall or a bank opens on a street or lane.
+    return {
+      setback: Math.max(
+        laneWidthMeters / 2 + 0.05,
+        ...matches.map(e => e.setback),
+        ...street.map(s => s.widthMeters / 2 + 0.05)
+      ),
+      front: !matches.some(e => e.barrier)
+    };
+  });
+  const profile = BURGAGE_PROFILES[burgage.profile];
+  const cellSeed = `${seed}:${cell.id}`;
+  const setting = burgageSetting(burgage, polygonCentroid(ring)),
+    // Dense burgage packs the plots inside the wall; beyond it they keep their yards (plan §8.7).
+    packed = !!burgage.dense && setting === "intramural" && !burgage.shallow;
+  const planPieces = (pieces: ReturnType<typeof convexPieces>) =>
+    pieces.flatMap((piece, k) => {
+      if (piece.open)
+        return [{ profile: burgage.profile, plots: [], lanes: [], open: [piece.ring] } as BurgageCellPlan];
+      const block = insetBlock(
+        piece.ring,
+        piece.sides.map(s => s.setback)
+      );
+      if (block.length < 3 || Math.abs(polygonArea(block)) < 1) return [];
+      // An inset edge lies on the offset line of the piece edge it came from.
+      const fronts = block.flatMap((a, j) => {
+        const b = block[(j + 1) % block.length],
+          mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        const i = piece.ring.findIndex((p, n) => {
+          const q = piece.ring[(n + 1) % piece.ring.length];
+          return parallel(a, b, p, q) && Math.abs(lineDistance(mid, p, q) - piece.sides[n].setback) < 1e-4;
+        });
+        return i >= 0 && piece.sides[i].front ? [j] : [];
+      });
+      if (!fronts.length) return [{ profile: burgage.profile, plots: [], lanes: [], open: [block] } as BurgageCellPlan];
+      const pieceSeed = `${cellSeed}:${k}`;
+      return [
+        profile.kind === "binaire"
+          ? planBinaireCell(block, profile, { seed: pieceSeed, fronts })
+          : planBurgageCell(block, profile, {
+              seed: pieceSeed,
+              fronts,
+              setting,
+              ...(packed ? { halveMinFrontage: DENSE_MIN_FRONTAGE, depthMeters: DENSE_DEPTH_METERS } : {})
+            })
+      ];
+    });
+  // A block cut at a notch either leaves the wedges open or is laid with the notch kept (plan of 2026-11-19 report):
+  // whichever lays more ground in well-shaped plots.
+  const cut = convexPieces(ring, sides, "open"),
+    kept = convexPieces(ring, sides, "refuse");
+  let plans = planPieces(cut);
+  if (cut.some(p => p.open)) {
+    const other = planPieces(kept);
+    if (plotGround(other) > plotGround(plans)) plans = other;
+  }
+  // The binaire venelle is a drain between house backs, not a lane a door opens on (plan §5.7).
+  for (const lane of plans.flatMap(p => p.lanes))
+    if (lane.kind === "venelle") result.drains.push({ points: lane.points, widthMeters: lane.widthMeters });
+    else result.lanes.push({ points: reachRing(lane.points, ring), widthMeters: lane.widthMeters });
+  const rng = makeRng(`${cellSeed}:burgage-houses-v1`);
+  for (const plot of plans.flatMap(p => p.plots)) {
+    result.plots.push({ ring: plot.ring, front: plot.front, kind: plot.kind });
+    if (plot.kind !== "plot") {
+      result.houses.push(plot.ring);
+      continue;
+    }
+    const depth = rng.range(...HOUSE_DEPTH),
+      house = frontHouse(plot.ring, plot.front, depth);
+    // A plot cut to a wedge at an oblique corner would take a small, misshapen house: it stays without one.
+    if (!house) continue;
+    result.houses.push(house);
+    // The burgage cycle (plan R6, B5): a deep plot can take a rear house across its back yard. The town adopts it only
+    // when its front houses fall short, nearest the centre first. Dense burgage builds the whole yard over, range
+    // behind range to the plot's tail, where it meets the next row's (plan §8.7).
+    if (packed) result.rearHouses.push(...rearRanges(plot.ring, plot.front, depth, rng));
+    else {
+      const rear = rearHouse(plot.ring, plot.front, depth, rng);
+      if (rear) result.rearHouses.push(rear);
+    }
+  }
+  result.open.push(...plans.flatMap(p => p.open));
+  return result;
+}
+
+/** Dense burgage plots are halved down to this frontage (plan §8.7): York's Coppergate tenements were about 5.5 m,
+ * Figeac's houses on the cross lanes 4.5–7.5 m and down to 3 m (Séraphin p. 39). */
+const DENSE_MIN_FRONTAGE = 3.5;
+/** Dense plots inside the wall are shallower than a new town's: more frontage on the same land, as the crafts that
+ * a walled town packs along its streets need (plan §8.7, a game adjustment within Freiburg's 32–40 m and below). */
+const DENSE_DEPTH_METERS: readonly [number, number] = [22, 32];
+/** Courts between the ranges of a dense plot, and the ranges' depth. */
+const DENSE_COURT_METERS: readonly [number, number] = [3, 4.5];
+const DENSE_RANGE_METERS: readonly [number, number] = [6, 9];
+
+/** The ranges behind a dense plot's front house, each behind a small court, the last reaching the plot's tail. */
+function rearRanges(ring: Point[], front: [Point, Point], frontDepth: number, rng: () => number): Point[][] {
+  const [a, b] = front,
+    length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+  const c = polygonCentroid(ring);
+  let v: Point = [-u[1], u[0]];
+  if ((c[0] - a[0]) * v[0] + (c[1] - a[1]) * v[1] < 0) v = [-v[0], -v[1]];
+  const frame = { origin: a, u, v };
+  const plotDepth = Math.max(...ring.map(p => (p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1]));
+  const between = (r: readonly [number, number]) => r[0] + (r[1] - r[0]) * rng();
+  const passage = length >= REAR_PASSAGE_MIN_FRONTAGE ? REAR_PASSAGE_METERS : 0,
+    left = rng() < 0.5;
+  const ranges: Point[][] = [];
+  for (let at = frontDepth + between(DENSE_COURT_METERS); at + DENSE_RANGE_METERS[0] <= plotDepth; ) {
+    let to = at + between(DENSE_RANGE_METERS);
+    // Too short a strip behind it for another court and range: the range runs on to the tail.
+    if (plotDepth - to < DENSE_COURT_METERS[0] + DENSE_RANGE_METERS[0]) to = plotDepth;
+    const range = clipToBox(ring, frame, left ? passage : -Infinity, left ? Infinity : length - passage, at, to);
+    if (range.length >= 3 && Math.abs(polygonArea(range)) >= 12) ranges.push(range);
+    at = to + between(DENSE_COURT_METERS);
+  }
+  return ranges;
+}
+
+/** Reflex corners sharper than this (15°) are cut into convex pieces. */
+const REFLEX_SIN = Math.sin((15 * Math.PI) / 180);
+/** Pieces of a cut block thinner than this on average are wedges, not ground for plots. */
+const MIN_PIECE_WIDTH_METERS = 6;
+
+interface Side {
+  setback: number;
+  front: boolean;
+}
+
+/**
+ * A piece inset by each edge's setback. A convex piece takes the half-plane kernel. A piece left with the slight bends
+ * of a sampled curve (`convexPieces` cuts only real corners) is inset edge by edge instead: the kernel would carry the
+ * short edge of a bend on through the block and cut it into a long thin triangle (a gate road's approach band).
+ */
+function insetBlock(ring: Point[], setbacks: number[]): Point[] {
+  const sign = Math.sign(polygonArea(ring));
+  const convex = ring.every((p, i) => {
+    const a = ring[(i + ring.length - 1) % ring.length],
+      b = ring[(i + 1) % ring.length];
+    return ((p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0])) * sign >= -1e-9;
+  });
+  if (convex) return insetConvexKernel(ring, setbacks);
+  // Each edge's band of its setback, on the block's side, taken off the piece.
+  const bands = ring.flatMap((a, i) => {
+    const b = ring[(i + 1) % ring.length],
+      d = setbacks[i],
+      length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (d <= 0 || length < 1e-9) return [];
+    // The inward normal (`insetConvexKernel` takes the outward one, with the opposite sign).
+    const n: Point = [(sign * (b[1] - a[1])) / length, (-sign * (b[0] - a[0])) / length];
+    // Carried on past both ends by the setback, so two bands meet in a mitre at a bend rather than leave a notch.
+    const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length],
+      a0: Point = [a[0] - u[0] * d, a[1] - u[1] * d],
+      b0: Point = [b[0] + u[0] * d, b[1] + u[1] * d];
+    return [
+      {
+        outer: [a0, b0, [b0[0] + n[0] * d, b0[1] + n[1] * d], [a0[0] + n[0] * d, a0[1] + n[1] * d]] as Point[],
+        holes: []
+      }
+    ];
+  });
+  try {
+    const parts = regionBoolean([{ outer: ring, holes: [] }], bands, "difference").filter(r => !r.holes.length);
+    if (!parts.length) return [];
+    return parts.reduce((x, y) => (Math.abs(polygonArea(y.outer)) > Math.abs(polygonArea(x.outer)) ? y : x)).outer;
+  } catch {
+    return insetConvexKernel(ring, setbacks);
+  }
+}
+
+/** A concave street block cut at its reflex corners into convex pieces, each laid out on its own. A cut edge is no
+ * street: plots back onto it, with no setback. */
+function convexPieces(
+  ring: Point[],
+  sides: Side[],
+  /** A cut leaving a wedge: "open" keeps the cut and leaves the wedge open ground; "refuse" does not cut there, and
+   * the block keeps that corner for `insetBlock`. */
+  wedges: "open" | "refuse",
+  depth = 0
+): { ring: Point[]; sides: Side[]; open?: true }[] {
+  // With `polygonArea`'s sign convention, a reflex corner turns with the sign of the area.
+  const sign = Math.sign(polygonArea(ring));
+  const reflex = ring.findIndex((p, i) => {
+    const a = ring[(i + ring.length - 1) % ring.length],
+      b = ring[(i + 1) % ring.length],
+      cross = (p[0] - a[0]) * (b[1] - p[1]) - (p[1] - a[1]) * (b[0] - p[0]);
+    // Slight bends of a sampled curve are left to the inset; only a real corner is cut.
+    return cross * sign > REFLEX_SIN * Math.hypot(p[0] - a[0], p[1] - a[1]) * Math.hypot(b[0] - p[0], b[1] - p[1]);
+  });
+  if (reflex < 0 || depth >= 8) return [{ ring, sides }];
+  const p = ring[reflex];
+  // Cut along either edge at the reflex corner, carried on through the block.
+  for (const other of [ring[(reflex + ring.length - 1) % ring.length], ring[(reflex + 1) % ring.length]]) {
+    const length = Math.hypot(p[0] - other[0], p[1] - other[1]);
+    if (length < 1e-9) continue;
+    const u: Point = [(p[0] - other[0]) / length, (p[1] - other[1]) / length],
+      reach = 1e4,
+      half: Point[] = [
+        [p[0] - u[0] * reach, p[1] - u[1] * reach],
+        [p[0] + u[0] * reach, p[1] + u[1] * reach],
+        [p[0] + u[0] * reach - u[1] * reach, p[1] + u[1] * reach + u[0] * reach],
+        [p[0] - u[0] * reach - u[1] * reach, p[1] - u[1] * reach + u[0] * reach]
+      ];
+    let parts: Point[][];
+    try {
+      const block = [{ outer: ring, holes: [] }],
+        cut = [{ outer: half, holes: [] }];
+      parts = [...regionBoolean(block, cut, "intersection"), ...regionBoolean(block, cut, "difference")].flatMap(r =>
+        r.holes.length ? [] : [r.outer]
+      );
+    } catch {
+      continue;
+    }
+    parts = parts.filter(part => Math.abs(polygonArea(part)) >= 1);
+    if (parts.length < 2 || !parts.every(part => isSimplePolygon(part, 1))) continue;
+    // A cut from a small notch (a junction's disc, a tower) carried through the block can leave a thin wedge no plot
+    // fits.
+    const wedge = parts.some(part => meanWidth(part) < MIN_PIECE_WIDTH_METERS);
+    if (wedge && wedges === "refuse") continue;
+    return parts.flatMap(part =>
+      meanWidth(part) < MIN_PIECE_WIDTH_METERS
+        ? [{ ring: part, sides: sidesOf(part, ring, sides), open: true as const }]
+        : convexPieces(part, sidesOf(part, ring, sides), wedges, depth + 1)
+    );
+  }
+  return [{ ring, sides }];
+}
+
+/** The ground of a plan's plots that are not wedges: each plot's area where it fills most of its frontage-by-depth box. */
+function plotGround(plans: BurgageCellPlan[]): number {
+  return plans
+    .flatMap(p => p.plots)
+    .reduce((n, plot) => {
+      const [a, b] = plot.front,
+        length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (length < 1e-6) return n;
+      const v: Point = [-(b[1] - a[1]) / length, (b[0] - a[0]) / length],
+        depth = Math.max(...plot.ring.map(p => Math.abs((p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1]))),
+        area = Math.abs(polygonArea(plot.ring));
+      return n + (area >= HOUSE_FILL * length * depth ? area : 0);
+    }, 0);
+}
+
+/** Twice the area over the perimeter: a triangle's height on its longest side, roughly; a strip's width. */
+function meanWidth(ring: Point[]): number {
+  const perimeter = ring.reduce((n, p, i) => {
+    const q = ring[(i + 1) % ring.length];
+    return n + Math.hypot(q[0] - p[0], q[1] - p[1]);
+  }, 0);
+  return perimeter > 0 ? (2 * Math.abs(polygonArea(ring))) / perimeter : 0;
+}
+
+/** Each edge of a piece keeps the sides of the ring edges it runs along: the largest setback, and a front when any
+ * is one. A cut edge, or the part of an edge a cut carried on, has none. */
+function sidesOf(piece: Point[], ring: Point[], sides: Side[]): Side[] {
+  return piece.map((a, j) => {
+    const b = piece[(j + 1) % piece.length],
+      length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const along = ring.flatMap((p, n) => {
+      const q = ring[(n + 1) % ring.length];
+      if (length < 1e-9 || !parallel(a, b, p, q) || lineDistance(p, a, b) > 1e-3) return [];
+      const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length],
+        s0 = (p[0] - a[0]) * u[0] + (p[1] - a[1]) * u[1],
+        s1 = (q[0] - a[0]) * u[0] + (q[1] - a[1]) * u[1];
+      return Math.min(length, Math.max(s0, s1)) - Math.max(0, Math.min(s0, s1)) > 1e-3 ? [sides[n]] : [];
+    });
+    return along.length
+      ? { setback: Math.max(...along.map(s => s.setback)), front: along.some(s => s.front) }
+      : { setback: 0, front: false };
+  });
+}
+
+/** The plot's front band, `depth` deep and never more than half the plot. */
+function frontHouse(ring: Point[], front: [Point, Point], depth: number) {
+  const [a, b] = front,
+    length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+  const c = polygonCentroid(ring);
+  let v: Point = [-u[1], u[0]];
+  if ((c[0] - a[0]) * v[0] + (c[1] - a[1]) * v[1] < 0) v = [-v[0], -v[1]];
+  const frame = { origin: a, u, v };
+  const plotDepth = Math.max(...ring.map(p => (p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1]));
+  const deep = Math.min(depth, plotDepth / 2),
+    house = clipToBox(ring, frame, -Infinity, Infinity, 0, deep),
+    area = Math.abs(polygonArea(house));
+  // A house that fills less than this share of its frontage times its depth is a wedge's corner, not a house.
+  return house.length >= 3 && area >= 12 && area >= HOUSE_FILL * length * deep ? house : undefined;
+}
+
+/** The share of its frontage-by-depth box a front house fills at least (a trapezoid on an oblique plot does). */
+const HOUSE_FILL = 0.7;
+
+/** Yard between a front house and its rear house, and the rear house's depth (plan §5.4; Freiburg's Vorderhaus and
+ * Hinterhaus, Löbbecke S. 13). A rear house leaves the plot's back strip and, on a wide plot, a passage along one side
+ * from the yard to the back. */
+const REAR_YARD_METERS: readonly [number, number] = [5, 8];
+const REAR_DEPTH_METERS: readonly [number, number] = [6, 9];
+const REAR_BACK_METERS = 2;
+const REAR_PASSAGE_METERS = 1.2;
+/** Plots narrower than this keep the rear house across their full width. */
+const REAR_PASSAGE_MIN_FRONTAGE = 5;
+
+function rearHouse(ring: Point[], front: [Point, Point], frontDepth: number, rng: () => number): Point[] | undefined {
+  const [a, b] = front,
+    length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+  const u: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length];
+  const c = polygonCentroid(ring);
+  let v: Point = [-u[1], u[0]];
+  if ((c[0] - a[0]) * v[0] + (c[1] - a[1]) * v[1] < 0) v = [-v[0], -v[1]];
+  const frame = { origin: a, u, v };
+  const plotDepth = Math.max(...ring.map(p => (p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1]));
+  const from = frontDepth + REAR_YARD_METERS[0] + (REAR_YARD_METERS[1] - REAR_YARD_METERS[0]) * rng(),
+    to = Math.min(
+      from + REAR_DEPTH_METERS[0] + (REAR_DEPTH_METERS[1] - REAR_DEPTH_METERS[0]) * rng(),
+      plotDepth - REAR_BACK_METERS
+    );
+  if (to - from < REAR_DEPTH_METERS[0]) return;
+  const passage = length >= REAR_PASSAGE_MIN_FRONTAGE ? REAR_PASSAGE_METERS : 0,
+    left = rng() < 0.5;
+  const house = clipToBox(ring, frame, left ? passage : -Infinity, left ? Infinity : length - passage, from, to);
+  return house.length >= 3 && Math.abs(polygonArea(house)) >= 12 ? house : undefined;
+}
+
+/** A lane carried out from the inset block to the street block's ring along its own direction. */
+function reachRing(points: Point[], ring: Point[]): Point[] {
+  const out = points.map(p => [p[0], p[1]] as Point);
+  for (const end of [0, 1] as const) {
+    const p = end === 0 ? out[0] : out.at(-1)!,
+      q = end === 0 ? out[1] : out.at(-2)!,
+      length = Math.hypot(p[0] - q[0], p[1] - q[1]);
+    if (length < 1e-9) continue;
+    const d: Point = [(p[0] - q[0]) / length, (p[1] - q[1]) / length];
+    let best = Infinity;
+    for (let i = 0; i < ring.length; i++) {
+      const t = rayHit(p, d, ring[i], ring[(i + 1) % ring.length]);
+      if (t !== undefined && t < best) best = t;
+    }
+    if (best <= LANE_REACH_METERS) {
+      const hit: Point = [p[0] + d[0] * best, p[1] + d[1] * best];
+      if (end === 0) out[0] = hit;
+      else out[out.length - 1] = hit;
+    }
+  }
+  return out;
+}
+
+function rayHit(p: Point, d: Point, a: Point, b: Point): number | undefined {
+  const e: Point = [b[0] - a[0], b[1] - a[1]],
+    denominator = d[0] * e[1] - d[1] * e[0];
+  if (Math.abs(denominator) < 1e-12) return;
+  const w: Point = [a[0] - p[0], a[1] - p[1]],
+    t = (w[0] * e[1] - w[1] * e[0]) / denominator,
+    s = (w[0] * d[1] - w[1] * d[0]) / denominator;
+  return t >= 0 && s >= -1e-9 && s <= 1 + 1e-9 ? t : undefined;
+}
+
+function parallel(a: Point, b: Point, p: Point, q: Point): boolean {
+  const u: Point = [b[0] - a[0], b[1] - a[1]],
+    v: Point = [q[0] - p[0], q[1] - p[1]],
+    lu = Math.hypot(...u),
+    lv = Math.hypot(...v);
+  return lu > 1e-9 && lv > 1e-9 && Math.abs(u[0] * v[1] - u[1] * v[0]) / (lu * lv) < 1e-3;
+}
+
+function lineDistance(m: Point, p: Point, q: Point): number {
+  const l = Math.hypot(q[0] - p[0], q[1] - p[1]);
+  return Math.abs((m[0] - p[0]) * (q[1] - p[1]) - (m[1] - p[1]) * (q[0] - p[0])) / l;
+}

@@ -14,7 +14,8 @@ const frame = { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 }
 
 describe("market day on the civic plaza (feature parity P6b)", () => {
   it("lays the mesh editor's six stalls along the plaza's long sides, clear of the streets, in a walled river town", () => {
-    const seed = "m1",
+    // Seeds m1 and m2 drew six stalls until the ring branch roads were dropped (§8.25); they draw five now.
+    const seed = "m0",
       settings = { ...defaultGenerationSettings(), population: defaultPopulationSettings(5000) };
     settings.config = {
       ...settings.config,

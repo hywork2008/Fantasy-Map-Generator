@@ -17,11 +17,26 @@ export interface MedievalModel {
   /** Explicit preview tier for factories with no BV variant selector; unspecified means low. */
   quality?: "low" | "high";
   biomes?: readonly string[];
+  /** Declared CE plot (width, depth) centred on the origin; replaces the measured mesh bounds as the footprint, so
+   * variants of different authors keep one placement envelope. */
+  placementEnvelope?: readonly [number, number];
   /** Conservative width, depth and height envelopes in meters. */
   size: readonly [number, number, number];
   note: string;
   /** Quality levels, possibly several per level by different authors; CE adopts one per level. */
   variants?: readonly (ModelVariant & { label: string })[];
+  /** Viewer controls of a parametric variant (the Opus workhome's culture, frontage, shutters); defaults are the
+   * registered model. Variants it does not `apply` to show their registered model only. */
+  presentation?: {
+    fields: readonly {
+      id: string;
+      label: string;
+      default: string;
+      options: readonly { id: string; label: string }[];
+    }[];
+    applies(variantId: string): boolean;
+    create(variantId: string, values: Readonly<Record<string, string>>): CityStructureMeshes;
+  };
   /** Seasonal looks BV can preview on a quality variant; the default is the static model. */
   seasons?: {
     default: string;

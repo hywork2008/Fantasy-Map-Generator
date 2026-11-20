@@ -12,8 +12,10 @@ import { vectorInputFromEditor } from "./editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import {
+  VECTOR_BASTION_FRONT_METERS,
   VECTOR_WALL_SHAPES,
   VECTOR_WALL_WIDTH_METERS,
+  vectorBastionCount,
   vectorUnitWallRing,
   vectorWallAreaShare,
   vectorWallChoice
@@ -25,6 +27,9 @@ const settingsFor = (extra: Partial<ReturnType<typeof defaultGenerationSettings>
   population: defaultPopulationSettings(3000),
   historicalPeriod: "ageOfExploration" as const,
   buildingPattern: "medieval" as const,
+  // A straight river, as the default `through` river was when these cases were set (it is now a gentle meander,
+  // docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+  config: { ...defaultGenerationSettings().config, riverForms: ["straight" as const] },
   ...extra
 });
 
@@ -66,6 +71,22 @@ describe("meshless wall shapes from the mesh editor's settings (feature parity P
       const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 3000, lotOccupancy: 1 });
       expect(city.urban!.report.unplacedPopulation, shape).toBe(0);
     }
+  });
+
+  it("gives a larger bastioned town more bastions, not larger ones, unless the count was chosen", () => {
+    let last = 0;
+    for (const radius of [150, 300, 600, 1200]) {
+      const n = vectorBastionCount("s", radius),
+        salients = vectorUnitWallRing("s", "bastioned", n).filter((_, i) => i % 5 === 2);
+      for (let i = 0; i < n; i++) {
+        const [a, b] = [salients[i], salients[(i + 1) % n]];
+        expect(Math.hypot(b[0] - a[0], b[1] - a[1]) * radius).toBeLessThanOrEqual(VECTOR_BASTION_FRONT_METERS);
+      }
+      expect(n).toBeGreaterThanOrEqual(last);
+      last = n;
+    }
+    expect(last).toBeGreaterThan(vectorBastionCount("s", 150));
+    expect(vectorBastionCount("s", 1200, 6)).toBe(6);
   });
 
   it("builds a wooden wall thinner and lower than a stone one", () => {

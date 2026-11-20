@@ -49,27 +49,73 @@ function infillParts(polygon: Point[], merge: boolean): Point[][] {
     remaining.splice(ear, 1);
   }
   pieces.push(remaining);
+  // Greedy merge: the first pair in index order whose union is convex, again and again. Only pieces sharing two
+  // vertices can merge, so each piece looks at its neighbours alone (through the pieces at each vertex), and a pair
+  // of unchanged pieces that failed once is not tried again: the result is the plain pairwise scan's.
+  const atVertex = new Map<number, Set<number[]>>(),
+    failed = new WeakMap<number[], WeakSet<number[]>>();
+  const index = (piece: number[], add: boolean) => {
+    for (const v of piece) {
+      let set = atVertex.get(v);
+      if (!set) {
+        set = new Set();
+        atVertex.set(v, set);
+      }
+      if (add) set.add(piece);
+      else set.delete(piece);
+    }
+  };
+  if (merge) for (const piece of pieces) index(piece, true);
+  const tryMerge = (first: number[], second: number[]): number[] | undefined => {
+    const edges = [...first, ...second];
+    if (new Set(edges).size !== edges.length - 2) return;
+    const directed = [first, second].flatMap(ids => ids.map((a, k) => [a, ids[(k + 1) % ids.length]]));
+    const border = directed.filter(([a, b]) => !directed.some(([c, d]) => a === d && b === c));
+    if (!border.length) return;
+    const ring = [border[0][0]];
+    while (ring.length < border.length) {
+      const edge = border.find(([a]) => a === ring.at(-1));
+      if (!edge || ring.includes(edge[1])) break;
+      ring.push(edge[1]);
+    }
+    if (ring.length !== border.length || !convex(ring)) return;
+    return ring;
+  };
   for (let changed = merge; changed; ) {
     changed = false;
-    outer: for (let i = 0; i < pieces.length; i++)
-      for (let j = i + 1; j < pieces.length; j++) {
-        const edges = [...pieces[i], ...pieces[j]];
-        if (new Set(edges).size !== edges.length - 2) continue;
-        const directed = [pieces[i], pieces[j]].flatMap(ids => ids.map((a, k) => [a, ids[(k + 1) % ids.length]]));
-        const border = directed.filter(([a, b]) => !directed.some(([c, d]) => a === d && b === c));
-        if (!border.length) continue;
-        const ring = [border[0][0]];
-        while (ring.length < border.length) {
-          const edge = border.find(([a]) => a === ring.at(-1));
-          if (!edge || ring.includes(edge[1])) break;
-          ring.push(edge[1]);
+    const position = new Map(pieces.map((piece, k) => [piece, k]));
+    outer: for (let i = 0; i < pieces.length; i++) {
+      const first = pieces[i],
+        shared = new Map<number[], number>();
+      for (const v of first)
+        for (const other of atVertex.get(v) ?? [])
+          if (other !== first && position.get(other)! > i) shared.set(other, (shared.get(other) ?? 0) + 1);
+      const neighbours = [...shared]
+        .filter(([, n]) => n === 2)
+        .map(([piece]) => piece)
+        .sort((a, b) => position.get(a)! - position.get(b)!);
+      for (const second of neighbours) {
+        if (failed.get(first)?.has(second)) continue;
+        const ring = tryMerge(first, second);
+        if (!ring) {
+          let set = failed.get(first);
+          if (!set) {
+            set = new WeakSet();
+            failed.set(first, set);
+          }
+          set.add(second);
+          continue;
         }
-        if (ring.length !== border.length || !convex(ring)) continue;
+        const j = position.get(second)!;
+        index(first, false);
+        index(second, false);
+        index(ring, true);
         pieces[i] = ring;
         pieces.splice(j, 1);
         changed = true;
         break outer;
       }
+    }
   }
   return pieces.map(ids => ids.map(i => polygon[i]));
 }

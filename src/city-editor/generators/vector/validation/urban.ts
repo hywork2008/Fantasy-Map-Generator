@@ -85,7 +85,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
         !keys(
           b,
           "kind,label,districtId,provenance,dimensionSource,footprint,reserved,entrances,dwellings,floorFootprintMeters2,storeys,residentialShare",
-          "pool,riverbankDistanceMeters,heightMeters"
+          "pool,riverbankDistanceMeters,heightMeters,annexOf"
         ) ||
         !["facility", "housing"].includes(b.kind) ||
         typeof b.label !== "string" ||
@@ -141,7 +141,12 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
               b.floorFootprintMeters2 !== VECTOR_HOUSE_FLOOR_AREA ||
               b.residentialShare !== VECTOR_HOUSE_SHARE ||
               b.dwellings !== vectorHouseDwellings())) ||
-        (b.kind === "facility" && (b.dwellings > 1 || (b.dwellings > 0 && !p.modelId.startsWith("trade-workhome."))))
+        (b.kind === "facility" && (b.dwellings > 1 || (b.dwellings > 0 && !p.modelId.startsWith("trade-workhome.")))) ||
+        (b.annexOf !== undefined &&
+          (b.kind !== "facility" ||
+            b.dwellings !== 0 ||
+            doc.placements[b.annexOf]?.building?.kind !== "facility" ||
+            doc.placements[b.annexOf].building!.annexOf !== undefined))
       )
         errors.push(`building:${p.id}`);
     }
@@ -178,13 +183,55 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v15",
       "vector-urban-v16",
       "vector-urban-v17",
-      "vector-urban-v18"
+      "vector-urban-v18",
+      "vector-urban-v19",
+      "vector-urban-v20",
+      "vector-urban-v21",
+      "vector-urban-v22",
+      "vector-urban-v23",
+      "vector-urban-v24",
+      "vector-urban-v25",
+      "vector-urban-v26",
+      "vector-urban-v27",
+      "vector-urban-v28",
+      "vector-urban-v29",
+      "vector-urban-v30",
+      "vector-urban-v31",
+      "vector-urban-v32",
+      "vector-urban-v33",
+      "vector-urban-v34",
+      "vector-urban-v35",
+      "vector-urban-v36",
+      "vector-urban-v37",
+      "vector-urban-v38",
+      "vector-urban-v39",
+      "vector-urban-v40",
+      "vector-urban-v41",
+      "vector-urban-v42",
+      "vector-urban-v43",
+      "vector-urban-v44",
+      "vector-urban-v45",
+      "vector-urban-v46",
+      "vector-urban-v47",
+      "vector-urban-v48",
+      "vector-urban-v49",
+      "vector-urban-v50",
+      "vector-urban-v51",
+      "vector-urban-v52",
+      "vector-urban-v53",
+      "vector-urban-v54",
+      "vector-urban-v55",
+      "vector-urban-v56",
+      "vector-urban-v57",
+      "vector-urban-v58",
+      "vector-urban-v59",
+      "vector-urban-v60"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
       u.settings,
       "mode,population,houseModelId,laneWidthMeters,laneSpacingMeters,maxLanes,clearanceMeters,allowExpansion",
-      "lotOccupancy,tanneryBends"
+      "lotOccupancy,tanneryBends,plotFabric"
     ) ||
     !["medieval", "medieval-facilities"].includes(u.settings.mode) ||
     !nonnegative(u.settings.population) ||
@@ -205,6 +252,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     (u.settings.lotOccupancy !== undefined &&
       (!Number.isFinite(u.settings.lotOccupancy) || u.settings.lotOccupancy < 0.1 || u.settings.lotOccupancy > 1)) ||
     (u.settings.tanneryBends !== undefined && !["continuous", "leat"].includes(u.settings.tanneryBends)) ||
+    (u.settings.plotFabric !== undefined && !["compact", "burgage", "burgage-dense"].includes(u.settings.plotFabric)) ||
     !object(u.baseGeneration) ||
     !object(u.baseContext) ||
     !keys(u.baseConnections, "nodes,edges,gates,circuits,bridges,wallRoads") ||
@@ -313,7 +361,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       f =>
         keys(f, "id,reason") &&
         id(f.id) &&
-        ["space", "river", "district", "budget", "unsearched", "frame"].includes(f.reason)
+        ["space", "river", "district", "budget", "unsearched", "frame", "plot", "offMap"].includes(f.reason)
     ) ||
     !Array.isArray(r.reasons) ||
     !r.reasons.every(k => typeof k === "string")
@@ -369,7 +417,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       u.settings.population !== r.targetPopulation ||
       r.capacityDwellings !==
         Object.values(doc.placements).reduce((n, p) => n + vectorPlacementDwellings(p), 0) + fabricDwellings ||
-      owned.filter(p => p?.building?.kind === "facility").length !== r.placedFacilities ||
+      owned.filter(p => p?.building?.kind === "facility" && !p.building.annexOf).length !== r.placedFacilities ||
       owned.filter(p => p?.building?.kind === "housing").length + fabricHouses !== r.housingBuildings
     )
       errors.push("urban-result");

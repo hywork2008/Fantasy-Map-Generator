@@ -19,6 +19,9 @@ export interface VectorUrbanSettings {
    * round them; `leat` digs a tanners' leat wherever the bends break the row into several reaches.
    */
   tanneryBends?: TanneryBends;
+  /** Street blocks of house-sized lots (`compact`, absent) or historical burgage plots
+   * (docs/plan/ce-burgage-plot-fabric.md). */
+  plotFabric?: import("../contracts/burgage").PlotFabric;
 }
 export type TanneryBends = "continuous" | "leat";
 export interface VectorBuilding {
@@ -47,6 +50,9 @@ export interface VectorBuilding {
   storeys: number;
   residentialShare: number;
   riverbankDistanceMeters?: number;
+  /** A facility's second building on its plot (the rear works behind a shop-house, docs/plan/ce-town-trade-rear-works.md
+   * R2): the placement it belongs to. The facility is reported once, by that placement. */
+  annexOf?: string;
 }
 export interface VectorUrbanReport {
   targetPopulation: number;
@@ -62,7 +68,11 @@ export interface VectorUrbanReport {
   requiredFacilities: number;
   placedFacilities: number;
   provisionalFacilities: number;
-  unplacedFacilities: { id: string; reason: "space" | "river" | "district" | "budget" | "unsearched" | "frame" }[];
+  unplacedFacilities: {
+    id: string;
+    /** `offMap`: taken to stand beyond the map's edge (kiln works out along the roads), not a shortfall. */
+    reason: "space" | "river" | "district" | "budget" | "unsearched" | "frame" | "plot" | "offMap";
+  }[];
   housingBuildings: number;
   reasons: string[];
 }
@@ -81,7 +91,10 @@ export interface VectorUrbanCheckpoint {
  * districts, street blocks, lanes and houses saved as fabric records (native v8) instead of paths and
  * placements. v10: house storeys by the mesh editor's height variation and height limit (P3b). v11: lots kept off gate openings
  * and junction discs exactly (P4a). v12: wall shapes turned in 48 steps and checked against their gates; double
- * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). v16: park wards laid out as lawns (P7c); water points (P7d). v18: facility mode lays the CE street blocks round its facilities. Saved output of
+ * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). v16: park wards laid out as lawns (P7c); water points (P7d). v18: facility mode lays the CE street blocks round its facilities. v19: burgage plots (`plotFabric`; compact
+ * street blocks stay v18). v20: dense burgage plots. v21–v23: compact, burgage and dense burgage with the Opus
+ * shop-house workhomes, their street fronts saved and, on plots, fitted to one plot each
+ * (docs/plan/bv-workhome-facade-variation.md W3, W4). Saved output of
  * an older version stays as adopted. */
 export type VectorUrbanAlgorithm =
   | "vector-urban-v1"
@@ -101,7 +114,49 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v15"
   | "vector-urban-v16"
   | "vector-urban-v17"
-  | "vector-urban-v18";
+  | "vector-urban-v18"
+  | "vector-urban-v19"
+  | "vector-urban-v20"
+  | "vector-urban-v21"
+  | "vector-urban-v22"
+  | "vector-urban-v23"
+  | "vector-urban-v24"
+  | "vector-urban-v25"
+  | "vector-urban-v26"
+  | "vector-urban-v27"
+  | "vector-urban-v28"
+  | "vector-urban-v29"
+  | "vector-urban-v30"
+  | "vector-urban-v31"
+  | "vector-urban-v32"
+  | "vector-urban-v33"
+  | "vector-urban-v34"
+  | "vector-urban-v35"
+  | "vector-urban-v36"
+  | "vector-urban-v37"
+  | "vector-urban-v38"
+  | "vector-urban-v39"
+  | "vector-urban-v40"
+  | "vector-urban-v41"
+  | "vector-urban-v42"
+  | "vector-urban-v43"
+  | "vector-urban-v44"
+  | "vector-urban-v45"
+  | "vector-urban-v46"
+  | "vector-urban-v47"
+  | "vector-urban-v48"
+  | "vector-urban-v49"
+  | "vector-urban-v50"
+  | "vector-urban-v51"
+  | "vector-urban-v52"
+  | "vector-urban-v53"
+  | "vector-urban-v54"
+  | "vector-urban-v55"
+  | "vector-urban-v56"
+  | "vector-urban-v57"
+  | "vector-urban-v58"
+  | "vector-urban-v59"
+  | "vector-urban-v60";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

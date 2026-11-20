@@ -5,9 +5,12 @@ import { expect, it, vi } from "vitest";
 import { adoptedVariant, medievalDefinition } from "../../city3d/adoption";
 import { modelParts } from "../modelParts";
 import { models as oldCloth } from "./27-cloth-hallsModels";
-import { models } from "./48-trade-guild-hallsModels";
+import { models as taskModels } from "./48-trade-guild-hallsModels";
 import { assembleEnclosedGuildHall, enclosedGuildHallParts, ENCLOSED_GUILD_HALL as profile } from "./enclosedGuildHall";
 import { ENCLOSED_GUILD_TRADES } from "./enclosedGuildTrades";
+
+/** The enclosed halls; the Opus guild houses of the same task have their own tests (opusGuildHouse.test.ts). */
+const models = taskModels.filter(model => model.id.startsWith("trade-hall.guild-enclosed."));
 
 const spec = JSON.parse(readFileSync("docs/plan/data/ce-medieval-trade-forms-v1.json", "utf8")).forms.find(
   (form: { id: string }) => form.id === "guild-enclosed"

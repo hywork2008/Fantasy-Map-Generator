@@ -17,7 +17,8 @@ import {
   joinVectorGenerationAnchors,
   proposeSquareBridge,
   rebuildRoadGraph,
-  setWallCircuit
+  setWallCircuit,
+  withInPlaceEdits
 } from "../editing/network";
 import { curveSource, removeVectorPath } from "../editing/paths";
 import { featureReservations } from "../environmentState";
@@ -30,7 +31,7 @@ import { pointSegmentDistance, samplePath, simplifyFreehand } from "../geometry/
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
-import { assertVectorDocument } from "../validation/document";
+import { assertVectorDocument, withDeferredValidation } from "../validation/document";
 import { BASTION_REGION_PREFIX, reserveVectorBastions } from "./bastions";
 import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCastle } from "./castle";
 import { connectVectorCivicCentre } from "./civic";
@@ -39,6 +40,7 @@ import { isFerryRiver, raiseVectorFerries } from "./ferries";
 import { raiseVectorForest } from "./forest";
 import { spreadApproaches, squareWallCrossings } from "./gateApproaches";
 import { raiseVectorGuilds } from "./guilds";
+import { vectorTownCulture, vectorTownProfile } from "./housingCulture";
 import { expectedVectorHouseStoreys } from "./housingHeights";
 import { raiseVectorInns } from "./inns";
 import { raiseVectorOpenLandmarks } from "./landmarks";
@@ -49,7 +51,14 @@ import { type RouteLink, skeletonRoutes } from "./routes";
 import { GENERATED_HARBOR_ID, raiseVectorHarbor } from "./seaHarbor";
 import { raiseVectorShantyLand, wantsShanty } from "./shanty";
 import { clipVectorDomainToWall, raiseVectorRibbonLand, vectorFacilityLand, vectorRibbonShortfall } from "./suburbs";
-import { isVectorWallShape, VECTOR_WALL_WIDTH_METERS, vectorUnitWallRing, vectorWallSettings } from "./wallShape";
+import { raiseTownGuildhall, townGuildhallRole } from "./townGuildhall";
+import {
+  isVectorWallShape,
+  VECTOR_WALL_WIDTH_METERS,
+  vectorBastionCount,
+  vectorUnitWallRing,
+  vectorWallSettings
+} from "./wallShape";
 
 /** Sine of the shallowest angle a road or river may cross a generated wall shape at (20 degrees). */
 const WALL_CROSSING_SINE = Math.sin((20 * Math.PI) / 180);
@@ -72,7 +81,9 @@ export const DEFAULT_VECTOR_GENERATION: VectorGenerationSettings = {
   seed: "meshless",
   roadWidthMeters: 5,
   clearanceMeters: 0.5,
-  branches: 8,
+  // A town's streets come from its approaches and the lanes round every block (§8.25): no extra main road is laid
+  // out to fixed points on a ring.
+  branches: 0,
   wall: "none"
 };
 export function generationFingerprint(doc: VectorCityDocument, ids: Set<string>): string {
@@ -229,8 +240,9 @@ function wallCrossingsFit(
         at = evaluateAnchor(wall, hit.a),
         opening = (width.left + width.right) / sine + 2 * settings.clearanceMeters + 0.1;
       if (corners.some(c => distance(c, at) < opening * 0.75 + thickness)) return false;
+      // Two openings in one stretch of wall (a meander grazing it, in and out) would overlap.
+      if (gates.some(g => distance(g.at, at) < (g.opening + opening) / 2 + thickness)) return false;
       if (blocked) {
-        if (gates.some(g => distance(g.at, at) < (g.opening + opening) / 2 + thickness)) return false;
         const reach = opening / 2 + thickness;
         if (blocked.some(r => containsRegion([r], at) || ringDistance(at, r.outer) < reach)) return false;
       }
@@ -298,6 +310,11 @@ function addTownMoat(doc: VectorCityDocument, wallId: string, settings: VectorGe
 }
 /** Gates wherever a road or river crosses the wall. */
 function gateWall(doc: VectorCityDocument, id: string, settings: VectorGenerationSettings): VectorCityDocument {
+  // Each gate is an edit of its own; the wall with all its gates is validated once.
+  // The working copy is the attempt's own (`skeleton` discards it on failure), so the gates are added in place.
+  return withDeferredValidation(() => withInPlaceEdits(() => gateEachCrossing(doc, id, settings)));
+}
+function gateEachCrossing(doc: VectorCityDocument, id: string, settings: VectorGenerationSettings): VectorCityDocument {
   for (const path of Object.values(doc.paths).filter(p => p.id !== id && (p.role === "road" || p.role === "river")))
     for (const hit of pathIntersections(doc.paths[id], path)) {
       const tangent = unit(evaluateAnchor(doc.paths[id], hit.a, true)),
@@ -718,7 +735,11 @@ function skeleton(
   timed("source-validation-and-clone");
   /** Fixed roads continued through a wall shape by a generated approach; their own ends are no route ports. */
   const extended = new Set<string>();
-  let deferredInner: { make: (scale: number) => VectorPath; parent: string; scale: number } | undefined;
+  /** A bastioned wall's bastions, as many as its size needs (`vectorBastionCount`). */
+  let wallSides = settings.wallSides;
+  let deferredInner:
+    | { make: (scale: number, turn?: number) => VectorPath; parent: string; scale: number; turns: boolean }
+    | undefined;
   if (settings.wall !== "none" && !Object.values(doc.paths).some(p => p.role === "wall")) {
     const ring = doc.site!.domain[0].outer,
       minX = Math.min(...ring.map(p => p[0])),
@@ -730,6 +751,10 @@ function skeleton(
       half = (maxX - minX) / 2,
       halfY = (maxY - minY) / 2,
       shape = settings.wall,
+      sides =
+        shape === "bastioned"
+          ? vectorBastionCount(settings.seed, Math.max(half, halfY), settings.wallSides)
+          : wallSides,
       // The sea side of a walled harbour town (P5b-2, the mesh editor's Wall coast): `open` leaves the waterfront
       // unwalled, `opening` keeps the sea wall with one harbour gap; either leaves an open wall line ending at the
       // shore, which has no circuit, so no old-town wall or town moat rides on it.
@@ -739,6 +764,7 @@ function skeleton(
       innerId = "auto-inner-wall",
       // The old town takes `share` of the walled area; outlines scale about the centre.
       innerScale = Math.sqrt(inner?.share ?? 1);
+    wallSides = sides;
     const attempts: { rotation: number; scale: number }[] = [];
     // Approaches that would gate the wall close together join outside it, so the gates spread round the wall (U1).
     {
@@ -789,7 +815,7 @@ function skeleton(
     };
     const ringAt = (rotation: number, scale = 1) =>
       clearOfSea(
-        vectorUnitWallRing(settings.seed, shape as WallShape, settings.wallSides, rotation).map(
+        vectorUnitWallRing(settings.seed, shape as WallShape, sides, rotation).map(
           ([x, y]) => [center[0] + x * half * scale, center[1] + y * halfY * scale] as Point
         )
       );
@@ -963,8 +989,17 @@ function skeleton(
               steepEnough(wallPath(curveSource(ringAt(rotation, innerScale * scale), "polyline", true), innerId)))
         );
       // The checks above are geometric; a rotation whose gates still fail validation gives way to the next one.
-      attempts.push(...fits, ...turns.filter(t => t.scale === 1 && !fits.includes(t)));
-    } else attempts.push({ rotation: 0, scale: 1 });
+      // A river that grazes the outline (in and out within one stretch of wall) does so at every turn of a round
+      // outline; drawn a little smaller, the wall stands clear of the bend.
+      attempts.push(
+        ...fits,
+        ...turns.filter(t => t.scale === 1 && !fits.includes(t)),
+        ...turns.filter(t => t.scale !== 1 && !fits.includes(t))
+      );
+    }
+    // A preset outline cannot turn; eased in or out a little it meets a river or road that grazes it (a meandering
+    // river can run along it) at a steeper angle (docs/plan/ce-outskirts-workshop-sizes.md §8.23).
+    else attempts.push(...[1, 0.96, 1.04, 0.92, 1.08].map(scale => ({ rotation: 0, scale })));
     const start = doc;
     let failure: unknown;
     // A town moat that no rotation can bridge squarely gives way to the wall alone, as the mesh editor's
@@ -977,7 +1012,13 @@ function skeleton(
       failure = undefined;
       if (!withMoat && settings.townMoat && !openCoast)
         diagnostics.push({ code: "town-moat-unplaced", entityId: TOWN_MOAT_ID, severity: "warning" });
-      for (const { rotation, scale: outerScale } of attempts) {
+      // A bastioned town's roads enter through its curtains where any turn allows it; otherwise through a bastion,
+      // whose ground then stays open (`reserveVectorBastions`).
+      const tries =
+        shape === "bastioned"
+          ? [true, false].flatMap(curtainGates => attempts.map(a => ({ ...a, curtainGates })))
+          : attempts.map(a => ({ ...a, curtainGates: false }));
+      for (const { rotation, scale: outerScale, curtainGates } of tries) {
         try {
           const tried = new Set(extended);
           let next = structuredClone(start);
@@ -989,8 +1030,8 @@ function skeleton(
                 innerId
               );
           } else {
-            next.paths[id] = preset(id, 1);
-            if (inner) next.paths[innerId] = preset(innerId, innerScale);
+            next.paths[id] = preset(id, outerScale);
+            if (inner) next.paths[innerId] = preset(innerId, innerScale * outerScale);
           }
           const outerClosed = pathIsClosed(next.paths[id]);
           if (outerClosed) next = setWallCircuit(next, id);
@@ -998,6 +1039,32 @@ function skeleton(
           // With a moat the straight run reaches past it, so its bridge stands on one straight piece of road.
           squareWallCrossings(next, id, withMoat ? MOAT_BERM_METERS + TOWN_MOAT_WIDTH_METERS + 4 : undefined);
           next = gateWall(next, id, settings);
+          // Two gates whose openings overlap (a meander grazing the wall, in and out) fail validation: the next turn.
+          {
+            const openings = Object.values(next.connections.gates)
+              .filter(g => g.wallPathId === id)
+              .map(g => ({ at: evaluateAnchor(next.paths[id], g.anchor), width: g.widthMeters }));
+            if (
+              openings.some((g, i) =>
+                openings.slice(i + 1).some(h => distance(g.at, h.at) < (g.width + h.width) / 2 + 1)
+              )
+            )
+              throw new Error("gate-overlap");
+          }
+          // A road enters a bastioned town through a curtain: the bastion is the gun platform, and its narrow gorge
+          // can leave a road through it no way on to the streets.
+          if (curtainGates) {
+            const unit = vectorUnitWallRing(settings.seed, "bastioned", sides, rotation).map(
+                ([x, y]) => [center[0] + x * half * outerScale, center[1] + y * halfY * outerScale] as Point
+              ),
+              bastions = Array.from({ length: unit.length / 5 }, (_, i) => unit.slice(i * 5, i * 5 + 5));
+            for (const gate of Object.values(next.connections.gates))
+              if (gate.wallPathId === id && gate.kind === "passage") {
+                const at = evaluateAnchor(next.paths[id], gate.anchor);
+                if (bastions.some(b => pointInPolygon(at, b) || ringDistance(at, b) < gate.widthMeters / 2))
+                  throw new Error("gate-in-bastion");
+              }
+          }
           if (withMoat) {
             next = addTownMoat(next, id, settings);
             assertVectorDocument(next);
@@ -1022,12 +1089,16 @@ function skeleton(
               // afterwards, with a gate wherever a street crosses it.
               const turned = rotation;
               deferredInner = {
-                make: scale =>
+                make: (scale, turn = 0) =>
                   isVectorWallShape(shape)
-                    ? wallPath(curveSource(ringAt(turned, innerScale * outerScale * scale), "polyline", true), innerId)
-                    : preset(innerId, innerScale * scale),
+                    ? wallPath(
+                        curveSource(ringAt(turned + turn, innerScale * outerScale * scale), "polyline", true),
+                        innerId
+                      )
+                    : preset(innerId, innerScale * outerScale * scale),
                 parent: outerCircuit,
-                scale: innerScale
+                scale: innerScale,
+                turns: isVectorWallShape(shape)
               };
               delete next.paths[innerId];
             }
@@ -1052,23 +1123,36 @@ function skeleton(
     const samples = samplePath(river).filter(s => containsRegion(doc.site!.domain, s.point));
     const candidate = samples.sort((a, b) => distance(a.point, center) - distance(b.point, center))[0];
     // Linear paths need interior candidates too; samples intentionally do not densify straight source segments.
-    let anchor = candidate?.anchor;
+    let anchors = candidate ? [candidate.anchor] : [];
     if (river.source.kind === "curve") {
       const candidates = river.source.segments
         .flatMap(s => Array.from({ length: 17 }, (_, i) => ({ pathId: river.id, segmentId: s.id, t: i / 16 })))
         .filter(a => containsRegion(doc.site!.domain, evaluateAnchor(river, a)))
         .sort((a, b) => distance(evaluateAnchor(river, a), center) - distance(evaluateAnchor(river, b), center));
-      anchor = candidates[0] ?? anchor;
+      if (candidates.length) anchors = candidates;
     }
-    if (!anchor) continue;
+    if (!anchors.length) continue;
     try {
-      doc = proposeSquareBridge(
-        doc,
-        anchor,
-        settings.roadWidthMeters,
-        settings.roadWidthMeters / 2 + settings.clearanceMeters + 2,
-        "stone"
-      );
+      // Nearest the centre first; where a meander bends too tightly there for a square bridge, the next places
+      // along it in turn (docs/plan/ce-outskirts-workshop-sizes.md §8.23).
+      let failure: unknown;
+      let bridged: VectorCityDocument | undefined;
+      for (const anchor of anchors) {
+        try {
+          bridged = proposeSquareBridge(
+            doc,
+            anchor,
+            settings.roadWidthMeters,
+            settings.roadWidthMeters / 2 + settings.clearanceMeters + 2,
+            "stone"
+          );
+          break;
+        } catch (error) {
+          failure ??= error;
+        }
+      }
+      if (!bridged) throw failure;
+      doc = bridged;
       const created = Object.values(doc.connections.bridges).find(
         b => !before.has(b.roadPathId) && !b.roadPathId.startsWith("auto-bridge-road:")
       );
@@ -1103,8 +1187,7 @@ function skeleton(
   if (settings.castle && !reserveVectorCastle(doc, settings))
     diagnostics.push({ code: "castle-unplaced", entityId: CASTLE_FEATURE_ID, severity: "warning" });
   // A bastioned wall's bastions are gun platforms: reserved before the streets, so no block or house stands there.
-  if (settings.wall === "bastioned" && doc.paths["auto-wall"])
-    reserveVectorBastions(doc, "auto-wall", settings.wallSides ?? 6);
+  if (settings.wall === "bastioned" && doc.paths["auto-wall"]) reserveVectorBastions(doc, "auto-wall", wallSides ?? 6);
   // The town's land ends at its wall; beyond it the town grows only along the approaches (gate-ribbon plan W1).
   doc = clipVectorDomainToWall(doc);
   const free = freeLand(doc);
@@ -1138,6 +1221,26 @@ function skeleton(
     if (containsRegion(free, p)) {
       ports.push(p);
       bindings.push([]);
+    }
+  }
+  // A port's quays need a street down to the water (P5b): one to the bank nearest the centre, ended a few metres
+  // inland. The rest of the town is reached by the lanes round its blocks.
+  if (settings.port) {
+    const shore = allVectorWater(doc)
+      .flatMap(w => [w.outer, ...w.holes])
+      .flatMap(r => densify([...r, r[0]], 4))
+      .filter(p => containsRegion(doc.site!.domain, p))
+      .sort((a, b) => distance(a, center) - distance(b, center));
+    quay: for (const p of shore.slice(0, 40)) {
+      const d = distance(p, center);
+      if (d < 1) continue;
+      for (const inland of [12, 20, 30, 45]) {
+        const q: Point = [p[0] + ((center[0] - p[0]) / d) * inland, p[1] + ((center[1] - p[1]) / d) * inland];
+        if (!containsRegion(free, q)) continue;
+        ports.push(q);
+        bindings.push([]);
+        break quay;
+      }
     }
   }
   const links: RouteLink[] = Object.values(doc.connections.bridges).map(b => {
@@ -1206,6 +1309,10 @@ function skeleton(
         if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) joinVectorGenerationAnchors(doc, [hit.a, hit.b]);
   rebuildRoadGraph(doc);
   connectVectorCivicCentre(doc);
+  // An English-style town's guildhall stands in its market place before the stalls set out round it (plan W5c). A
+  // square too small for it keeps the hall among the town's facilities, as designed, so nothing is reported.
+  const townHall = doc.environment?.features[CIVIC_PLAZA_ID] && townGuildhallRole(doc);
+  if (townHall) raiseTownGuildhall(doc, townHall);
   // The civic plaza holds a market day once its streets are laid (P6b).
   if (doc.environment?.features[CIVIC_PLAZA_ID] && !raiseVectorPlazaMarket(doc))
     diagnostics.push({ code: "market-unplaced", entityId: CIVIC_PLAZA_ID, severity: "warning" });
@@ -1218,9 +1325,14 @@ function skeleton(
     const crossers = Object.values(doc.paths).filter(p => p.role === "road" || p.role === "river"),
       blocked = [...vectorOccupiedSites(doc, "reserved"), ...featureReservations(doc)],
       // The old town takes in the civic centre, so the line may also grow until it clears those sites.
-      candidates = [0, ...Array.from({ length: 40 }, (_, i) => (i % 4 === 3 ? -1 : 1) * 0.02 * (1 + (i >> 1)))]
-        .filter(d => deferredInner!.scale * (1 + d) <= 0.9)
-        .map(d => deferredInner!.make(1 + d)),
+      // A polygonal old town may also turn a little on its own, so that a river or street that meets it at a corner
+      // (a meandering river does so more often) crosses a side instead; unturned lines come first.
+      turns = deferredInner.turns ? [0, 0.12, -0.12, 0.24, -0.24] : [0],
+      candidates = turns.flatMap(turn =>
+        [0, ...Array.from({ length: 40 }, (_, i) => (i % 4 === 3 ? -1 : 1) * 0.02 * (1 + (i >> 1)))]
+          .filter(d => deferredInner!.scale * (1 + d) <= 0.9)
+          .map(d => deferredInner!.make(1 + d, turn))
+      ),
       // A line clear of the civic sites is preferred; one through a precinct too large for the old town comes next.
       // A line whose gates still fail validation gives way to the next one.
       clear = candidates.filter(c => wallCrossingsFit(c, crossers, settings, blocked)),
@@ -1324,7 +1436,8 @@ function skeleton(
         doc.context.targetPopulation ?? 0,
         period,
         !!doc.site?.descriptor?.burg.port,
-        doc.context.requestedSettings?.facilityLayout
+        doc.context.requestedSettings?.facilityLayout,
+        vectorTownCulture(vectorTownProfile(doc))
       )
     );
   const ribbon = raiseVectorRibbonLand(

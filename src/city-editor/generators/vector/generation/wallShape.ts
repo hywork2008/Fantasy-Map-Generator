@@ -15,6 +15,12 @@ export const isVectorWallShape = (wall: string): wall is WallShape =>
 /** Wall thickness of the mesh editor's wall styles (`edgeGroupStyle`). */
 export const VECTOR_WALL_WIDTH_METERS = { stone: 4.5, wood: 2.4 } as const;
 export const VECTOR_WALL_SIDES = { min: 3, max: 12 } as const;
+/** Bastions a grown bastioned town may take: its fronts stay one gun range long however large the town. */
+export const VECTOR_BASTION_COUNT_MAX = 48;
+/** Longest front (salient to salient) of a bastioned wall: neighbouring bastions cover each other within a gun's
+ * range. Palmanova was laid out from the 350 m effective range of its guns; Vauban's exterior side was 180 toises
+ * (351 m). */
+export const VECTOR_BASTION_FRONT_METERS = 350;
 
 /**
  * The town wall the mesh editor's settings ask for (P4a). The skeleton-first shape families (`unitWallShape`) are
@@ -66,7 +72,8 @@ export function vectorWallChoice(
   return {
     ...layout,
     wall,
-    ...(wall === "polygon" || wall === "bastioned"
+    // A bastioned wall's count left to the generator follows the town's size (`vectorBastionCount`).
+    ...(wall === "polygon" || (wall === "bastioned" && settings.wallSides !== undefined)
       ? { wallSides: Math.min(VECTOR_WALL_SIDES.max, Math.max(VECTOR_WALL_SIDES.min, Math.round(sides))) }
       : {}),
     wallMaterial:
@@ -103,6 +110,25 @@ export function vectorUnitWallRing(seed: string, shape: WallShape, sides = 6, ro
     cos = Math.cos(rotation),
     sin = Math.sin(rotation);
   return ring.map(([x, y]) => [(x * cos - y * sin) / reach, (x * sin + y * cos) / reach]);
+}
+
+/**
+ * Bastions of a bastioned wall whose salients stand `salientRadiusMeters` from its centre. A bastion is a gun
+ * platform that covers its neighbours: a larger town takes more bastions, not larger ones, so every front stays
+ * within `VECTOR_BASTION_FRONT_METERS`. A small town keeps a count drawn on the seed (five to eight); a count the
+ * user chose is kept as it is.
+ */
+export function vectorBastionCount(seed: string, salientRadiusMeters: number, chosen?: number): number {
+  if (chosen !== undefined) return chosen;
+  const base = 5 + Math.floor(makeRng(`${seed}:vector-wall:bastions`)() * 4);
+  for (let n = base; n < VECTOR_BASTION_COUNT_MAX; n++) {
+    const salients = vectorUnitWallRing(seed, "bastioned", n).filter((_, i) => i % 5 === 2),
+      front = Math.max(
+        ...salients.map((p, i) => Math.hypot(salients[(i + 1) % n][0] - p[0], salients[(i + 1) % n][1] - p[1]))
+      );
+    if (front * salientRadiusMeters <= VECTOR_BASTION_FRONT_METERS) return n;
+  }
+  return VECTOR_BASTION_COUNT_MAX;
 }
 
 /** Share of the inscribed circle the outline covers as town land; the site grows by its inverse square root. */

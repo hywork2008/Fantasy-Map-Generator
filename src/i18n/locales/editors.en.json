@@ -316,6 +316,13 @@
         "allowExpansion": "Allow suburbs within automatic synthetic input",
         "tanneryBends": "Tanners' row at river bends",
         "tanneryBendsOptions": { "continuous": "One continuous row", "leat": "Tanners' leat" },
+        "timings": "Stage timings",
+        "plotFabric": "Plot pattern",
+        "plotFabricOptions": {
+          "compact": "Compact (dense houses)",
+          "burgage": "Burgage plots with yards (village, small town)",
+          "burgage-dense": "Dense burgage plots (walled town, yards built over)"
+        },
         "develop": "Preview lanes, facilities and housing",
         "capacity": "Dwelling capacity / required",
         "unplaced": "Unplaced population",
@@ -336,7 +343,9 @@
           "river": "No available riverbank",
           "district": "Insufficient suitable peripheral land",
           "budget": "This facility hit its search allowance",
-          "unsearched": "Not searched; the shared attempt budget was already spent"
+          "unsearched": "Not searched; the shared attempt budget was already spent",
+          "plot": "No run of burgage plots wide and deep enough",
+          "offMap": "Beyond the map edge: taken to stand further out along the roads"
         },
         "running": "Generating candidate… You can cancel or continue editing.",
         "settingGaps": {
@@ -548,6 +557,8 @@
         "coast": "Coast",
         "river1": "River 1",
         "river2": "River 2",
+        "river1Form": "River 1 form",
+        "river2Form": "River 2 form",
         "walls": "City walls",
         "citadel": "Citadel",
         "plaza": "Plaza",

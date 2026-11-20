@@ -25,7 +25,49 @@ const ALGORITHMS = [
   "vector-urban-v15",
   "vector-urban-v16",
   "vector-urban-v17",
-  "vector-urban-v18"
+  "vector-urban-v18",
+  "vector-urban-v19",
+  "vector-urban-v20",
+  "vector-urban-v21",
+  "vector-urban-v22",
+  "vector-urban-v23",
+  "vector-urban-v24",
+  "vector-urban-v25",
+  "vector-urban-v26",
+  "vector-urban-v27",
+  "vector-urban-v28",
+  "vector-urban-v29",
+  "vector-urban-v30",
+  "vector-urban-v31",
+  "vector-urban-v32",
+  "vector-urban-v33",
+  "vector-urban-v34",
+  "vector-urban-v35",
+  "vector-urban-v36",
+  "vector-urban-v37",
+  "vector-urban-v38",
+  "vector-urban-v39",
+  "vector-urban-v40",
+  "vector-urban-v41",
+  "vector-urban-v42",
+  "vector-urban-v43",
+  "vector-urban-v44",
+  "vector-urban-v45",
+  "vector-urban-v46",
+  "vector-urban-v47",
+  "vector-urban-v48",
+  "vector-urban-v49",
+  "vector-urban-v50",
+  "vector-urban-v51",
+  "vector-urban-v52",
+  "vector-urban-v53",
+  "vector-urban-v54",
+  "vector-urban-v55",
+  "vector-urban-v56",
+  "vector-urban-v57",
+  "vector-urban-v58",
+  "vector-urban-v59",
+  "vector-urban-v60"
 ];
 type RecordValue = Record<string, unknown>;
 const record = (v: unknown): v is RecordValue => !!v && typeof v === "object" && !Array.isArray(v);
@@ -158,7 +200,7 @@ function cellErrors(c: RecordValue, key: string): string[] {
     !keys(
       c,
       ["id", "hash", "districtId", "origin", "ring", "lanes", "attachments", "mouths", "houses", "detached"],
-      ["inside", "cleared", "detachedLines"]
+      ["inside", "cleared", "detachedLines", "plots"]
     ) ||
     !detachedLines(c.detachedLines, c.lanes) ||
     c.id !== key ||
@@ -225,6 +267,18 @@ function cellErrors(c: RecordValue, key: string): string[] {
     )
   )
     return remember(`c:${hash}`, [`${at}:houses`]);
+  const plots = cell.plots;
+  if (
+    plots !== undefined &&
+    (!keys(plots, ["offsets", "coords", "fronts"], ["venelles"]) ||
+      (plots.venelles !== undefined && !lines(plots.venelles)) ||
+      !ints(plots.coords) ||
+      plots.coords.length % 2 ||
+      !offsets(plots.offsets, plots.coords.length / 2, 3) ||
+      !ints(plots.fronts) ||
+      plots.fronts.length !== plots.offsets.length * 4)
+  )
+    return remember(`c:${hash}`, [`${at}:plots`]);
   const cellRing = ring(cell.ring, cell.origin);
   if (!cellRing) return remember(`c:${hash}`, [`${at}:ring`]);
   // Houses stay within their street block; one quantum of rounding is allowed on the boundary.

@@ -1,3 +1,4 @@
+import type { OpusWorkhomeCulture } from "../../../../buildings/medieval/opusWorkhomeProfiles";
 import { getUrbanDwellings } from "../../../../utils/urbanDwellings";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
@@ -21,11 +22,21 @@ const GATE_METERS = 15;
  * band per approach road beyond the wall, gate end first, profiled by its FMG traffic (trade from rank 0.5, else
  * rural) with the band's glacis clearance and ribbon length. Empty for an open town or one without approaches.
  */
-export function vectorApproachBands(doc: VectorCityDocument): { bands: ApproachBand[]; walls: Point[][] } {
+export function vectorApproachBands(
+  doc: VectorCityDocument,
+  /** A coastal town's wall runs from shore to shore: closed across its ends (along the shore), it has approaches too
+   * (docs/plan/ce-outskirts-workshop-sizes.md §8.11, §8.19). */
+  options: { openWall?: boolean } = { openWall: true }
+): { bands: ApproachBand[]; walls: Point[][]; ring?: Point[]; closed?: boolean } {
   const walls = Object.values(doc.paths)
       .filter(p => p.role === "wall")
       .map(p => samplePath(p).map(s => s.point)),
-    outer = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
+    closed = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner")),
+    outer =
+      closed ??
+      (options.openWall
+        ? Object.values(doc.paths).find(p => p.role === "wall" && !pathIsClosed(p) && !p.id.includes("inner"))
+        : undefined);
   if (!outer) return { bands: [], walls };
   const ring = samplePath(outer).map(s => s.point),
     wallGap = (q: Point) => nearestOnPolyline(q, [...ring, ring[0]]).dist,
@@ -64,7 +75,7 @@ export function vectorApproachBands(doc: VectorCityDocument): { bands: ApproachB
             : null;
       return [{ groupId: p.id, points: line, ...suburbanProfile(undefined, doc.frame.extentMeters, true, use) }];
     });
-  return { bands, walls };
+  return { bands, walls, ring, closed: !!closed };
 }
 
 /**
@@ -274,9 +285,12 @@ export function wallBerm(line: Point[], meters: number, closed = true): VectorPo
   return pieces;
 }
 
-/** The town's interior: the domain inside the closed outer wall, with its gate openings. */
-function outerWallRing(doc: VectorCityDocument): Point[] | undefined {
-  const outer = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
+/** The town's interior: the domain inside the closed outer wall, with its gate openings. With `open`, a coastal town's
+ * wall from shore to shore stands for it too, closed across its ends (docs/plan/ce-outskirts-workshop-sizes.md §8.19). */
+function outerWallRing(doc: VectorCityDocument, open = false): Point[] | undefined {
+  const outer =
+    Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner")) ??
+    (open ? Object.values(doc.paths).find(p => p.role === "wall" && !p.id.includes("inner")) : undefined);
   return outer ? samplePath(outer).map(s => s.point) : undefined;
 }
 
@@ -334,7 +348,7 @@ export function clipVectorDomainToWall(doc: VectorCityDocument): VectorCityDocum
 
 /** Free land inside the outer wall: the site there less water, reserved ground, placements and every path. */
 export function vectorInteriorFreeM2(doc: VectorCityDocument): number {
-  const ring = outerWallRing(doc),
+  const ring = outerWallRing(doc, true),
     site = doc.site;
   if (!ring || !site) return 0;
   const obstacles: VectorPolygon[] = [
@@ -373,7 +387,7 @@ export function vectorRibbonShortfall(
   facilities: VectorFacilityLand = NO_FACILITY_LAND
 ): { dwellings: number; riverside: number } {
   const site = doc.site;
-  if (!site || !outerWallRing(doc)) return { dwellings: 0, riverside: 0 };
+  if (!site || !outerWallRing(doc, true)) return { dwellings: 0, riverside: 0 };
   const perM2 = INTERIOR_DWELLINGS_PER_M2 * (storeys / 2.25) * lotOccupancy,
     required = site.descriptor?.burg.dwellings ?? getUrbanDwellings(doc.context.targetPopulation ?? 0),
     interior = Math.max(0, vectorInteriorFreeM2(doc) - facilities.coreM2) * perM2 * 0.9;
@@ -409,11 +423,12 @@ export function vectorFacilityLand(
   population: number,
   period: string,
   port: boolean,
-  facilityLayout: string | undefined
+  facilityLayout: string | undefined,
+  culture: OpusWorkhomeCulture
 ): VectorFacilityLand {
   if (facilityLayout !== "population" || !population) return NO_FACILITY_LAND;
   const land = { coreM2: 0, outskirtsM2: 0, riversideM2: 0 };
-  for (const r of buildPopulationFacilityRequests(population, { period, port }).requests) {
+  for (const r of buildPopulationFacilityRequests(population, { period, port, culture }).requests) {
     const m2 =
       r.asset.minimumSite.reduce((n, p) => n + regionArea({ outer: p.outer, holes: [] }), 0) * FACILITY_PARCEL_FACTOR;
     if (r.zone !== "outskirts") land.coreM2 += m2 * FACILITY_CORE_DISPLACEMENT;
@@ -455,10 +470,9 @@ export function raiseVectorRibbonLand(
   const site = doc.site;
   const none = { document: doc, unplacedLength: 0 };
   if (!site) return none;
-  const outer = Object.values(doc.paths).find(p => p.role === "wall" && pathIsClosed(p) && !p.id.includes("inner"));
-  if (!outer) return none;
+  const ring = outerWallRing(doc, true);
+  if (!ring) return none;
   void faubourgAdded;
-  const ring = samplePath(outer).map(s => s.point);
   const half = doc.frame.extentMeters / 2 - 4,
     strips: VectorPolygon[] = [],
     roads = site.descriptor?.roads ?? [],

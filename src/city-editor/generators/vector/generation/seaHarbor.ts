@@ -248,6 +248,7 @@ function raise(
     streets,
     throughStreets: streets,
     barriers: blocked.flatMap(solidParts),
+    keepOff: roadSurfaces.flatMap(solidParts),
     // Harbour spaces keep off the streets; the cart path to a street stops at its kerb.
     isFree: polygon => !overlaps(polygon, blocked) && !overlaps(polygon, roadSurfaces),
     pathIsFree: (from, to) => {

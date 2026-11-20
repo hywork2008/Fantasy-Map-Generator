@@ -1,7 +1,7 @@
 import polygonClipping, { type MultiPolygon } from "polygon-clipping";
 import RBush from "rbush";
 import type { Point } from "../../../types/primitives";
-import { pointInPolygon, polygonArea } from "../../geom";
+import { pointInPolygon, polygonArea, segmentsIntersect } from "../../geom";
 import type { PathSurface } from "./surfaces";
 
 export type VectorPolygon = PathSurface;
@@ -41,6 +41,123 @@ export function indexedContains(polygons: VectorPolygon[]) {
       return inside(rings[0]) && !rings.slice(1).some(inside);
     });
 }
+/**
+ * `containsRegion([polygon], p)` for one polygon tested at many points: the same crossing test on the same edges,
+ * so the answer is identical, but only the edges spanning the point's height are visited (an index by height).
+ * Worth it for outlines of many vertices, such as a meandering river's water.
+ */
+export function regionContains(polygon: VectorPolygon): (p: Point) => boolean {
+  return regionProbe(polygon).contains;
+}
+/**
+ * `regionContains`, and whether any edge's box comes within `d` of a point. With no edge that near, every point
+ * within `d` (by either axis) is inside exactly when the point is: no edge can lie between them.
+ */
+export function regionProbe(polygon: VectorPolygon): {
+  contains: (p: Point) => boolean;
+  near: (p: Point, d: number) => boolean;
+} {
+  type Edge = { minX: number; minY: number; maxX: number; maxY: number; i: number };
+  const rings = [polygon.outer, ...polygon.holes].map(r => {
+    const edges = r.map((pi, i) => {
+      const pj = r[(i + r.length - 1) % r.length];
+      return { pi, pj, i };
+    });
+    // By height alone for the crossing test; by box, built on first use, for nearness.
+    const tree = new RBush<Edge>();
+    tree.load(
+      edges.map(({ pi, pj, i }) => ({
+        minX: 0,
+        maxX: 0,
+        minY: Math.min(pi[1], pj[1]),
+        maxY: Math.max(pi[1], pj[1]),
+        i
+      }))
+    );
+    let boxes: RBush<Edge> | undefined;
+    const box = () => {
+      if (!boxes) {
+        boxes = new RBush<Edge>();
+        boxes.load(
+          edges.map(({ pi, pj, i }) => ({
+            minX: Math.min(pi[0], pj[0]),
+            maxX: Math.max(pi[0], pj[0]),
+            minY: Math.min(pi[1], pj[1]),
+            maxY: Math.max(pi[1], pj[1]),
+            i
+          }))
+        );
+      }
+      return boxes;
+    };
+    return { r, tree, box };
+  });
+  // pointInPolygon's test, edge by edge; the crossings are counted the same, so their order does not matter.
+  const inside = ({ r, tree }: (typeof rings)[number], p: Point) => {
+    let yes = false;
+    const px = p[0],
+      py = p[1];
+    for (const { i } of tree.search({ minX: 0, maxX: 0, minY: py, maxY: py })) {
+      const pi = r[i],
+        pj = r[(i + r.length - 1) % r.length],
+        yi = pi[1],
+        yj = pj[1];
+      if (yi > py !== yj > py && px < ((pj[0] - pi[0]) * (py - yi)) / (yj - yi) + pi[0]) yes = !yes;
+    }
+    return yes;
+  };
+  return {
+    contains: p => inside(rings[0], p) && !rings.slice(1).some(h => inside(h, p)),
+    near: (p, d) =>
+      rings.some(({ box }) => box().collides({ minX: p[0] - d, maxX: p[0] + d, minY: p[1] - d, maxY: p[1] + d }))
+  };
+}
+const ringBox = (r: Point[]) => {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [x, y] of r) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return { minX, minY, maxX, maxY };
+};
+/** True only when the outlines neither cross nor touch: each ring then lies wholly inside or outside the other. */
+function outlinesApart(a: Point[], b: Point[]): boolean {
+  const box = ringBox(a);
+  for (let j = 0; j < b.length; j++) {
+    const p = b[j],
+      q = b[(j + 1) % b.length];
+    if (
+      Math.max(p[0], q[0]) < box.minX ||
+      Math.min(p[0], q[0]) > box.maxX ||
+      Math.max(p[1], q[1]) < box.minY ||
+      Math.min(p[1], q[1]) > box.maxY
+    )
+      continue;
+    for (let i = 0; i < a.length; i++) if (segmentsIntersect(a[i], a[(i + 1) % a.length], p, q)) return false;
+  }
+  return true;
+}
+/** A quick sufficient test that `inner` lies inside `outer`; false means unknown. It spares the clipping kernel the
+ * common case of a difference that is certainly empty. */
+export function ringSurelyInside(inner: Point[], outer: Point[]): boolean {
+  return outlinesApart(inner, outer) && pointInPolygon(inner[0], outer);
+}
+/** A quick sufficient test that `ring` and `polygon` share no area; false means unknown. */
+export function ringSurelyApart(ring: Point[], polygon: VectorPolygon): boolean {
+  const a = ringBox(ring),
+    b = ringBox(polygon.outer);
+  if (a.maxX < b.minX || a.minX > b.maxX || a.maxY < b.minY || a.minY > b.maxY) return true;
+  return (
+    outlinesApart(ring, polygon.outer) &&
+    !pointInPolygon(ring[0], polygon.outer) &&
+    !pointInPolygon(polygon.outer[0], ring)
+  );
+}
 /** Only derived boundaries enter the clipping kernel; source paths and surveyed rings remain untouched. */
 export function regionBoolean(
   a: VectorPolygon[],
@@ -71,7 +188,9 @@ export function regionBoolean(
     if (
       !retry ||
       !(error instanceof Error) ||
-      (!/^Unable to (complete output ring|find segment)/.test(error.message) &&
+      (!/^(Unable to (complete output ring|find segment|pop\(\) left SweepEvent)|Infinite loop when passing sweep line)/.test(
+        error.message
+      ) &&
         // A runaway recursion of the kernel (a ring walk, or a segment's state chain on a near-coincident edge).
         // The stack it leaves is cut at `Error.stackTraceLimit` frames (10 by default), so the frames that would
         // name the kernel's routine are usually gone: every stack overflow of the kernel is retried.
@@ -97,8 +216,18 @@ export function regionBoolean(
       try {
         result = run(rounded(a, 1e-7), rounded(b, 1e-7));
       } catch {
-        // Still far below the sampling tolerance; reached only where both finer lattices fail.
-        result = run(rounded(a, 1e-6), rounded(b, 1e-6));
+        try {
+          // Still far below the sampling tolerance; reached only where both finer lattices fail.
+          result = run(rounded(a, 1e-6), rounded(b, 1e-6));
+        } catch (last) {
+          // The kernel can also lose an edge whose ends round to within a few ulps of the origin (a town centred
+          // on it): the same lattice shifted off the origin, and the result shifted back.
+          if (!(last instanceof Error)) throw last;
+          const shift = (polygons: MultiPolygon, dx: number, dy: number): MultiPolygon =>
+            polygons.map(rings => rings.map(r => r.map(([x, y]) => [x + dx, y + dy] as Point)));
+          const [sx, sy] = [97.125, 53.6875];
+          result = shift(run(shift(rounded(a, 1e-6), sx, sy), shift(rounded(b, 1e-6), sx, sy)), -sx, -sy);
+        }
       }
     }
   }
@@ -110,7 +239,8 @@ export function regionBoolean(
           const points: Point[] = [];
           for (const p of r.slice(0, -1))
             if (!points.length || Math.hypot(p[0] - points.at(-1)![0], p[1] - points.at(-1)![1]) > 1e-7)
-              points.push([p[0], p[1]]);
+              // `+ 0` turns the kernel's -0 into 0, which a saved document reads back as.
+              points.push([p[0] + 0, p[1] + 0]);
           if (
             points.length > 1 &&
             Math.hypot(points[0][0] - points.at(-1)![0], points[0][1] - points.at(-1)![1]) <= 1e-7

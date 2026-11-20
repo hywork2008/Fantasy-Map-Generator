@@ -9,9 +9,9 @@ const rows = csvParse(
 ).map(row => ({ ...row, domain: row.domain!, pool: row.pool!, per_1000_people: row.per_1000_people! }));
 describe("fixed medieval trade observation demand", () => {
   it.each([
-    [1000, 46, 28, 18, 7],
-    [5000, 285, 155, 130, 9],
-    [20000, 1144, 620, 524, 10]
+    [1000, 44, 28, 16, 7],
+    [5000, 276, 155, 121, 9],
+    [20000, 1108, 620, 488, 10]
   ])(
     "reproduces the reference at population %i",
     (population, workshops, mixedWorkshops, dedicatedWorkshops, inferredHalls) => {
@@ -31,7 +31,8 @@ describe("fixed medieval trade observation demand", () => {
   it("applies port, wine, employment, period and technology conditions independently", () => {
     const plain = medievalTradeDemand(rows, 5000);
     const port = medievalTradeDemand(rows, 5000, { port: true });
-    expect(port.workshops - plain.workshops).toBe(6);
+    // Ports double the ropers and give the coopers two and a half times their inland rate.
+    expect(port.workshops - plain.workshops).toBe(12);
     const wine = medievalTradeDemand(rows, 5000, { wine: true });
     expect(wine.trades.find(row => row.pool === "brewing")?.workshops).toBe(4);
     expect(plain.trades.find(row => row.pool === "printing")?.workshops).toBe(0);

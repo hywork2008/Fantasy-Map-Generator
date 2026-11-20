@@ -3,6 +3,7 @@ import type { TreeSpecies } from "../buildings/landscape/trees";
 import { TREE_VARIANTS, treeFamily, treeLevel } from "../buildings/landscape/treeVariants";
 import { MEDIEVAL_VARIANTS, medievalFamily } from "../buildings/medieval/medievalVariants";
 import type { MedievalModel } from "../buildings/medieval/modelKit";
+import { WORKHOME_TRADE_COMBINATIONS } from "../buildings/medieval/workhomeTradeProfiles";
 import type { ModelVariant, ModelVariantInfo } from "../buildings/modelVariants";
 import { familyVariants } from "../buildings/variants";
 import type { BvDefinition } from "./three/bvInstances";
@@ -98,6 +99,45 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
             variant: `medieval.trade-workshop.${trade}@${level}#claude-opus-5.5`,
             since: "2026-11-12",
             note: "Opus fourteenth-century town-trade plot; the Codex block study failed the grounding and envelope contract"
+          }
+        ])
+      )
+    ])
+  ),
+  // The Opus smithy after Newington (docs/plan/ce-outskirts-workshop-sizes.md S2), on its smaller 10 x 8 m envelope.
+  "medieval.trade-workshop.dedicated-smithy": Object.fromEntries(
+    (["low", "high"] as const).map(level => [
+      level,
+      {
+        variant: `medieval.trade-workshop.dedicated-smithy@${level}#claude-opus-5.5`,
+        since: "2026-11-19",
+        note: "Opus open-fronted smithy with two hearths at right angles, anvil on stone, trough and fuel store; 10 x 8 m"
+      }
+    ])
+  ),
+  // The Opus ropewalk rebuilt from the rope-makers' trade (docs/plan/opus-ropewalk.md), on the earlier plot.
+  "medieval.trade-workshop.dedicated-ropewalk": Object.fromEntries(
+    (["low", "high"] as const).map(level => [
+      level,
+      {
+        variant: `medieval.trade-workshop.dedicated-ropewalk@${level}#claude-opus-5.5`,
+        since: "2026-11-19",
+        note: "Opus hand ropewalk with hemp house, wheel, tackle-board, stakes and traveller; same 6 x 54 m plot and door"
+      }
+    ])
+  ),
+  // The Opus shop-house (docs/plan/bv-workhome-facade-variation.md W3). A placement saved before it keeps the Codex
+  // study it was sized on (placementDefinition's "codex" presentation).
+  ...Object.fromEntries(
+    WORKHOME_TRADE_COMBINATIONS.map(({ role, form }) => [
+      `medieval.trade-workhome.workhome-${form}.${role}`,
+      Object.fromEntries(
+        (["low", "high"] as const).map(level => [
+          level,
+          {
+            variant: `medieval.trade-workhome.workhome-${form}.${role}@${level}#claude-opus-5.5`,
+            since: "2026-11-18",
+            note: "Opus street-front shop-house on the Codex envelope; the Codex interior ledger is not drawn"
           }
         ])
       )

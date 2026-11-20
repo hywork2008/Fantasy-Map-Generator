@@ -4,6 +4,7 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorFabricDetachedLine } from "../../../types/vector/fabric";
 import type { VectorStage, VectorUrbanSettings } from "../../../types/vector/urban";
+import { burgageLandFactor, isBurgageFabric } from "../../burgage/profiles";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
 import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
@@ -14,14 +15,18 @@ import { isDetachedFabricLinePath } from "../editing/fabricLines";
 import { rebuildRoadGraph } from "../editing/network";
 import { curveSource } from "../editing/paths";
 import { featureReservations } from "../environmentState";
-import { evaluateAnchor } from "../geometry/curves";
+import { evaluateAnchor, pathIsClosed } from "../geometry/curves";
 import { containsRegion, indexedContains, regionArea, regionBoolean } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
+import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
+import { reserveEdgeWorks } from "./edgeWorks";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
+import { placeFacilitiesOnPlots } from "./facilityPlots";
+import { vectorHousingCulture, vectorTownCulture, vectorTownProfile } from "./housingCulture";
 import { raiseVectorLandUse } from "./landUse";
 import { layoutVectorParks } from "./parks";
 import {
@@ -39,7 +44,10 @@ import {
   vectorPerimeterResidual
 } from "./perimeter";
 import { deriveVectorBlocks, joinVectorGenerationAnchors } from "./pipeline";
+import { isRearWorks } from "./rearWorksAssets";
+import { reserveRopewalks } from "./ropewalks";
 import { vectorApproachBands, vectorSuburbanLots } from "./suburbs";
+import { TOWN_GUILDHALL_ID } from "./townGuildhall";
 import { allocateVectorResidents, vectorPlacementDwellings } from "./urbanCapacity";
 import {
   createUrbanPacker,
@@ -49,9 +57,10 @@ import {
   type UrbanSearchStats,
   waterDistance
 } from "./urbanPacking";
-import { matchesVectorUrbanFingerprint, VECTOR_URBAN_ALGORITHM, vectorUrbanFingerprint } from "./urbanState";
+import { matchesVectorUrbanFingerprint, vectorUrbanAlgorithm, vectorUrbanFingerprint } from "./urbanState";
 import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
 import { layoutVectorWells } from "./wells";
+import { dressWorkhomes } from "./workhomeExteriors";
 
 export const DEFAULT_VECTOR_URBAN: VectorUrbanSettings = {
   mode: "medieval",
@@ -90,6 +99,8 @@ export interface VectorUrbanRun {
   profile?: VectorUrbanProfile;
   timings?: GenerationTimingObserver;
   progress?: (phase: "lanes" | "facilities" | "housing" | "validation", completed?: number, total?: number) => void;
+  /** Each district request with its plans, in order; a worker hands them to the page to keep (async runs only). */
+  planned?: (request: VectorUrbanDistrictRequest, results: PerimeterStreetPlan[] | PerimeterCellResult[]) => void;
 }
 export interface VectorUrbanContinuation {
   retainedPlacements: string[];
@@ -138,6 +149,7 @@ export async function generateVectorUrbanAsync(
     const results = await plan(step.value);
     if (results.length !== step.value.jobs.length) throw new Error("urban-district-plans");
     rememberPerimeterResults(step.value, results);
+    run?.planned?.(step.value, results);
     step = steps.next(results);
   }
   return step.value;
@@ -264,10 +276,16 @@ function* vectorUrbanSteps(
       ? facilityPlacementOrder(
           buildPopulationFacilityRequests(settings.population, {
             period: doc.context.historicalPeriod,
-            port: !!doc.site.descriptor?.burg.port
-          }).requests
+            port: !!doc.site.descriptor?.burg.port,
+            culture: vectorTownCulture(vectorTownProfile(doc)),
+            plots: isBurgageFabric(settings.plotFabric)
+          })
+            // The town's guildhall raised in its market place with the civic centre (plan W5c) is not placed again.
+            .requests.filter(r => !(doc.placements[TOWN_GUILDHALL_ID] && r.id.endsWith(":guild:town")))
         )
       : [];
+  // programme-and-domain is reported in parts: the facility programme, the domain, and each reservation.
+  timed("programme-and-domain/facility-programme");
   const domain = structuredClone(continuation?.domain ?? sourceSite.domain);
   // Expansion is a suburb within the synthetic input's known frame; source geometry is never stretched.
   if (
@@ -279,7 +297,9 @@ function* vectorUrbanSteps(
   ) {
     const area = domain.reduce((n, p) => n + regionArea(p), 0),
       needed =
-        required * 95 +
+        required *
+          95 *
+          burgageLandFactor({ plotFabric: settings.plotFabric, buildingAppearanceProfile: vectorHousingCulture(doc) }) +
         requests.reduce(
           (n, r) => n + r.asset.minimumSite.reduce((n, p) => n + regionArea({ outer: p.outer, holes: [] }), 0) * 1.5,
           0
@@ -340,9 +360,16 @@ function* vectorUrbanSteps(
       },
       protectedRegions
     );
-  const walls = Object.values(doc.connections.circuits)
-    .filter(c => !c.parentCircuitId)
-    .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] }));
+  // A coastal town's wall runs from shore to shore and makes no circuit: closed across its ends (along the shore) it
+  // bounds the town all the same, its core and the roadside beyond its gates (ce-outskirts-workshop-sizes.md §8.18,
+  // §8.19), not the round 0.65 of the site an open town takes.
+  const circuits = Object.values(doc.connections.circuits)
+      .filter(c => !c.parentCircuitId)
+      .map(c => ({ outer: sampledClosedRing(doc, c.pathId), holes: [] })),
+    shoreWall = circuits.length
+      ? undefined
+      : Object.values(doc.paths).find(p => p.role === "wall" && !pathIsClosed(p) && !p.id.includes("inner")),
+    walls = shoreWall ? [{ outer: samplePath(shoreWall).map(q => q.point), holes: [] }] : circuits;
   // Thousands of district and street-block centres are tested against the wall ring; an edge index keeps it short.
   const inWalls = walls.length ? indexedContains(walls) : undefined,
     inside = (p: Point) => !inWalls || inWalls(p);
@@ -353,6 +380,7 @@ function* vectorUrbanSteps(
   );
   const core = (p: Point) =>
     walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
+  timed("programme-and-domain/domain-and-walls");
   // The tanners' row is reserved on the bank below the town before the street plan, so streets and lots keep off it.
   const tanneryRow =
     !continuation && organicMode && settings.mode === "medieval-facilities"
@@ -364,6 +392,30 @@ function* vectorUrbanSteps(
           settings.tanneryBends ?? "continuous"
         )
       : { placed: [], unplaced: [], lanes: [], leats: [], islands: [] };
+  timed("programme-and-domain/tannery-row");
+  // Ropewalks beside the roads out of the gates (docs/plan/ce-outskirts-workshop-sizes.md S1), laid as the tanners'
+  // row is: the street plan keeps off them.
+  const ropewalks =
+    !continuation &&
+    organicMode &&
+    settings.mode === "medieval-facilities" &&
+    Object.values(doc.paths).some(p => p.role === "wall")
+      ? // A coastal town's wall is open to the shore and makes no circuit: the ropewalks close it themselves.
+        reserveRopewalks(doc, requests, walls.length ? inside : undefined)
+      : { placed: [], sites: [], unplaced: [] };
+  for (const site of ropewalks.sites) protectedRegions.push(structuredClone(site));
+  timed("programme-and-domain/ropewalks");
+  // Kiln works (lime and tile yards, potters) past the houses along those roads, apart, as many as the map shows; the
+  // rest lie beyond its edge (ce-outskirts-workshop-sizes.md §8.15).
+  const edgeWorks =
+    !continuation &&
+    organicMode &&
+    settings.mode === "medieval-facilities" &&
+    Object.values(doc.paths).some(p => p.role === "wall")
+      ? reserveEdgeWorks(doc, requests, walls.length ? inside : undefined)
+      : { placed: [], sites: [], offMap: [] };
+  for (const site of edgeWorks.sites) protectedRegions.push(structuredClone(site));
+  timed("programme-and-domain/edge-works");
   // The street plan keeps off the yards and their revetments.
   // A little wider than the yards themselves: a lane ending on the block's edge, rounded to the centimetre, must not
   // reach into a yard.
@@ -378,7 +430,7 @@ function* vectorUrbanSteps(
       });
     }
   protectedRegions.push(...tanneryRow.islands);
-  timed("programme-and-domain");
+  timed("programme-and-domain/reservation-margins");
   let blocks = deriveLaneBlocks();
   timed("base-blocks");
   const ownedPaths: string[] = [...(continuation?.ownedPaths ?? [])];
@@ -471,7 +523,11 @@ function* vectorUrbanSteps(
     totalAttempts: run?.facilityAttempts ?? FACILITY_SEARCH_LIMITS.totalAttempts,
     requestAttempts: run?.requestAttempts ?? FACILITY_SEARCH_LIMITS.requestAttempts
   };
-  const ownedPlacements: string[] = [...(continuation?.retainedPlacements ?? [])],
+  const ownedPlacements: string[] = [
+      ...(continuation?.retainedPlacements ?? []),
+      ...ropewalks.placed,
+      ...edgeWorks.placed
+    ],
     unplacedFacilities: NonNullable<VectorCityDocument["urban"]>["report"]["unplacedFacilities"] = [];
   let facilityAttempts = 0;
   /** Facilities first, each on a frontage of its use, then the retries a capped search left over. */
@@ -670,16 +726,23 @@ function* vectorUrbanSteps(
       const at = ownedPlacements.indexOf(id);
       if (at >= 0) ownedPlacements.splice(at, 1);
     }
-    const lots = placeFacilitiesOnLots(
+    // Burgage plots take facilities on whole plots (docs/plan/ce-burgage-plot-fabric.md B3); compact lots as before.
+    const lots = (organic.plotFabric ? placeFacilitiesOnPlots : placeFacilitiesOnLots)(
       doc,
       organic,
-      requests.filter(r => !ownedPlacements.includes(`urban:${r.id}`) && !tanneryRow.unplaced.some(u => u.id === r.id)),
+      requests.filter(
+        r =>
+          !ownedPlacements.includes(`urban:${r.id}`) &&
+          !tanneryRow.unplaced.some(u => u.id === r.id) &&
+          !ropewalks.unplaced.some(u => u.id === r.id) &&
+          !edgeWorks.offMap.some(u => u.id === r.id)
+      ),
       core,
       tanneryRow.placed,
       // A park ward stays a lawn (P7c); its lots never take a facility.
       id => wards.get(id)?.ward === "park"
     );
-    unplacedFacilities.push(...tanneryRow.unplaced);
+    unplacedFacilities.push(...tanneryRow.unplaced, ...ropewalks.unplaced, ...edgeWorks.offMap);
     ownedPlacements.push(...lots.placed);
     unplacedFacilities.push(...lots.unplaced);
     facilityCells = lots.cells;
@@ -692,7 +755,15 @@ function* vectorUrbanSteps(
     }
     if (run?.profile) run.profile.facilityMs = performance.now() - started;
   } else if (packer) placeFacilities(packer);
-  const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility");
+  const facilities = ownedPlacements.filter(id => doc.placements[id].building?.kind === "facility"),
+    // A shop-house's rear works is its facility's second building, reported once (docs/plan/ce-town-trade-rear-works.md).
+    reported = facilities.filter(id => !isRearWorks(doc.placements[id]));
+  // Trade workhomes take their street fronts once their places are known (docs/plan/bv-workhome-facade-variation.md W3).
+  // One kept from before an edit keeps what it was saved with, a Codex study included.
+  dressWorkhomes(
+    doc,
+    facilities.filter(id => !continuation?.retainedPlacements?.includes(id))
+  );
   if (settings.mode === "medieval-facilities") checkpoint("facilities", [...manual, ...facilities]);
   timed("facilities");
   const facilityLand = organic ? [] : deriveVectorBlocks(doc, protectedRegions),
@@ -821,7 +892,7 @@ function* vectorUrbanSteps(
   doc.revision++;
   doc.generation = { ...doc.generation!, blocks, inputRevision: doc.revision };
   doc.urban = {
-    algorithm: VECTOR_URBAN_ALGORITHM,
+    algorithm: vectorUrbanAlgorithm(settings),
     inputRevision: doc.revision,
     settings: structuredClone(settings),
     baseGeneration,
@@ -857,9 +928,9 @@ function* vectorUrbanSteps(
           .filter(id => !inside(doc.placements[id].position))
           .reduce((n, id) => n + vectorPlacementDwellings(doc.placements[id]), 0) + fabricDwellings(false),
       // A facility kept from an edit of a town planned with an earlier request set (another staffing) still counts.
-      requiredFacilities: requests.length + facilities.filter(id => !requests.some(r => `urban:${r.id}` === id)).length,
-      placedFacilities: facilities.length,
-      provisionalFacilities: facilities.filter(id => doc.placements[id].building!.provenance === "provisional").length,
+      requiredFacilities: requests.length + reported.filter(id => !requests.some(r => `urban:${r.id}` === id)).length,
+      placedFacilities: reported.length,
+      provisionalFacilities: reported.filter(id => doc.placements[id].building!.provenance === "provisional").length,
       unplacedFacilities,
       housingBuildings:
         ownedPlacements.length -

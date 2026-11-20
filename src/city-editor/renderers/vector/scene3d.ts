@@ -1,5 +1,7 @@
 import * as THREE from "three";
 import type { BuildingAppearance } from "../../../buildings/appearance/types";
+import { opusWorkhomeModel } from "../../../buildings/medieval/opusWorkhomeProfiles";
+import { type StreetHouseExterior, streetHouseEnvelope } from "../../../buildings/medieval/streetHouses";
 import type { ModelQuality } from "../../../buildings/modelQuality";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
@@ -167,6 +169,13 @@ function stampOf(...parts: unknown[]): string {
  * water, piers, wells, roads and each wall or bridge owner). The BV prototype cache lives here too, so a kept layer's
  * shared models outlive the scene that built it.
  */
+
+/** The plan box of a plot-fitted street house, rounded as measured footprints are. */
+function workhomeFootprint(modelId: string, exterior: StreetHouseExterior) {
+  const [width, depth] = streetHouseEnvelope(modelId, exterior);
+  return { halfX: Math.fround(width / 2), halfZ: Math.fround(depth / 2), centerX: 0, centerZ: 0, groundY: 0 };
+}
+
 export class VectorSceneLayers {
   readonly cache = createBvPrototypeCache();
   private layers = new Map<string, VectorSceneLayer>();
@@ -655,11 +664,17 @@ export function createVectorScene(
             !p.appearance?.quality &&
             sameFootprint(placementFootprint(p.modelId, placementQuality), placementFootprint(p.modelId, saved)),
           level = p.display?.provenance === "copied" || generated ? placementQuality : saved,
+          // A trade workhome draws its saved street front; one saved before it had one keeps its Codex study.
+          workhome = p.exterior ?? (opusWorkhomeModel(p.modelId) ? ("codex" as const) : undefined),
           definition =
             placementDefinition(p.modelId, level, p.appearance?.palette, {
-              activity: p.appearance?.activity
+              activity: p.appearance?.activity,
+              workhome
             }) ?? placeableObject(p.modelId),
-          footprint = placementFootprint(p.modelId, level);
+          // A street house fitted to its plot (W4, W5b) stands on its own envelope, not its preset's.
+          footprint = p.exterior?.widthMeters
+            ? workhomeFootprint(p.modelId, p.exterior)
+            : placementFootprint(p.modelId, level);
         if (definition && footprint) {
           const expected = footprint.halfX * 2 * (footprint.halfZ * 2),
             area = surface.polygons.reduce((n, r) => n + regionArea(r), 0),
@@ -705,6 +720,7 @@ export function createVectorScene(
                 ...(p.appearance?.palette ? { objectPalette: p.appearance.palette } : {}),
                 ...(p.appearance?.activity ? { objectMarketActivity: p.appearance.activity } : {}),
                 ...(p.mirrored ? { objectMirrored: true } : {}),
+                ...(workhome ? { objectWorkhome: workhome } : {}),
                 rotation: angle,
                 locked: false
               } as CityElement);

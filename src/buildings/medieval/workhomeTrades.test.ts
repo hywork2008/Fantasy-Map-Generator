@@ -6,7 +6,7 @@ import { adoptedVariant } from "../../city3d/adoption";
 import { modelParts } from "../modelParts";
 import { models as textile } from "./20-textile-leather-workshopsModels";
 import { models as woodworking } from "./21-woodworking-workshopsModels";
-import { models } from "./51-trade-workhomesModels";
+import { models as taskModels } from "./51-trade-workhomesModels";
 import { WORKHOME_FORMS } from "./workhomeShell";
 import {
   assembleWorkhomeTrade,
@@ -15,6 +15,9 @@ import {
   workhomeTradeParts,
   workhomeTradeProfile
 } from "./workhomeTrades";
+
+/** The Codex trade studies; the shop-houses before rear works have their own tests (opusRearWorks.test.ts). */
+const models = taskModels.filter(model => model.id.startsWith("trade-workhome.workhome-"));
 
 const ray = (meshes: THREE.Mesh[], x: number, y: number, z: number, dx: number, dy: number, dz: number, far: number) =>
   new THREE.Raycaster(new THREE.Vector3(x, y, z), new THREE.Vector3(dx, dy, dz).normalize(), 0, far).intersectObjects(

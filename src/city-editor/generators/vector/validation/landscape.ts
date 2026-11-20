@@ -10,9 +10,39 @@ import { regionArea, regionBoolean } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
 import { simpleContour } from "../geometry/surfaces";
 
+/** Recent results by content: generation validates the whole document after every edit (each gate, each road),
+ * while the landscape, checked tree by tree against its forest, stays the same. */
+const recent = new Map<string, string[]>();
+const RECENT_LIMIT = 16;
+
 export function validateVectorLandscape(doc: VectorCityDocument): string[] {
   const p = doc.environment?.landscape;
   if (p === undefined) return [];
+  // The result reads the landscape and the forest and farm regions it names, nothing else of the document.
+  let key: string | undefined;
+  try {
+    const f = (p as { forest?: { regionIds?: unknown; farmRegionIds?: unknown } }).forest,
+      ids = [f?.regionIds, f?.farmRegionIds].flatMap(list =>
+        Array.isArray(list) ? list.filter((id): id is string => typeof id === "string") : []
+      );
+    key = JSON.stringify([p, ids.map(id => doc.regions?.[id] ?? null)]);
+  } catch {
+    key = undefined;
+  }
+  const known = key === undefined ? undefined : recent.get(key);
+  if (known) return [...known];
+  const errors = checkLandscape(doc, p);
+  if (key !== undefined) {
+    recent.set(key, errors);
+    if (recent.size > RECENT_LIMIT) recent.delete(recent.keys().next().value!);
+  }
+  return [...errors];
+}
+
+function checkLandscape(
+  doc: VectorCityDocument,
+  p: NonNullable<NonNullable<VectorCityDocument["environment"]>["landscape"]>
+): string[] {
   let stage = "header";
   try {
     const fail = () => {

@@ -25,10 +25,14 @@ export function meshlessCityRadius(
   requiredDwellings: number,
   storeys: number,
   lotOccupancy = 1,
-  reservedM2 = 0
+  reservedM2 = 0,
+  /** Land per dwelling against the compact lots the fit was made on: burgage plots keep yards behind their houses
+   * (`burgageLandFactor`). */
+  landFactor = 1
 ): number {
   const perStorey =
-      (Math.max(1, requiredDwellings) * MARGIN) / (Math.max(1, storeys) * Math.min(1, Math.max(0.1, lotOccupancy))),
+      (Math.max(1, requiredDwellings) * MARGIN * landFactor) /
+      (Math.max(1, storeys) * Math.min(1, Math.max(0.1, lotOccupancy))),
     reserved = Math.max(0, reservedM2) / Math.PI,
     table = SMALL_SITE_DWELLINGS_PER_STOREY;
   if (perStorey < table.at(-1)![1]) {

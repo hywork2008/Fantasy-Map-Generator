@@ -118,6 +118,9 @@ export interface VectorPlacement {
   building?: VectorBuilding;
   /** The model is drawn mirrored across its local x axis (a tannery keeps its intake upstream on either bank). */
   mirrored?: boolean;
+  /** A trade workhome's or a guild house's street front (docs/plan/bv-workhome-facade-variation.md §4.7, W5b); a
+   * workhome saved without one keeps the Codex study it was sized on. */
+  exterior?: import("../../../buildings/medieval/streetHouses").StreetHouseExterior;
   display?: {
     kind: "housing" | "facility" | "landmark" | "object";
     heightMeters: number;

@@ -10,8 +10,12 @@ export type CityLayout = "auto" | "organic" | "circulade" | "bram" | "classic";
 
 export interface SiteConfig {
   coast: CoastShape;
-  /** 0..2 rivers. */
+  /** 0..2 rivers, each by where it runs (`RiverPlacement`). The old values that named a channel form
+   * (`straight`, `meander`, `greatBend`) still read as a river through the town of that form. */
   rivers: RiverShape[];
+  /** The channel form of each river, by index (`riverSettings`); absent, a river keeps the form its `rivers` value
+   * implies, a gentle meander for a placement. */
+  riverForms?: RiverForm[];
   /** Hilltop terrain — orthogonal to water; no classification effect. */
   relief: boolean;
   /** Built programme the standalone user toggles (Port / Walls / …). Written
@@ -25,7 +29,18 @@ export interface SiteConfig {
 
 export type CoastShape = "none" | "straight" | "bay" | "cape";
 
-export type RiverShape = "through" | "beside" | "toCoast" | "straight" | "meander" | "greatBend";
+/** Where a river runs: through the town (the town on one bank), beside it, or through it out to the sea. */
+export type RiverPlacement = "through" | "beside" | "toCoast";
+/** The channel's form, whatever its placement: straight, a gentle meander, a pronounced meander, or one great bend
+ * at the town. */
+export type RiverForm = "straight" | "gentle" | "meander" | "greatBend";
+/** A `rivers` entry: a placement, or (older settings) a channel form of a river through the town. */
+export type RiverShape = RiverPlacement | Exclude<RiverForm, "gentle">;
+/** One river's placement and form, as `riverSettings` reads them from a `SiteConfig`. */
+export interface RiverSetting {
+  placement: RiverPlacement;
+  form: RiverForm;
+}
 
 /** The editable half of CityProgram — `capital` / `wallPlan` are never set by the
  * standalone Feature toggles. */

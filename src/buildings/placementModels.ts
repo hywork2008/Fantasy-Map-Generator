@@ -23,6 +23,7 @@ import { models as coopers } from "./medieval/54-dedicated-cooperageModels";
 import { models as tanneries } from "./medieval/55-dedicated-tanneriesModels";
 import { models as ropeworks } from "./medieval/56-ropeworksModels";
 import { models as butcheries } from "./medieval/57-butcheryModels";
+import { models as rearWorks } from "./medieval/58-rear-worksModels";
 import { models as townTrades } from "./medieval/58-town-tradesModels";
 import { models as squareFurniture } from "./medieval/59-market-square-furnitureModels";
 import { models as churchyardFurniture } from "./medieval/60-churchyard-furnitureModels";
@@ -34,9 +35,27 @@ import {
   type MarketDetail,
   packedMarketPitch
 } from "./medieval/marketPresentation";
+import { createOpusGuildHouse } from "./medieval/opusGuildHouse";
+import {
+  type OpusGuildHouseExterior,
+  opusGuildHouseModel,
+  opusGuildHouseSpecKey,
+  opusGuildHouseSpecOf
+} from "./medieval/opusGuildHouseProfiles";
+import { createOpusRearWorks } from "./medieval/opusRearWorks";
+import {
+  type OpusRearWorksExterior,
+  opusRearWorksModel,
+  opusRearWorksSpecKey,
+  opusRearWorksSpecOf
+} from "./medieval/opusRearWorksProfiles";
+import { createOpusWorkhome } from "./medieval/opusWorkhome";
+import { type OpusWorkhomeExterior, opusWorkhomeSpecKey, opusWorkhomeSpecOf } from "./medieval/opusWorkhomeProfiles";
+import type { StreetHouseExterior } from "./medieval/streetHouses";
 import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableObjects";
 import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
+import footprintTable from "./placementFootprints.json";
 import type { BuildingRecord } from "./record";
 import { BASILICA_QUALITIES } from "./temples/basilicaTemple";
 import { BASILICA_VARIANTS } from "./temples/basilicaVariants";
@@ -69,9 +88,22 @@ export function placementPalette(id: string, requested?: MarketPalette): MarketP
     : undefined;
 }
 
+/**
+ * The footprints measured once ahead (`placementFootprints.json`, kept equal to the models by
+ * `placementFootprints.test.ts`): measuring builds the whole 3D model, and a generation worker starts with an empty
+ * cache, so a town in facility mode spent seconds building every trade's model only to read its bounds.
+ */
+const measuredAhead = footprintTable as Record<string, FootprintBox>;
+let measureAhead = true;
+
 function measured(definition: BvDefinition): FootprintBox {
   const cached = footprints.get(definition.id);
   if (cached) return cached;
+  const known = measureAhead ? measuredAhead[definition.id] : undefined;
+  if (known) {
+    footprints.set(definition.id, known);
+    return known;
+  }
   const model = definition.create();
   try {
     const box = new THREE.Box3().setFromObject(model.group, true);
@@ -157,6 +189,7 @@ for (const model of [
   ...ropeworks,
   ...butcheries,
   ...townTrades,
+  ...rearWorks,
   ...parishChurches.filter(m => m.id === "village-chapel"),
   ...townChurches,
   ...squareFurniture,
@@ -186,7 +219,16 @@ for (const model of [
     },
     definition: qualities.high,
     qualities,
-    footprint: quality => measured(qualities[quality === "low" ? "low" : "high"])
+    footprint: model.placementEnvelope
+      ? () => ({
+          // Rounded as measured mesh bounds are (float32), so plots sized on the measured model stay bit-identical.
+          halfX: Math.fround(model.placementEnvelope![0] / 2),
+          halfZ: Math.fround(model.placementEnvelope![1] / 2),
+          centerX: 0,
+          centerZ: 0,
+          groundY: 0
+        })
+      : quality => measured(qualities[quality === "low" ? "low" : "high"])
   });
 }
 
@@ -205,18 +247,120 @@ export function placementCatalog(): readonly PlacementCatalogItem[] {
   return [...sources.values()].map(source => source.item);
 }
 
+/** Every model footprint measured from its model, as `placementFootprints.json` holds them (tests only). */
+export function measureAllPlacementFootprints(): Record<string, FootprintBox> {
+  measureAhead = false;
+  footprints.clear();
+  try {
+    for (const source of sources.values()) {
+      if (!source.definition && !source.qualities) continue;
+      for (const quality of [undefined, "low", "high"] as const) source.footprint(quality);
+    }
+    // Placeable objects are measured from their drawings, which costs nothing: only models are kept.
+    const objects = new Set(PLACEABLE_OBJECTS.map(o => o.id));
+    return Object.fromEntries([...footprints].filter(([id]) => !objects.has(id)).sort(([a], [b]) => (a < b ? -1 : 1)));
+  } finally {
+    measureAhead = true;
+    footprints.clear();
+  }
+}
+
 export function placementFootprint(id: string, quality?: PlacementQuality): FootprintBox | null {
   return sources.get(id)?.footprint(quality) ?? null;
 }
 
 /** Mesh factory for models that are not already placeable objects. Placeable objects keep their adopted variants. */
+const workhomeDefinitions = new Map<string, BvDefinition>();
+/**
+ * A trade workhome's street front (docs/plan/bv-workhome-facade-variation.md §4.7): a saved exterior draws the Opus
+ * shop-house it describes; "codex" draws the Codex study a placement saved before the exterior existed was sized on.
+ */
+function workhomeDefinition(
+  id: string,
+  level: PlacementQuality,
+  workhome: StreetHouseExterior | "codex"
+): BvDefinition | null {
+  if (opusGuildHouseModel(id)) return workhome === "codex" ? null : guildHouseDefinition(id, level, workhome);
+  if (opusRearWorksModel(id)) return workhome === "codex" ? null : rearWorksDefinition(id, level, workhome);
+  const model = workhomes.find(m => m.id === id);
+  if (!model) return null;
+  const quality = level === "low" ? "low" : "high";
+  if (workhome === "codex") {
+    const key = `${id}:${quality}:codex`;
+    let result = workhomeDefinitions.get(key);
+    if (!result) {
+      // A shop-house before rear works has no Codex study; it is never saved without its front.
+      const variant = model.variants!.find(v => v.author === "Codex GPT-6.1 Sol" && v.level === quality);
+      if (!variant) return null;
+      result = { id: key, variant: variant.id, create: () => variant.create() };
+      workhomeDefinitions.set(key, result);
+    }
+    return result;
+  }
+  const spec = opusWorkhomeSpecOf(id, workhome as OpusWorkhomeExterior);
+  if (!spec) return null;
+  const key = `${id}:${quality}:${opusWorkhomeSpecKey(spec)}`;
+  let result = workhomeDefinitions.get(key);
+  if (!result) {
+    const variant = model.variants!.find(v => v.author === "Claude Opus 5.5" && v.level === quality)!;
+    result = { id: key, variant: variant.id, create: () => createOpusWorkhome(spec, quality) };
+    workhomeDefinitions.set(key, result);
+  }
+  return result;
+}
+
+/** A guild house's saved front draws the Opus guild house it describes (plan W5b). */
+function guildHouseDefinition(id: string, level: PlacementQuality, exterior: StreetHouseExterior): BvDefinition | null {
+  const spec = opusGuildHouseSpecOf(id, exterior as OpusGuildHouseExterior),
+    model = tradeHalls.find(m => m.id === id);
+  if (!spec || !model) return null;
+  const quality = level === "low" ? "low" : "high",
+    key = `${id}:${quality}:${opusGuildHouseSpecKey(spec)}`;
+  let result = workhomeDefinitions.get(key);
+  if (!result) {
+    const variant = model.variants!.find(v => v.level === quality)!;
+    result = { id: key, variant: variant.id, create: () => createOpusGuildHouse(spec, quality) };
+    workhomeDefinitions.set(key, result);
+  }
+  return result;
+}
+
+/** A rear works' saved envelope and culture draw the shed it describes (docs/plan/ce-town-trade-rear-works.md R2). */
+function rearWorksDefinition(id: string, level: PlacementQuality, exterior: StreetHouseExterior): BvDefinition | null {
+  const spec = opusRearWorksSpecOf(id, exterior as OpusRearWorksExterior),
+    model = rearWorks.find(m => m.id === id);
+  if (!spec || !model) return null;
+  const quality = level === "low" ? "low" : "high",
+    key = `${id}:${quality}:${opusRearWorksSpecKey(spec)}`;
+  let result = workhomeDefinitions.get(key);
+  if (!result) {
+    const variant = model.variants!.find(v => v.level === quality)!;
+    result = { id: key, variant: variant.id, create: () => createOpusRearWorks(spec, quality) };
+    workhomeDefinitions.set(key, result);
+  }
+  return result;
+}
+
 export function placementDefinition(
   id: string,
   quality?: PlacementQuality,
   palette?: MarketPalette,
-  presentation?: { activity?: MarketActivity; detail?: MarketDetail }
+  presentation?: {
+    activity?: MarketActivity;
+    detail?: MarketDetail;
+    /** A street house's saved front (trade workhome or guild house), or "codex" for a workhome saved before it had
+     * one. */
+    workhome?: StreetHouseExterior | "codex";
+  }
 ): BvDefinition | null {
   if (placeableObject(id)) return null;
+  if (presentation?.workhome) {
+    const level = placementQuality(id, quality);
+    if (level) {
+      const result = workhomeDefinition(id, level, presentation.workhome);
+      if (result) return result;
+    }
+  }
   if (packedMarketPitch(id, presentation?.activity)) return null;
   const source = sources.get(id);
   const level = placementQuality(id, quality);

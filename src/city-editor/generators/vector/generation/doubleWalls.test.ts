@@ -9,7 +9,7 @@ import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { vectorWallChoice } from "./wallShape";
 
 const frame = { extentMeters: 1200, cityRadiusMeters: 300, blockSizeMeters: 50 };
-function city(extra: Record<string, unknown>, seed = "d0") {
+function city(extra: Record<string, unknown>, seed = "d0", branches = DEFAULT_VECTOR_GENERATION.branches) {
   const settings = {
       ...defaultGenerationSettings(),
       population: defaultPopulationSettings(5000),
@@ -18,7 +18,7 @@ function city(extra: Record<string, unknown>, seed = "d0") {
     },
     wall = vectorWallChoice(settings, seed, "ageOfExploration"),
     input = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 }),
-    skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall });
+    skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall, branches });
   return {
     wall,
     skeleton,
@@ -63,8 +63,9 @@ describe("meshless double walls from the mesh editor's settings (feature parity 
   });
 
   it("keeps the outer wall alone and says so when no old-town line takes gates cleanly", () => {
-    // Seed d3 draws a bastioned outline; its old-town line meets the streets at its corners at every size tried.
-    const { skeleton } = city({}, "d3");
+    // Seed d3 draws a bastioned outline; with eight ring branch roads its old-town line meets the streets at its
+    // corners at every size tried. Since the town lays no branch roads (§8.25) seeds d0–d15 all take an old town.
+    const { skeleton } = city({}, "d3", 8);
     expect(skeleton.document.paths["auto-inner-wall"]).toBeUndefined();
     expect(skeleton.document.generation!.diagnostics.map(d => d.code)).toContain("inner-wall-unplaced");
   });

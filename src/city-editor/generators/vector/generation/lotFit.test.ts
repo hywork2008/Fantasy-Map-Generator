@@ -16,7 +16,10 @@ describe("CE lots trimmed of the slivers they share with their neighbours (pre-a
         ...defaultGenerationSettings(),
         population: defaultPopulationSettings(3000),
         historicalPeriod: "lateMedieval" as const,
-        buildingPattern: "medieval" as const
+        buildingPattern: "medieval" as const,
+        // A straight river, as the default `through` river was when this case was set (it is now a gentle meander,
+        // docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+        config: { ...defaultGenerationSettings().config, riverForms: ["straight" as const] }
       },
       input = vectorInputFromEditor({
         settings,

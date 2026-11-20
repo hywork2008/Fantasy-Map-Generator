@@ -16,7 +16,15 @@ import { builtFeatureReservations, featureReservations } from "../environmentSta
 import { fabricLaneId, fabricStreetId } from "../fabric/lines";
 import { evaluateAnchor } from "../geometry/curves";
 import { gateOpening, junctionSurface, nearestRoadAnchor } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import {
+  containsRegion,
+  regionArea,
+  regionBoolean,
+  regionContains,
+  regionProbe,
+  ringSurelyApart,
+  ringSurelyInside
+} from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -42,7 +50,7 @@ const SAMPLE_METERS = 1;
 
 export interface FacilityLotResult {
   placed: string[];
-  unplaced: { id: string; reason: "space" | "district" | "river" | "frame" }[];
+  unplaced: { id: string; reason: "space" | "district" | "river" | "frame" | "plot" }[];
   /** Street blocks a facility stands in; they stay recorded even when they hold no house. */
   cells: Set<string>;
 }
@@ -64,6 +72,10 @@ const ALIGNED_OFFSETS = 12;
 const WASTE_GOOD_ENOUGH_M2 = 5;
 /** Seeds that take the building compared for the least waste. */
 const SEEDS_COMPARED = 3;
+
+/** The smiths and chandlers beyond the wall stand among the houses along the roads, not in a row of their own
+ * (docs/plan/ce-outskirts-workshop-sizes.md §8.14): no two of them this close. */
+export const ROADSIDE_APART_METERS = 40;
 
 export function placeFacilitiesOnLots(
   doc: VectorCityDocument,
@@ -95,44 +107,31 @@ export function placeFacilitiesOnLots(
    * seed never succeeds later for the same model. */
   const failed = new Map<string, Set<number>>();
   const cellRings = new Map(plan.districts.flatMap(d => d.cells.map(c => [c.id, c.ring] as const)));
-  // Lines a front may face: CE streets and lanes (by their fabric ids) and the main roads (by anchor).
-  const lines: { points: Point[]; widthMeters: number; fabric?: string; road?: string }[] = [];
-  for (const d of plan.districts) {
-    for (const [k, l] of d.streets.entries())
-      lines.push({ points: l.points, widthMeters: l.widthMeters, fabric: fabricStreetId(d.id, k) });
-    for (const c of d.cells)
-      for (const [k, l] of c.lanes.entries())
-        lines.push({ points: l.points, widthMeters: l.widthMeters, fabric: fabricLaneId(c.id, k) });
-  }
-  for (const p of Object.values(doc.paths).filter(p => p.role === "road"))
-    lines.push({ points: samplePath(p).map(s => s.point), widthMeters: 0, road: p.id });
-  const surfaces = new Map<number, VectorPolygon | undefined>();
-  const surfaceOf = (k: number) => {
-    if (!surfaces.has(k))
-      try {
-        // A few centimetres wider: the fabric records the lines rounded to the centimetre, and the check on the
-        // recorded lines (reattachFabricEntrances) must find no sliver the rounding moved onto the parcel.
-        surfaces.set(k, fabricLineSurface({ ...lines[k], widthMeters: lines[k].widthMeters + LINE_MARGIN_METERS }));
-      } catch {
-        surfaces.set(k, undefined);
+  const { lines, lineIndex, surfaceOf } = facilityLines(doc, plan),
+    /** Whether a street or lane of the plan runs into a parcel (the CE lots keep off them; a site wider than its seed
+     * lot can still reach a bend), tested on the line surfaces the fabric records keep. */
+    crossesLine = (site: VectorPolygon) =>
+      lineIndex.search(boxOf(site.outer, 4)).some(item => {
+        const line = lines[item.k];
+        if (!line.fabric) return false;
+        const surface = surfaceOf(item.k);
+        return (
+          !!surface &&
+          !ringSurelyApart(site.outer, surface) &&
+          regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6)
+        );
+      }),
+    { occupied, protectedLand } = facilityLand(doc);
+  // Each street block's outline, indexed once: the sites are sampled against it point by point.
+  const ringTests = new Map<string, (p: Point) => boolean>(),
+    ringTest = (cellId: string, ring: Point[]) => {
+      let test = ringTests.get(cellId);
+      if (!test) {
+        test = regionContains({ outer: ring, holes: [] });
+        ringTests.set(cellId, test);
       }
-    return surfaces.get(k);
-  };
-  const lineIndex = new RBush<Box & { k: number }>();
-  lineIndex.load(lines.map((l, k) => ({ ...boxOf(l.points), k })));
-  const occupied = new RBush<Box & { polygon: VectorPolygon }>();
-  occupied.load(vectorOccupiedSites(doc, "reserved").map(polygon => ({ ...boxOf(polygon.outer), polygon })));
-  // Gate openings and junction discs are kept clear exactly as validation tests them, as the houses keep them.
-  const protectedLand = new RBush<Box & { polygon: VectorPolygon }>();
-  protectedLand.load(
-    [
-      ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] })),
-      ...Object.keys(doc.connections.nodes).flatMap(id => {
-        const junction = junctionSurface(doc, id);
-        return junction ? [junction] : [];
-      })
-    ].map(polygon => ({ ...boxOf(polygon.outer), polygon }))
-  );
+      return test;
+    };
   // A facility never stands across a lane of its street block.
   const lanesOf = new Map(plan.districts.flatMap(d => d.cells.map(c => [c.id, c.lanes] as const)));
   const water = new Map<number, number>();
@@ -174,8 +173,15 @@ export function placeFacilitiesOnLots(
       : result.cells.has(l.cellId)
         ? 1
         : 2;
+  // Smiths and chandlers among the houses along the roads, apart (§8.14).
+  const roadside: Point[] = [];
   for (const request of requests) {
-    if (isWetTannery(request)) continue;
+    // A wet tannery stands only in the tanners' row, reserved on the bank before the street plan. One the row did
+    // not take (an edit keeps the row as it was, and lays no new one) is reported, not dropped.
+    if (isWetTannery(request)) {
+      if (!rowIds.includes(`urban:${request.id}`)) result.unplaced.push({ id: request.id, reason: "river" });
+      continue;
+    }
     const asset = request.asset,
       entrance = asset.entrances.find(e => e.required) ?? asset.entrances[0];
     const wantsWater = request.riverbankMaxDistanceMeters !== undefined;
@@ -190,7 +196,17 @@ export function placeFacilitiesOnLots(
     const seeds = lots
       .filter(l => !used.has(l.i) && !failedHere.has(l.i) && l.core !== outskirts)
       .filter(l => !wantsWater || waterOf(l.i) <= request.riverbankMaxDistanceMeters! + 30)
-      .map(l => ({ l, near: wantsWater || commerce ? 0 : nextToFacility(l) }))
+      // Beyond the wall the lots clear of the other smiths and chandlers come first, then the rest.
+      .map(l => ({
+        l,
+        near: outskirts
+          ? roadside.some(q => Math.hypot(q[0] - l.centroid[0], q[1] - l.centroid[1]) < ROADSIDE_APART_METERS)
+            ? 1
+            : 0
+          : wantsWater || commerce
+            ? 0
+            : nextToFacility(l)
+      }))
       .sort(
         ({ l: a, near: na }, { l: b, near: nb }) =>
           na - nb ||
@@ -269,12 +285,13 @@ export function placeFacilitiesOnLots(
         if (!under.length || under.some(l => used.has(l.i) || l.cellId !== seed.cellId)) continue;
         // The site lies wholly in the street block: every sample of it falls inside the block's outline.
         const ring = cellRings.get(seed.cellId)!,
+          inRing = ringTest(seed.cellId, ring),
           box = boxOf(hull);
         let covered = true;
         for (let x = box.minX + SAMPLE_METERS / 2; covered && x < box.maxX; x += SAMPLE_METERS)
           for (let y = box.minY + SAMPLE_METERS / 2; y < box.maxY; y += SAMPLE_METERS) {
             if (!pointInPolygon([x, y], hull)) continue;
-            if (!pointInPolygon([x, y], ring)) {
+            if (!inRing([x, y])) {
               covered = false;
               break;
             }
@@ -285,7 +302,16 @@ export function placeFacilitiesOnLots(
             // The lane's surface: its line and both edges, every half metre.
             lane.points.slice(1).some((b, k) => {
               const a = lane.points[k],
-                l = Math.hypot(b[0] - a[0], b[1] - a[1]),
+                reach = lane.widthMeters / 2;
+              // No sample of a lane piece away from the site's bounds can fall inside it.
+              if (
+                Math.min(a[0], b[0]) - reach > box.maxX ||
+                Math.max(a[0], b[0]) + reach < box.minX ||
+                Math.min(a[1], b[1]) - reach > box.maxY ||
+                Math.max(a[1], b[1]) + reach < box.minY
+              )
+                return false;
+              const l = Math.hypot(b[0] - a[0], b[1] - a[1]),
                 n: Point = l
                   ? [(-(b[1] - a[1]) / l) * (lane.widthMeters / 2), ((b[0] - a[0]) / l) * (lane.widthMeters / 2)]
                   : [0, 0];
@@ -307,31 +333,35 @@ export function placeFacilitiesOnLots(
         // leaves of them, so the row runs on wall to wall (pre-acceptance U3). Its outline keeps off land taken.
         let site: VectorPolygon = { outer: hull, holes: [] };
         // The samples can miss a corner of the outline across the block's edge, which the whole lots used to hide.
-        if (regionBoolean([site], [{ outer: ring, holes: [] }], "difference").some(r => regionArea(r) > 0.01)) continue;
+        if (
+          !ringSurelyInside(hull, ring) &&
+          regionBoolean([site], [{ outer: ring, holes: [] }], "difference").some(r => regionArea(r) > 0.01)
+        )
+          continue;
         if (
           occupied
             .search(boxOf(site.outer))
-            .some(o => regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5))
+            .some(
+              o =>
+                !ringSurelyApart(site.outer, o.polygon) &&
+                regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)
+            )
         )
           continue;
         if (protectedLand.search(boxOf(site.outer, 1e-6)).some(o => surfacesOverlap(site, o.polygon))) continue;
         // No street or lane of the plan runs into the parcel (the CE lots keep off them; a site wider than its seed
         // lot can still reach a bend), tested on the line surfaces the fabric records keep.
-        if (
-          lineIndex.search(boxOf(site.outer, 4)).some(item => {
-            const line = lines[item.k];
-            if (!line.fabric) return false;
-            const surface = surfaceOf(item.k);
-            return !!surface && regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6);
-          })
-        )
-          continue;
+        if (crossesLine(site)) continue;
         const footprint = asset.footprint.map(p => ({
           outer: p.outer.map(transform),
           holes: p.holes.map(h => h.map(transform))
         }));
         // The building stands wholly on its parcel (the samples above can miss a corner across the block's edge).
-        if (regionBoolean(footprint, [site], "difference").some(r => regionArea(r) > 1e-5)) continue;
+        if (
+          !footprint.every(f => ringSurelyInside(f.outer, site.outer)) &&
+          regionBoolean(footprint, [site], "difference").some(r => regionArea(r) > 1e-5)
+        )
+          continue;
         if (wantsWater && waterDistance(doc, [site]) > request.riverbankMaxDistanceMeters!) continue;
         // The door on the front, joined to the line the lots face.
         const door = transform(entrance.point),
@@ -406,9 +436,20 @@ export function placeFacilitiesOnLots(
             absorbed.push(...rest);
           }
         }
-        if (absorbed.length) {
+        // On burgage plots the house fronts' leftovers stay yard: joined to the parcel they made slivers and spikes
+        // and reached the streets the fronts lie on (B3 lays facilities on whole plots instead).
+        if (absorbed.length && !plan.plotFabric) {
           try {
-            const parcel = regionBoolean([site, ...absorbed], [], "union");
+            // On a lattice of hundredths of a micrometre: the leftovers share the outline's edges to within rounding,
+            // and the clipping kernel can sweep such near-coincident edges without end (seed sw6, a gently meandering
+            // river; docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+            const lattice = (p: VectorPolygon): VectorPolygon => ({
+                outer: p.outer.map(q => [Math.round(q[0] * 1e8) / 1e8, Math.round(q[1] * 1e8) / 1e8] as Point),
+                holes: p.holes.map(h =>
+                  h.map(q => [Math.round(q[0] * 1e8) / 1e8, Math.round(q[1] * 1e8) / 1e8] as Point)
+                )
+              }),
+              parcel = regionBoolean([site, ...absorbed].map(lattice), [], "union");
             if (
               parcel.length === 1 &&
               !parcel[0].holes.length &&
@@ -417,6 +458,8 @@ export function placeFacilitiesOnLots(
                 .search(boxOf(parcel[0].outer))
                 .some(o => regionBoolean(parcel, [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) &&
               !protectedLand.search(boxOf(parcel[0].outer, 1e-6)).some(o => surfacesOverlap(parcel[0], o.polygon)) &&
+              // The leftovers of the lots reach no street or lane either.
+              !crossesLine(parcel[0]) &&
               // The door keeps standing on the parcel as validation tests it.
               candidate.building!.entrances.every(e => containsRegion(parcel, e.point))
             ) {
@@ -447,6 +490,7 @@ export function placeFacilitiesOnLots(
       for (const l of best.under) used.add(l.i);
       occupied.insert({ ...boxOf(best.site.outer), polygon: best.site });
       facilitySites.insert({ ...boxOf(best.site.outer), polygon: best.site });
+      if (outskirts) roadside.push(placement.position);
       result.cells.add(cellId);
     }
     if (placement) result.placed.push(placement.id);
@@ -457,6 +501,55 @@ export function placeFacilitiesOnLots(
       });
   }
   return result;
+}
+
+/** Lines a facility's front may face: CE streets and lanes (by their fabric ids) and the main roads (by anchor),
+ * with an index and their recorded surfaces. */
+export function facilityLines(doc: VectorCityDocument, plan: VectorPerimeterPlan) {
+  // Lines a front may face: CE streets and lanes (by their fabric ids) and the main roads (by anchor).
+  const lines: { points: Point[]; widthMeters: number; fabric?: string; road?: string }[] = [];
+  for (const d of plan.districts) {
+    for (const [k, l] of d.streets.entries())
+      lines.push({ points: l.points, widthMeters: l.widthMeters, fabric: fabricStreetId(d.id, k) });
+    for (const c of d.cells)
+      for (const [k, l] of c.lanes.entries())
+        lines.push({ points: l.points, widthMeters: l.widthMeters, fabric: fabricLaneId(c.id, k) });
+  }
+  for (const p of Object.values(doc.paths).filter(p => p.role === "road"))
+    lines.push({ points: samplePath(p).map(s => s.point), widthMeters: 0, road: p.id });
+  const surfaces = new Map<number, VectorPolygon | undefined>();
+  const surfaceOf = (k: number) => {
+    if (!surfaces.has(k))
+      try {
+        // A few centimetres wider: the fabric records the lines rounded to the centimetre, and the check on the
+        // recorded lines (reattachFabricEntrances) must find no sliver the rounding moved onto the parcel.
+        surfaces.set(k, fabricLineSurface({ ...lines[k], widthMeters: lines[k].widthMeters + LINE_MARGIN_METERS }));
+      } catch {
+        surfaces.set(k, undefined);
+      }
+    return surfaces.get(k);
+  };
+  const lineIndex = new RBush<Box & { k: number }>();
+  lineIndex.load(lines.map((l, k) => ({ ...boxOf(l.points), k })));
+  return { lines, lineIndex, surfaceOf };
+}
+
+/** Land a facility keeps off: occupied sites, gate openings and junction discs. */
+export function facilityLand(doc: VectorCityDocument) {
+  const occupied = new RBush<Box & { polygon: VectorPolygon }>();
+  occupied.load(vectorOccupiedSites(doc, "reserved").map(polygon => ({ ...boxOf(polygon.outer), polygon })));
+  // Gate openings and junction discs are kept clear exactly as validation tests them, as the houses keep them.
+  const protectedLand = new RBush<Box & { polygon: VectorPolygon }>();
+  protectedLand.load(
+    [
+      ...Object.values(doc.connections.gates).map(g => ({ outer: gateOpening(doc, g), holes: [] })),
+      ...Object.keys(doc.connections.nodes).flatMap(id => {
+        const junction = junctionSurface(doc, id);
+        return junction ? [junction] : [];
+      })
+    ].map(polygon => ({ ...boxOf(polygon.outer), polygon }))
+  );
+  return { occupied, protectedLand };
 }
 
 /**
@@ -476,6 +569,8 @@ export function refitRetainedFacilities(doc: VectorCityDocument, plan: VectorPer
   const released: string[] = [];
   for (const id of ids) {
     const p = doc.placements[id];
+    // A rear works follows its house, below.
+    if (p?.building?.annexOf) continue;
     if (!p?.building?.entrances.some(e => e.fabricLine !== undefined)) continue;
     const ring = p.site.outer;
     const crossed = lines.some(l => lineMeets(l.points, l.widthMeters, ring));
@@ -504,6 +599,23 @@ export function refitRetainedFacilities(doc: VectorCityDocument, plan: VectorPer
       released.push(id);
     }
   }
+  // A rear works goes with its house, and keeps its way out through it (docs/plan/ce-town-trade-rear-works.md R2).
+  for (const id of ids) {
+    const p = doc.placements[id],
+      annexOf = p?.building?.annexOf;
+    if (!annexOf) continue;
+    const house = doc.placements[annexOf]?.building?.entrances[0];
+    if (!house) {
+      delete doc.placements[id];
+      released.push(id);
+      continue;
+    }
+    p.accesses = structuredClone(doc.placements[annexOf].accesses);
+    for (const e of p.building!.entrances) {
+      e.connector = [e.point, ...house.connector];
+      if (house.fabricLine !== undefined) e.fabricLine = house.fabricLine;
+    }
+  }
   return released;
 }
 
@@ -525,7 +637,7 @@ function lineMeets(points: Point[], widthMeters: number, ring: Point[]): boolean
 }
 
 const WET_TANNERY_MODEL = "trade-workshop.dedicated-wet-tannery";
-const isWetTannery = (r: BVFacilityRequest) => r.asset.bvModel?.id === WET_TANNERY_MODEL;
+export const isWetTannery = (r: BVFacilityRequest) => r.asset.bvModel?.id === WET_TANNERY_MODEL;
 /** How far beside a drawn centreline its surveyed water may lie, and the widest water crossed to a bank. */
 const BANK_SEARCH_METERS = 40;
 const BANK_WATER_MAX_METERS = 600;
@@ -569,7 +681,10 @@ function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeter
     center = doc.site!.center,
     half = doc.frame.extentMeters / 2,
     wet = (p: Point) => water.some(w => containsRegion([w], p)),
-    runs: { bank: Point[]; landSide: 1 | -1; startMeters: number }[] = [];
+    // Standing water that is no river's (the sea, a lake): a river's course into it has left its banks.
+    sea = (doc.site?.water ?? []).filter(w => !w.riverPathId).flatMap(w => w.polygons),
+    atSea = (p: Point) => sea.some(w => containsRegion([w], p)),
+    runs: { bank: Point[]; landSide: 1 | -1; startMeters: number; upstream: boolean }[] = [];
   let framed = false;
   for (const raw of riverCourses(doc)) {
     const line: Point[] = [raw[0]],
@@ -590,67 +705,79 @@ function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeter
     if (line.length < 3) continue;
     const hit = nearestOnPolyline(center, line),
       below = s[hit.segIndex] + hit.t * BANK_STEP_METERS;
-    for (const side of [1, -1] as const) {
-      let current: Point[] = [],
-        start = 0;
-      const flush = () => {
-        if (current.length > 1) runs.push({ bank: current, landSide: side, startMeters: start });
-        current = [];
-      };
-      for (let k = 0; k < line.length; k++) {
-        if (s[k] < below) continue;
-        // Only the drawn frame, and only as far down the river as the row can use. The bank beyond the frame goes on
-        // unseen: the town's map is not widened for its tanneries.
-        if (Math.abs(line[k][0]) > half || Math.abs(line[k][1]) > half) {
-          framed = true;
-          break;
-        }
-        if (s[k] - below > maxMeters) break;
-        const a = line[Math.max(0, k - 1)],
-          b = line[Math.min(line.length - 1, k + 1)],
-          l = Math.hypot(b[0] - a[0], b[1] - a[1]),
-          dir: Point = [(-(b[1] - a[1]) / l) * side, ((b[0] - a[0]) / l) * side];
-        // The water under the centreline, or beside it where the river's surveyed water lies off its drawn line.
-        let from: Point | undefined = wet(line[k]) ? line[k] : undefined;
-        for (let d = 0.5; !from && d <= BANK_SEARCH_METERS; d += 0.5)
-          for (const q of [
-            [line[k][0] + dir[0] * d, line[k][1] + dir[1] * d],
-            [line[k][0] - dir[0] * d, line[k][1] - dir[1] * d]
-          ] as Point[])
-            if (wet(q)) {
-              from = q;
-              break;
-            }
-        // Out across the water to the first dry ground: a coarse walk (a wide estuary), then a fine one.
-        let p: Point | undefined;
-        if (from) {
-          let d = 0;
-          while (d <= BANK_WATER_MAX_METERS && wet([from[0] + dir[0] * d, from[1] + dir[1] * d])) d += 2;
-          if (d <= BANK_WATER_MAX_METERS) {
-            let lo = Math.max(0, d - 2);
-            while (d - lo > 0.1) {
-              const mid = (lo + d) / 2;
-              if (wet([from[0] + dir[0] * mid, from[1] + dir[1] * mid])) lo = mid;
-              else d = mid;
-            }
-            p = [from[0] + dir[0] * (d + 0.1), from[1] + dir[1] * (d + 0.1)];
+    // Below the town first; above it too, where a short course to the sea leaves too little bank below (the
+    // upstream runs are taken only after every run below, `reserveTanneryRow`).
+    for (const upstream of [false, true])
+      for (const side of [1, -1] as const) {
+        let current: Point[] = [],
+          start = 0;
+        const flush = () => {
+          // A run above the town was walked upstream; its bank is kept in the river's order all the same.
+          if (current.length > 1)
+            runs.push({ bank: upstream ? current.reverse() : current, landSide: side, startMeters: start, upstream });
+          current = [];
+        };
+        for (let j = 0; j < line.length; j++) {
+          const k = upstream ? line.length - 1 - j : j,
+            from = upstream ? below - s[k] : s[k] - below;
+          if (from < 0) continue;
+          // Only the drawn frame, and only as far along the river as the row can use. The bank beyond the frame goes
+          // on unseen: the town's map is not widened for its tanneries.
+          if (Math.abs(line[k][0]) > half || Math.abs(line[k][1]) > half) {
+            framed = true;
+            break;
           }
+          if (from > maxMeters) break;
+          // The river ends at its mouth: the tanners want its running fresh water, not the sea's shore beyond it.
+          if (atSea(line[k])) {
+            if (upstream) continue;
+            break;
+          }
+          const a = line[Math.max(0, k - 1)],
+            b = line[Math.min(line.length - 1, k + 1)],
+            l = Math.hypot(b[0] - a[0], b[1] - a[1]),
+            dir: Point = [(-(b[1] - a[1]) / l) * side, ((b[0] - a[0]) / l) * side];
+          // The water under the centreline, or beside it where the river's surveyed water lies off its drawn line.
+          let from0: Point | undefined = wet(line[k]) ? line[k] : undefined;
+          for (let d = 0.5; !from0 && d <= BANK_SEARCH_METERS; d += 0.5)
+            for (const q of [
+              [line[k][0] + dir[0] * d, line[k][1] + dir[1] * d],
+              [line[k][0] - dir[0] * d, line[k][1] - dir[1] * d]
+            ] as Point[])
+              if (wet(q)) {
+                from0 = q;
+                break;
+              }
+          // Out across the water to the first dry ground: a coarse walk (a wide estuary), then a fine one.
+          let p: Point | undefined;
+          if (from0) {
+            let d = 0;
+            while (d <= BANK_WATER_MAX_METERS && wet([from0[0] + dir[0] * d, from0[1] + dir[1] * d])) d += 2;
+            if (d <= BANK_WATER_MAX_METERS) {
+              let lo = Math.max(0, d - 2);
+              while (d - lo > 0.1) {
+                const mid = (lo + d) / 2;
+                if (wet([from0[0] + dir[0] * mid, from0[1] + dir[1] * mid])) lo = mid;
+                else d = mid;
+              }
+              p = [from0[0] + dir[0] * (d + 0.1), from0[1] + dir[1] * (d + 0.1)];
+            }
+          }
+          // The bank jumps (a creek mouth, a quay) where it moves much farther than the centreline did.
+          const last = current.at(-1);
+          if (
+            !p ||
+            core(p) ||
+            (last && Math.hypot(p[0] - last[0], p[1] - last[1]) > BANK_STEP_METERS + BANK_JUMP_METERS)
+          ) {
+            flush();
+            if (!p || core(p)) continue;
+          }
+          if (!current.length) start = from;
+          current.push(p);
         }
-        // The bank jumps (a creek mouth, a quay) where it moves much farther than the centreline did.
-        const last = current.at(-1);
-        if (
-          !p ||
-          core(p) ||
-          (last && Math.hypot(p[0] - last[0], p[1] - last[1]) > BANK_STEP_METERS + BANK_JUMP_METERS)
-        ) {
-          flush();
-          if (!p || core(p)) continue;
-        }
-        if (!current.length) start = s[k] - below;
-        current.push(p);
+        flush();
       }
-      flush();
-    }
   }
   return { runs, framed };
 }
@@ -767,7 +894,11 @@ export function reserveTanneryRow(
   // The trade gathers on one bank: the run holding the most yards fills first, nearest the town first along it.
   const capacity = new Map<number, number>();
   for (const y of yards) capacity.set(y.run, (capacity.get(y.run) ?? 0) + 1);
-  yards.sort((a, b) => capacity.get(b.run)! - capacity.get(a.run)! || a.run - b.run || a.key - b.key);
+  // Every run below the town before any above it (`bankRuns`).
+  const above = (y: (typeof yards)[number]) => (banks.runs[y.run].upstream ? 1 : 0);
+  yards.sort(
+    (a, b) => above(a) - above(b) || capacity.get(b.run)! - capacity.get(a.run)! || a.run - b.run || a.key - b.key
+  );
   const placed: string[] = [];
   let framed = banks.framed;
   const overlaps = (a: VectorPolygon, b: VectorPolygon) =>
@@ -974,7 +1105,7 @@ export function reserveTanneryRow(
 }
 
 /** The reserved yards joined to the street, lane or road before their doors; a yard with none in reach is dropped. */
-function connectTanneryRow(
+export function connectTanneryRow(
   doc: VectorCityDocument,
   ids: readonly string[],
   ctx: {
@@ -1108,12 +1239,15 @@ function layTannersLanes(
     obstacles.insert({ ...boxOf(polygon.outer), polygon, road: p.id });
   };
   for (const p of roadPaths) addRoad(p);
-  const blocked = (surface: VectorPolygon, except?: string) =>
+  /** `except`: the road the lane leaves, or every road (`true`). */
+  const blocked = (surface: VectorPolygon, except?: string | true) =>
     surface.outer.some(p => Math.abs(p[0]) > ctx.half || Math.abs(p[1]) > ctx.half) ||
     obstacles
       .search(boxOf(surface.outer))
       .some(
-        o => o.road !== except && regionBoolean([surface], [o.polygon], "intersection").some(a => regionArea(a) > 1e-5)
+        o =>
+          (except === true ? !o.road : o.road !== except) &&
+          regionBoolean([surface], [o.polygon], "intersection").some(a => regionArea(a) > 1e-5)
       );
   const drop = (group: typeof fronts) => {
     for (const f of group) {
@@ -1145,19 +1279,35 @@ function layTannersLanes(
    * A way round what lies between `head` and the roads (the town wall, a burial ground, a bend of the river): a search
    * on a grid of LANE_GRID_METERS cells to the nearest road, its corners then pulled straight.
    */
+  // The grid search tests thousands of points against the same obstacles; each obstacle's outline is indexed once.
+  const tests = new Map<VectorPolygon, ReturnType<typeof regionProbe>>(),
+    tested = (polygon: VectorPolygon) => {
+      let test = tests.get(polygon);
+      if (!test) {
+        test = regionProbe(polygon);
+        tests.set(polygon, test);
+      }
+      return test;
+    },
+    inPolygon = (polygon: VectorPolygon) => tested(polygon).contains,
+    /** Whether `p` or a point `c` from it along either axis lies in `polygon`. Far from every edge, all five lie
+     * as `p` does. */
+    probedIn = (polygon: VectorPolygon, p: Point, c: number) => {
+      const test = tested(polygon);
+      if (test.contains(p)) return true;
+      if (!test.near(p, c)) return false;
+      return (
+        test.contains([p[0] + c, p[1]]) ||
+        test.contains([p[0] - c, p[1]]) ||
+        test.contains([p[0], p[1] + c]) ||
+        test.contains([p[0], p[1] - c])
+      );
+    };
   const routeAround = (head: Point) => {
     const g = LANE_GRID_METERS,
       r = Math.ceil(LANE_REACH_METERS / g),
       clearance = TANNERS_LANE_METERS / 2 + 1.5,
-      at = (i: number, j: number): Point => [head[0] + i * g, head[1] + j * g],
-      probe = (p: Point, clearance: number) =>
-        [
-          p,
-          [p[0] + clearance, p[1]],
-          [p[0] - clearance, p[1]],
-          [p[0], p[1] + clearance],
-          [p[0], p[1] - clearance]
-        ] as Point[];
+      at = (i: number, j: number): Point => [head[0] + i * g, head[1] + j * g];
     const cellCache = new Map<number, 0 | 1 | 2>();
     // 0 free, 1 blocked, 2 on a road.
     const cell = (i: number, j: number): 0 | 1 | 2 => {
@@ -1169,11 +1319,7 @@ function layTannersLanes(
       if (Math.abs(p[0]) > ctx.half - clearance || Math.abs(p[1]) > ctx.half - clearance) v = 1;
       else
         for (const o of obstacles.search(boxOf([p], clearance)))
-          if (
-            o.road
-              ? containsRegion([o.polygon], p)
-              : probe(p, o.yard ? YARD_CLEARANCE : clearance).some(q => containsRegion([o.polygon], q))
-          ) {
+          if (o.road ? inPolygon(o.polygon)(p) : probedIn(o.polygon, p, o.yard ? YARD_CLEARANCE : clearance)) {
             v = o.road ? 2 : 1;
             if (v === 1) break;
           }
@@ -1192,9 +1338,7 @@ function layTannersLanes(
           Math.abs(p[1]) > ctx.half - clearance ||
           obstacles
             .search(boxOf([p], clearance))
-            .some(
-              o => !o.road && probe(p, o.yard ? YARD_CLEARANCE : clearance).some(q => containsRegion([o.polygon], q))
-            );
+            .some(o => !o.road && probedIn(o.polygon, p, o.yard ? YARD_CLEARANCE : clearance));
         blockedAt.set(k, v);
       }
       return v;
@@ -1230,9 +1374,11 @@ function layTannersLanes(
           nj = j + dj;
         if (Math.abs(ni) > r || Math.abs(nj) > r) continue;
         const v = cell(ni, nj);
-        if (v === 1 || !wayClear(at(i, j), at(ni, nj))) continue;
+        if (v === 1) continue;
         const c = base + Math.hypot(di, dj);
-        if (c >= (cost.get(key(ni, nj)) ?? Infinity)) continue;
+        // The way between the cells is sampled only for a move that would improve the cell: most moves reach a cell
+        // already reached more cheaply, and the samples are the search's costliest test.
+        if (c >= (cost.get(key(ni, nj)) ?? Infinity) || !wayClear(at(i, j), at(ni, nj))) continue;
         cost.set(key(ni, nj), c);
         came.set(key(ni, nj), key(i, j));
         if (v === 2) {
@@ -1264,10 +1410,13 @@ function layTannersLanes(
       d: 0
     };
   };
-  const routesFrom = (head: Point) => {
+  // The way round is searched only when no straight route served the whole run: it is the costliest, and last.
+  function* routesFrom(head: Point, worthSearching: () => boolean) {
+    yield* straightRoutes(head);
+    if (!worthSearching()) return;
     const around = routeAround(head);
-    return [...straightRoutes(head), ...(around ? [around] : [])];
-  };
+    if (around) yield around;
+  }
   const straightRoutes = (head: Point) =>
     roadPaths
       .flatMap(road => {
@@ -1324,6 +1473,39 @@ function layTannersLanes(
   };
   // A run of yards is served from either end by the longest lane that keeps clear (a burial ground or a creek before
   // some fronts cuts the run); the yards beyond it are served from their own end, or give their bank back.
+  /**
+   * The most yards any lane from `order`'s end could serve: its run along their fronts alone, kept clear of all but
+   * the roads, before any way to a road is added. A lane only grows from it, so no route serves more.
+   */
+  const reachAlong = (order: typeof fronts) => {
+    const clearTo = (m: number) => {
+      const points = order.slice(0, m).map(f => f.point);
+      try {
+        return !blocked(
+          pathSurface({
+            id: "tanners-lane-probe",
+            revision: 0,
+            role: "road",
+            origin: "automatic",
+            editPolicy: "editable",
+            source: curveSource(points, "polyline", false),
+            width: { leftMeters: TANNERS_LANE_METERS / 2, rightMeters: TANNERS_LANE_METERS / 2, stations: [] }
+          }),
+          true
+        );
+      } catch {
+        return true;
+      }
+    };
+    let lo = 1,
+      hi = order.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      if (clearTo(mid)) lo = mid;
+      else hi = mid - 1;
+    }
+    return lo;
+  };
   const queue = [...groups];
   while (queue.length) {
     const group = queue.shift()!;
@@ -1335,7 +1517,7 @@ function layTannersLanes(
         }
       | undefined;
     for (const order of [group, [...group].reverse()])
-      for (const route of routesFrom(order[0].point)) {
+      for (const route of routesFrom(order[0].point, () => !best || best.k < reachAlong(order))) {
         if (best && best.k === group.length) break;
         if (!lay(laneFor(order.slice(0, 1), route), route, true)) continue;
         // The longest prefix that keeps clear: blocking only grows with the lane.

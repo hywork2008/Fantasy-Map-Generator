@@ -1,8 +1,15 @@
 # 追加したドキュメント
 
+2026-11-19
+
+- docs/plan/ce-outskirts-workshop-sizes.md - 町の外の作業場（皮なめし・樽屋・鍛冶・窯場・陶工・馬の粉ひき・綱打ち場）の大きさを史料と照らし、綱打ち場を置けるようにすることと、鍛冶の作り直しから進める
+- docs/plan/opus-ropewalk.md - MV の綱打ち場（task 56）を、綱打ちの手順の記述から組み直した Opus 版にする（麻の小屋・紡ぎ車・撚り板・杭・撚り子・後ろ橇）
+
 2026-11-18
 
 - docs/plan/alps-terrain-tiles.md - アルプス周辺を Japan と同じ四分木タイルで3D表示する。全域は Terrarium、細かい段はスイス（swissALTI3D）だけで始める
+- docs/plan/ce-burgage-plot-fabric.md - 今の住宅用の街区の切り方を残したまま、史料に基づく短冊形区画（burgage plot）で街区を作るオプションを加え、施設は区画を1〜3筆合わせて置く
+- docs/plan/ce-town-trade-rear-works.md - 町の中の専用作業場（パン焼き・鉄器・刃物・ガラス・魚・肉）を、短冊形区画では表の店舗兼住宅と同じ区画の裏の作業場に分け、魚屋・肉屋は市場の列の店にする
 - docs/plan/model-viewer-rename-and-catalogue-facets.md - BVをModel Viewerに改名し、種類・年代・地域・用途の属性で一覧を絞り込む
 
 2026-11-17
@@ -19,7 +26,7 @@
 
 2026-11-14
 
-- docs/plan/bv-workhome-facade-variation.md
+- docs/plan/bv-workhome-facade-variation.md - MV の Workhome を、内部構造を持たない外観だけの Opus 版にし、区画の間口に合わせて建てる（2026-11-18 に全面改訂）
 
 2026-11-12
 

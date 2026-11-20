@@ -16,12 +16,22 @@ import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import { parseIncomingPayload } from "../../services/io/incomingCity";
-import { startVectorGeneration, type VectorGenerationTask } from "../../services/vectorGenerationWorkerClient";
+import {
+  startVectorGeneration,
+  type VectorGenerationTask,
+  type VectorGenerationTimings
+} from "../../services/vectorGenerationWorkerClient";
+import type { PlotFabric } from "../../types/contracts/burgage";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { GenerationSettings } from "../../types/generation";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorGenerationSettings } from "../../types/vector/generation";
 import type { TanneryBends, VectorStage } from "../../types/vector/urban";
+import {
+  formatGenerationTimingReport,
+  generationTimingReport,
+  logGenerationTimingReport
+} from "./generationTimingReport";
 
 const text = (key: string) => editorText(`cityEditor.vector.generation.${key}` as EditorMessageKey);
 export function createVectorGenerationPanel(
@@ -172,7 +182,7 @@ export function createVectorGenerationPanel(
   field("river", river);
   const width = number("roadWidth", 5),
     clearance = number("clearance", 0.5),
-    branches = number("branches", 8),
+    branches = number("branches", 0),
     wall = document.createElement("select");
   wall.dataset.generationField = "wall";
   for (const value of ["none", "rectangle", "ellipse", ...VECTOR_WALL_SHAPES]) {
@@ -278,34 +288,47 @@ export function createVectorGenerationPanel(
     pending = undefined;
     adopt.disabled = true;
     status.textContent = text("running");
+    // The current city is copied and serialised only when it is needed: after a first city it is large, and a
+    // generation from the panel's own input does not read it.
     const token = epoch,
-      source = read(),
       entry = readEntryKey?.(),
-      snapshot = JSON.stringify(source);
+      snapshot = readEntryKey ? undefined : JSON.stringify(peek());
     const current = () =>
       scope.active &&
       token === epoch &&
-      (readEntryKey ? readEntryKey() === entry : JSON.stringify(read()) === snapshot);
-    job = start(sourceOverride ?? source, task, undefined, progress => {
-      if (!current()) return;
-      const count = progress.total === undefined ? "" : ` (${progress.completed ?? 0}/${progress.total})`;
-      status.textContent = `${text("running")} ${text(`progress.${progress.phase}`)}${count}`;
-    });
+      (readEntryKey ? readEntryKey() === entry : JSON.stringify(peek()) === snapshot);
+    let timings: VectorGenerationTimings | undefined;
+    const source = sourceOverride ?? read();
+    job = start(
+      source,
+      task,
+      undefined,
+      progress => {
+        if (!current()) return;
+        const count = progress.total === undefined ? "" : ` (${progress.completed ?? 0}/${progress.total})`;
+        status.textContent = `${text("running")} ${text(`progress.${progress.phase}`)}${count}`;
+      },
+      value => {
+        timings = value;
+      }
+    );
     void job.result
       .then(result => {
         if (!result || !current()) return;
         job = undefined;
+        const adopted = performance.now();
         if (task.kind === "city") {
           commit(result.document, text("city"));
           updateStages(result.document);
           showDiagnostics(result.document);
           showUrban(result.document);
-          return;
+        } else {
+          preview(result.document, key, result.stages);
+          if (key === "develop") showUrban(result.document);
+          else
+            status.textContent = `${text("result")} ${Object.keys(result.document.paths).length} / ${result.document.generation!.blocks.length} / ${result.document.generation!.diagnostics.length}`;
         }
-        preview(result.document, key, result.stages);
-        if (key === "develop") showUrban(result.document);
-        else
-          status.textContent = `${text("result")} ${Object.keys(result.document.paths).length} / ${result.document.generation!.blocks.length} / ${result.document.generation!.diagnostics.length}`;
+        if (timings) showTimings(task, result.document, timings, performance.now() - adopted);
       })
       .catch(error => {
         if (current()) {
@@ -333,7 +356,8 @@ export function createVectorGenerationPanel(
     option.textContent = value;
     mode.append(option);
   }
-  mode.value = vectorUrbanMode(editorInput?.settings);
+  // Without the editor's settings the panel opens on the mode under development, so Generate city shows it.
+  mode.value = editorInput ? vectorUrbanMode(editorInput.settings) : "medieval-facilities";
   field("mode", mode);
   // How the tanners' row meets the river's bends: one continuous row (default) or a tanners' leat.
   const tanneryBends = document.createElement("select");
@@ -346,6 +370,18 @@ export function createVectorGenerationPanel(
   }
   tanneryBends.value = "continuous";
   field("tanneryBends", tanneryBends);
+  // How street blocks are cut into plots (docs/plan/ce-burgage-plot-fabric.md). Burgage plots are the default while
+  // they are developed, so Generate city shows their state.
+  const plotFabric = document.createElement("select");
+  plotFabric.dataset.generationField = "plotFabric";
+  for (const value of ["compact", "burgage", "burgage-dense"] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = text(`plotFabricOptions.${value}`);
+    plotFabric.append(option);
+  }
+  plotFabric.value = editorInput ? (editorInput.settings.plotFabric ?? "compact") : "burgage-dense";
+  field("plotFabric", plotFabric);
   const population = number(
       "population",
       editorInput?.settings.population?.targetPopulation ?? (read().context.targetPopulation || 1000)
@@ -359,6 +395,33 @@ export function createVectorGenerationPanel(
   expansion.checked = true;
   expansion.dataset.generationField = "allowExpansion";
   field("allowExpansion", expansion);
+  // Stage timings of the last generation, always kept: shown here and logged to the developer console.
+  const timingBox = document.createElement("details"),
+    timingSummary = document.createElement("summary"),
+    timingOutput = document.createElement("pre");
+  timingBox.dataset.vectorGenerationTimings = "";
+  timingBox.hidden = true;
+  timingOutput.style.cssText = "margin:4px 0;font-size:11px;white-space:pre;overflow-x:auto";
+  timingBox.append(timingSummary, timingOutput);
+  const showTimings = (
+    task: VectorGenerationTask,
+    doc: VectorCityDocument,
+    timings: VectorGenerationTimings,
+    adoptMs: number
+  ) => {
+    const rivers = Object.values(doc.paths).filter(p => p.role === "river").length,
+      urban = task.kind === "city" ? task.urban : task.kind === "urban" ? task.settings : undefined,
+      settings = urban ? `${urban.mode} / ${urban.plotFabric ?? "compact"}` : "streets only",
+      seedText = task.kind === "urban" ? "" : ` / seed ${task.settings.seed}`,
+      report = generationTimingReport(`${task.kind}: ${settings} / rivers ${rivers}${seedText}`, timings, [
+        { stage: "page/adopt-and-draw", ms: adoptMs }
+      ]);
+    timingSummary.textContent = `${text("timings")}: ${report.totalMs.toFixed(0)} ms`;
+    timingOutput.textContent = formatGenerationTimingReport(report);
+    timingBox.dataset.totalMs = String(report.totalMs);
+    timingBox.hidden = false;
+    logGenerationTimingReport(report);
+  };
   const showUrban = (doc: VectorCityDocument) => {
     const u = doc.urban;
     if (!u) return;
@@ -366,7 +429,8 @@ export function createVectorGenerationPanel(
     const c = u.checkpoints.find(c => c.id === stage.value);
     const visibleFacilities = (c?.placementIds ?? Object.keys(doc.placements))
       .map(id => doc.placements[id])
-      .filter(p => p.building?.kind === "facility");
+      // A shop-house's rear works is counted with its house (docs/plan/ce-town-trade-rear-works.md R2).
+      .filter(p => p.building?.kind === "facility" && !p.building.annexOf);
     status.textContent = `${text("population")}: ${u.report.targetPopulation}; ${text("capacity")}: ${c?.capacityDwellings ?? u.report.capacityDwellings} / ${u.report.requiredDwellings}; ${text("unplaced")}: ${c?.unplacedPopulation ?? u.report.unplacedPopulation}; ${text("facilities")}: ${visibleFacilities.length} / ${u.report.requiredFacilities}; ${text("provisional")}: ${visibleFacilities.filter(p => p.building?.provenance === "provisional").length}${c ? `; ${text("stagePopulation")}: ${c.assignedPopulation}` : ""}`;
     // Inside against beyond the wall, for the finished town only: earlier stages hold fewer buildings.
     const shares = !c || c.id === "housing" ? vectorWallShares(doc) : undefined;
@@ -409,7 +473,8 @@ export function createVectorGenerationPanel(
           maxLanes: Number(maxLanes.value),
           allowExpansion: expansion.checked,
           lotOccupancy: lotOccupancy(),
-          tanneryBends: tanneryBends.value as TanneryBends
+          tanneryBends: tanneryBends.value as TanneryBends,
+          plotFabric: plotFabric.value as PlotFabric
         }
       },
       "develop"
@@ -455,6 +520,7 @@ export function createVectorGenerationPanel(
             settings: {
               ...editorInput.settings,
               facilityLayout,
+              plotFabric: plotFabric.value as PlotFabric,
               population: {
                 ...(editorInput.settings.population ?? {
                   version: 1,
@@ -496,7 +562,8 @@ export function createVectorGenerationPanel(
             mode: urbanMode,
             population: target,
             lotOccupancy: lotOccupancy(),
-            tanneryBends: tanneryBends.value as TanneryBends
+            tanneryBends: tanneryBends.value as TanneryBends,
+            plotFabric: plotFabric.value as PlotFabric
           }
         },
         "develop",
@@ -511,6 +578,7 @@ export function createVectorGenerationPanel(
   status.style.cssText = "display:block;margin:8px 0";
   parent.insertBefore(generateCity, firstAction);
   parent.insertBefore(status, firstAction);
+  parent.insertBefore(timingBox, firstAction);
   body.append(diagnosticList, gapBox);
   scope.listen(stage, "change", () => {
     const doc = pending?.stages.find(s => s.id === stage.value)?.document ?? pending?.document ?? read();
@@ -562,7 +630,7 @@ export function createVectorGenerationPanel(
         doc.generation?.settings.seed ?? (doc.site ? doc.recipe.seed : (editorInput?.seed ?? doc.recipe.seed));
       width.value = String(doc.generation?.settings.roadWidthMeters ?? 5);
       clearance.value = String(doc.generation?.settings.clearanceMeters ?? 0.5);
-      branches.value = String(doc.generation?.settings.branches ?? 8);
+      branches.value = String(doc.generation?.settings.branches ?? 0);
       // Before any generation, the wall follows the editor's settings, as Generate city used to.
       wall.value =
         doc.generation?.settings.wall ??

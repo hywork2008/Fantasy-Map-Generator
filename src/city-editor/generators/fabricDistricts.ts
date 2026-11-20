@@ -15,6 +15,7 @@ import { clone, edgeBetween, facePoints } from "./mesh";
 import {
   COAST_SHAPES,
   FEATURE_KEYS,
+  RIVER_FORMS,
   RIVER_SHAPES,
   WALL_COAST_CHOICES,
   WALL_ENVELOPE_CHOICES,
@@ -324,6 +325,10 @@ export function validFabricPlan(plan: FabricPlan): boolean {
     Array.isArray(config.rivers) &&
     config.rivers.length <= 2 &&
     config.rivers.every(r => RIVER_SHAPES.includes(r)) &&
+    (config.riverForms === undefined ||
+      (Array.isArray(config.riverForms) &&
+        config.riverForms.length <= config.rivers.length &&
+        config.riverForms.every(f => RIVER_FORMS.includes(f)))) &&
     typeof config.relief === "boolean" &&
     !!config.features &&
     FEATURE_KEYS.every(k => typeof config.features[k] === "boolean") &&

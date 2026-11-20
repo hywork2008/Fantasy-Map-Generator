@@ -54,3 +54,44 @@ export const OPUS_TOWN_TRADES: Record<OpusTownTrade, OpusTownTradeProfile> = {
     entrance: { id: "main", position: [-0.9, 0, 5], clearWidth: 1 }
   }
 };
+
+/**
+ * Opus ropewalk (MV task 56): a hand ropewalk with its hemp house, as the rope-makers of a late-medieval town worked
+ * one on the edge of town (docs/plan/opus-ropewalk.md). The walk runs along Z; +Z is its head and the way in from the
+ * road. The envelope is the CE plot of the earlier study, so CE keeps its footprint and entrance.
+ */
+export const OPUS_ROPEWALK = {
+  width: 6,
+  depth: 54,
+  /** The hemp house's door on the road at the head of the walk. */
+  entrance: { id: "main", position: [0, 0, 27] as const, clearWidth: 1.6 }
+} as const;
+
+/**
+ * The lengths the walk is built in (docs/plan/ce-outskirts-workshop-sizes.md §8.9): the hemp house at the head and the
+ * traveller at the foot keep their form, the stakes and fence run on between them. 54 m is the original plot; real
+ * walks ran some 180 m (Hebert) to 300 m (Hamburg, and the navy's cables).
+ */
+export const OPUS_ROPEWALK_LENGTHS = [54, 108, 180, 300] as const;
+export type OpusRopewalkLength = (typeof OPUS_ROPEWALK_LENGTHS)[number];
+/** The model of a walk of this length: the 54 m walk keeps the original id that saved towns refer to. */
+export const opusRopewalkModelId = (length: OpusRopewalkLength) =>
+  length === OPUS_ROPEWALK.depth ? "trade-workshop.dedicated-ropewalk" : `trade-workshop.dedicated-ropewalk-${length}`;
+/** The door at the head of a walk of this length. */
+export const opusRopewalkEntrance = (length: OpusRopewalkLength) => ({
+  ...OPUS_ROPEWALK.entrance,
+  position: [0, 0, length / 2] as const
+});
+
+/**
+ * Opus smithy (MV task 53, docs/plan/ce-outskirts-workshop-sizes.md S2): a thirteenth-century smithy after the one dug
+ * at Newington (Oxfordshire), an 8 x 5 m building on stone footings with two hearths at right angles, an anvil on a
+ * stone base and a water trough, open-fronted onto its yard, with a small fuel store against its gable. +Z is the yard
+ * and the way in from the road.
+ */
+export const OPUS_SMITHY = {
+  width: 10,
+  depth: 8,
+  /** The way into the yard from the road, before the open front of the smithy. */
+  entrance: { id: "main", position: [0, 0, 4] as const, clearWidth: 1.6 }
+} as const;

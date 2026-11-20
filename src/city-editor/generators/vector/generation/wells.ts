@@ -59,6 +59,24 @@ export function layoutVectorWells(
     water = allVectorWater(doc),
     solids = new RBush<Box & { polygon: VectorPolygon }>(),
     claimed: Point[][] = [];
+  // Each water outline's edges, indexed: a gentle river's outline has many hundreds of them.
+  const shores = water.map(w => {
+    const edges = new RBush<Box & { a: Point; b: Point }>();
+    edges.load(
+      w.outer.map((a, i) => {
+        const b = w.outer[(i + 1) % w.outer.length];
+        return {
+          a,
+          b,
+          minX: Math.min(a[0], b[0]),
+          minY: Math.min(a[1], b[1]),
+          maxX: Math.max(a[0], b[0]),
+          maxY: Math.max(a[1], b[1])
+        };
+      })
+    );
+    return { w, bounds: boxOf(w.outer), edges };
+  });
   const houses = vectorOccupiedSites(doc, "reserved");
   solids.load(
     [...featureReservations(doc).filter(r => r !== plaza?.boundary), ...houses].map(polygon => ({
@@ -81,13 +99,18 @@ export function layoutVectorWells(
     inFrame: polygon => polygon.every(p => Math.abs(p[0]) <= half && Math.abs(p[1]) <= half),
     hitsWater: (polygon, clearance = 0) => {
       const box = boxOf(polygon, clearance);
-      return water.some(
-        w =>
-          w.outer.some(p => p[0] >= box.minX && p[0] <= box.maxX && p[1] >= box.minY && p[1] <= box.maxY) ||
-          polygon.some(p => pointInPolygon(p, w.outer)) ||
-          w.outer.some((a, i) =>
-            polygon.some(p => pointSegmentDistance(p, a, w.outer[(i + 1) % w.outer.length]) < clearance)
-          )
+      return shores.some(
+        ({ w, bounds, edges }) =>
+          // Nothing of a water outline outside the padded box can be inside the polygon or within the clearance.
+          bounds.minX <= box.maxX &&
+          bounds.maxX >= box.minX &&
+          bounds.minY <= box.maxY &&
+          bounds.maxY >= box.minY &&
+          (edges
+            .search(box)
+            .some(e => e.a[0] >= box.minX && e.a[0] <= box.maxX && e.a[1] >= box.minY && e.a[1] <= box.maxY) ||
+            polygon.some(p => pointInPolygon(p, w.outer)) ||
+            edges.search(box).some(e => polygon.some(p => pointSegmentDistance(p, e.a, e.b) < clearance)))
       );
     },
     hitsRoutes: (polygon, clearance, kinds) =>

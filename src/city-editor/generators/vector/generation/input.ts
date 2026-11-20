@@ -11,8 +11,9 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument, VectorPath } from "../../../types/vector/document";
 import type { VectorPolygon, VectorSite } from "../../../types/vector/generation";
 import { closeCorridor } from "../../generation/skeleton/vector";
-import { azimuthToVec, segmentsIntersect } from "../../geom";
+import { azimuthToVec, nearestOnPolyline, segmentsIntersect } from "../../geom";
 import { makeRng } from "../../prng";
+import { gentleRiverCourse } from "../../site/synthSite";
 import { coarseFromHeightfield } from "../../terrainField/build";
 import { createVectorDocument } from "../document";
 import { connectVectorAnchors, rebuildRoadGraph } from "../editing/network";
@@ -466,6 +467,43 @@ function riverClears(line: Point[], ring: Point[], gap: number): boolean {
     }
   return true;
 }
+/** The stretches, as distances from the centre, along which the segment to `p` runs within `reach` of a river's
+ * course (its water and a margin for the road beside it). */
+function wetStretches(course: Point[], p: Point, reach: number): [number, number][] {
+  const l = Math.hypot(p[0], p[1]),
+    out: [number, number][] = [];
+  let from: number | undefined;
+  for (let t = 0; t <= l; t += 2) {
+    const wet = nearestOnPolyline([(p[0] / l) * t, (p[1] / l) * t], course).dist < reach;
+    if (wet && from === undefined) from = t;
+    if (!wet && from !== undefined) {
+      out.push([from, t]);
+      from = undefined;
+    }
+  }
+  if (from !== undefined) out.push([from, l]);
+  return out;
+}
+
+/** Where the ray from `from` along `direction` leaves the square frame of half-size `half`. */
+function rayToFrame(from: Point, direction: Point, half: number): Point {
+  const l = Math.hypot(direction[0], direction[1]) || 1,
+    d: Point = [direction[0] / l, direction[1] / l];
+  let t = Infinity;
+  for (const k of [0, 1]) if (Math.abs(d[k]) > 1e-12) t = Math.min(t, ((d[k] > 0 ? half : -half) - from[k]) / d[k]);
+  return Number.isFinite(t) && t > 0 ? [from[0] + d[0] * t, from[1] + d[1] * t] : from;
+}
+/** A course carried on along its end tangents to the frame edge, so the river crosses the whole map. */
+function courseToFrame(points: Point[], half: number): Point[] {
+  if (points.length < 2) return points;
+  const [a, b] = points,
+    [y, z] = points.slice(-2),
+    start = rayToFrame(a, [a[0] - b[0], a[1] - b[1]], half),
+    end = rayToFrame(z, [z[0] - y[0], z[1] - y[1]], half),
+    far = (p: Point, q: Point) => Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.5;
+  return [...(far(start, a) ? [start] : []), ...points, ...(far(end, z) ? [end] : [])];
+}
+
 /**
  * Synthetic standalone site. Without `vary` the layout is the fixed reference
  * (east-west river, four cardinal roads). With `vary` the seed picks the river
@@ -480,10 +518,16 @@ export function syntheticVectorInput(
   keepClear: Point[][] = [],
   /** Half the frame in site radii; the approaches run out to just inside it and the river across it. A walled town
    * takes more, so its roadside can grow out along the approaches (gate-ribbon plan). */
-  reach = 1.5
+  reach = 1.5,
+  /** The varied river's channel: nearly straight, or a gentle meander as `synthSite` lays one
+   * (docs/plan/ce-outskirts-workshop-sizes.md §8.21). */
+  riverForm: "straight" | "gentle" = "straight",
+  /** The map the site is drawn on, when wider than `reach` gives: the river and the approaches run out to its edge. */
+  extentMeters = 0
 ): VectorCityDocument {
   if (!(radius >= 30 && radius <= 3000 && Number.isFinite(radius))) throw new Error("site-frame");
-  const doc = createVectorDocument(seed, radius * 2 * reach),
+  const doc = createVectorDocument(seed, Math.max(radius * 2 * reach, extentMeters)),
+    half = doc.frame.extentMeters / 2,
     site: VectorSite = {
       kind: "synthetic",
       id: "synthetic-site",
@@ -517,15 +561,28 @@ export function syntheticVectorInput(
       // The bend only bulges away from the centre and stays mild, so every in-town crossing
       // keeps within the bridge skew limits.
       bend = side * rng.range(0, 0.06) * radius,
-      points = [at(-radius * reach, offset), at(0, offset + bend), at(radius * reach, offset)];
+      points =
+        riverForm === "gentle"
+          ? smoothCourse(
+              gentleRiverCourse(rng, along, normal, offset, radius * reach, radius, 0.22 * radius),
+              Array.from({ length: 21 }, () => RIVER_WIDTH)
+            ).points
+          : [at(-radius * reach, offset), at(0, offset + bend), at(radius * reach, offset)];
     if (!river || keepClear.every(ring => riverClears(points, ring, RIVER_WIDTH / 2 + 12))) {
       layout = { normal, side, offset, points };
       break;
     }
   }
-  const { normal, side, offset, points: riverPoints } = layout;
+  const { normal, side, offset } = layout;
+  // Laid inside the reach, then carried on to the map's edge: a river never stops short in the open country.
+  const riverPoints = courseToFrame(layout.points, half);
   if (river) doc.paths["input-river"] = importedPath("input-river", "river", riverPoints, RIVER_WIDTH);
-  const beyondRiver = (p: Point) => river && Math.sign(p[0] * normal[0] + p[1] * normal[1] - offset) === side;
+  // Beyond the river: across its line from the centre (a gentle meander's own course, not its axis).
+  const crossesCourse = (p: Point) =>
+    riverPoints.slice(1).some((b, k) => segmentsIntersect([0, 0], p, riverPoints[k], b));
+  const beyondRiver = (p: Point) =>
+    river &&
+    (riverForm === "gentle" ? crossesCourse(p) : Math.sign(p[0] * normal[0] + p[1] * normal[1] - offset) === side);
   let roads: Point[];
   if (vary) {
     const count = rng.int(3, 6),
@@ -542,10 +599,15 @@ export function syntheticVectorInput(
     if (river) {
       const skew = rng.range(-8, 8) * (Math.PI / 180),
         n: Point = [side * normal[0], side * normal[1]];
-      roads.push([
-        (n[0] * Math.cos(skew) - n[1] * Math.sin(skew)) * out,
-        (n[0] * Math.sin(skew) + n[1] * Math.cos(skew)) * out
-      ]);
+      let d: Point = [n[0] * Math.cos(skew) - n[1] * Math.sin(skew), n[0] * Math.sin(skew) + n[1] * Math.cos(skew)];
+      // A meandering river is crossed where it comes nearest the centre: the approach from there runs out along the
+      // course's normal, so its bridge is square to the flow, and the town's bank beyond it is widest.
+      if (riverForm === "gentle") {
+        const near = nearestOnPolyline([0, 0], riverPoints).point,
+          l = Math.hypot(near[0], near[1]);
+        if (l > 1e-6) d = [near[0] / l, near[1] / l];
+      }
+      roads.push([d[0] * out, d[1] * out]);
     }
   } else
     roads = [
@@ -556,9 +618,23 @@ export function syntheticVectorInput(
     ];
   for (const [i, p] of roads.entries()) {
     const out = Math.hypot(p[0], p[1]) / radius,
-      endpoint: Point = [(p[0] / out) * 0.85, (p[1] / out) * 0.85],
+      // An approach across a meandering river starts past its last crossing of the ray, so the road itself stays dry
+      // and the skeleton lays the bridge (as it does across a straight river).
+      cut = river && riverForm === "gentle" ? wetStretches(riverPoints, p, RIVER_WIDTH / 2 + 8) : [],
+      past = cut.length ? cut.at(-1)![1] : undefined,
+      reachOut = Math.max(0.85, past === undefined ? 0 : (past + 6) / radius),
+      endpoint: Point = [(p[0] / out) * reachOut, (p[1] / out) * reachOut],
       id = `input-road:${i}`;
-    doc.paths[id] = importedPath(id, "road", [p, endpoint], 5);
+    // A river that meanders out towards the site's edge on this bearing leaves too little dry land beyond it to start
+    // an approach: none here.
+    if (past !== undefined && (past + 6) / radius > 0.75) continue;
+    // Nor where the bearing crosses a meander twice: the way in would need a second, oblique bridge.
+    if (cut.length > 1) continue;
+    // The approach comes in from the map's edge, unless that longer way would meet the river.
+    const edge = rayToFrame(p, p, half),
+      wet = (q: Point) =>
+        river && riverPoints.slice(1).some((b, k) => segmentsIntersect(q, endpoint, riverPoints[k], b));
+    doc.paths[id] = importedPath(id, "road", [!wet(edge) || wet(p) ? edge : p, endpoint], 5);
   }
   site.fixedPaths = Object.values(doc.paths).map(p => structuredClone(p));
   return seal(doc, site);

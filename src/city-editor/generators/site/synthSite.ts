@@ -13,22 +13,25 @@ import type {
   BurgSiteTerrain,
   BurgSiteWaterbody
 } from "../../types/contracts/burgSiteDescriptor";
-import type { CoastShape, RiverShape, SiteConfig } from "../../types/contracts/siteConfig";
+import type {
+  CoastShape,
+  RiverForm,
+  RiverPlacement as RiverPlacementKind,
+  SiteConfig
+} from "../../types/contracts/siteConfig";
 import type { Point } from "../../types/geometry";
 import { azimuthToVec, nearestOnPolyline, segmentsIntersect, sideOfPolyline, vecToAzimuth } from "../geom";
 import { makeRng, type Rng } from "../prng";
 import { minExternalRoadsForExtent } from "../settlementExtent";
 import { type PresetId, presetPopulation } from "./presets";
-import { siteConfigKey } from "./siteConfig";
+import { riverSettings, siteConfigKey } from "./siteConfig";
 
 const WALLED_DENSITY_PER_HA = 150;
 
-/** Shapes that cross the site (vs `beside` / `toCoast`). All get a meandering or
- * elbowed corridor through the town, differing only in channel-shape profile. */
-const THROUGH_FAMILY: RiverShape[] = ["through", "straight", "meander", "greatBend"];
-
-interface RiverPlacement {
-  shape: RiverShape;
+/** How a river is laid: its placement and channel form (`riverSettings`), and where it crosses the site. */
+interface RiverLayout {
+  placement: RiverPlacementKind;
+  form: RiverForm;
   axisDeg: number;
   /** Signed perpendicular offset as a fraction of cityRadius (+ toward +perp). */
   offsetRatio: number;
@@ -67,18 +70,21 @@ export function synthSite(
   const waterbody = config.coast === "none" ? null : synthCoast(rng, config.coast, half, cityRadiusMeters);
 
   // `toCoast` without a coast degrades to `through`.
-  const effective: RiverShape[] = config.rivers.map(s => (s === "toCoast" && !waterbody ? "through" : s));
-  const straddle = effective.length === 2 && effective.every(s => THROUGH_FAMILY.includes(s));
+  const effective = riverSettings(config).map(s =>
+    s.placement === "toCoast" && !waterbody ? { ...s, placement: "through" as const } : s
+  );
+  const straddle = effective.length === 2 && effective.every(s => s.placement === "through");
   // With a coast every river must have somewhere to flow: orient it roughly
   // toward the water so it runs inland → through the site → out to sea.
   const shoreAz = waterbody?.shoreAzimuthDeg ?? null;
   const towardSea = (): number => (shoreAz ?? rng.range(0, 360)) + rng.range(-38, 38);
   const freeAxis = (): number => (shoreAz === null ? rng.range(0, 360) : towardSea());
   const sharedAxis = freeAxis();
-  const placements: RiverPlacement[] = effective.map((shape, i) => {
+  const placements: RiverLayout[] = effective.map(({ placement: shape, form }, i) => {
     if (straddle) {
       return {
-        shape,
+        placement: shape,
+        form,
         axisDeg: sharedAxis + rng.range(-12, 12),
         offsetRatio: (i === 0 ? -1 : 1) * rng.range(0.35, 0.55),
         crossesSite: true,
@@ -87,21 +93,23 @@ export function synthSite(
     }
     if (shape === "beside") {
       return {
-        shape,
+        placement: shape,
+        form,
         axisDeg: freeAxis(),
-        offsetRatio: (rng() < 0.5 ? -1 : 1) * rng.range(0.85, 1.15),
+        // Clear of the town: its nearest bend still stands off the round site (`nearLimit` in `synthRiver`).
+        offsetRatio: (rng() < 0.5 ? -1 : 1) * rng.range(1.3, 1.6),
         crossesSite: false,
         meanderScale: 0.9
       };
     }
     if (shape === "toCoast") {
-      return { shape, axisDeg: 0, offsetRatio: 0, crossesSite: true, meanderScale: 0.85 };
+      return { placement: shape, form, axisDeg: 0, offsetRatio: 0, crossesSite: true, meanderScale: 0.85 };
     }
-    // through-family (`through` / `straight` / `meander` / `greatBend`) — crosses
-    // the site but keeps the town clearly on one bank (the corridor is clamped so
-    // it never reaches the town side). `synthRiver` picks the channel profile.
+    // `through` — crosses the site but keeps the town clearly on one bank (the corridor is clamped so it never
+    // reaches the town side). `synthRiver` picks the channel profile from the form.
     return {
-      shape,
+      placement: shape,
+      form,
       axisDeg: freeAxis(),
       offsetRatio: (rng() < 0.5 ? -1 : 1) * rng.range(0.28, 0.5),
       crossesSite: true,
@@ -176,7 +184,9 @@ function synthCoast(rng: Rng, shape: CoastShape, half: number, R: number): BurgS
 
   // A coastal town must actually reach its waterfront. Offsets larger than
   // the city radius put the harbour in the countryside or beyond the frame.
-  const standoff = R * (shape === "straight" ? rng.range(0.15, 0.5) : rng.range(0.0, 0.5));
+  // The town's centre stands well inland of a straight shore, so the wall's waterfront is a short chord and most of
+  // its round site is dry land (§8.17); it still reaches the water for its harbour.
+  const standoff = R * (shape === "straight" ? rng.range(0.55, 0.8) : rng.range(0.0, 0.5));
   let curvature: number;
   let waterInside: boolean;
   if (shape === "straight") {
@@ -234,15 +244,17 @@ const MEANDER_PROFILES: Record<
   }
 > = {
   straight: { bends: [1, 2], amp: [0.05, 0.13], harmCount: [0, 2], harmAmp: [0.03, 0.08], harmFreqMul: [1.7, 2.6] },
-  gentle: { bends: [2.5, 5], amp: [0.32, 0.58], harmCount: [1, 3], harmAmp: [0.1, 0.26], harmFreqMul: [1.7, 2.6] },
+  // A gentle meander: sinuosity about 1.05–1.2 over the map, each bend longer than the town is wide
+  // (docs/plan/ce-outskirts-workshop-sizes.md §8.21).
+  gentle: { bends: [1.5, 2.5], amp: [0.35, 0.55], harmCount: [0, 1], harmAmp: [0.02, 0.05], harmFreqMul: [1.7, 2.6] },
   // Kept below `gentle` × ~1.5 in reach and frequency: a pronounced but still
   // river-shaped wave, not the steep sawtooth that made the walk knot (lgds9i).
   meander: { bends: [3, 5], amp: [0.4, 0.62], harmCount: [1, 3], harmAmp: [0.09, 0.2], harmFreqMul: [1.5, 2] }
 };
 
-function meanderProfileFor(shape: RiverShape): MeanderProfile {
-  if (shape === "straight") return "straight";
-  if (shape === "meander") return "meander";
+function meanderProfileFor(form: RiverForm): MeanderProfile {
+  if (form === "straight") return "straight";
+  if (form === "meander") return "meander";
   return "gentle";
 }
 
@@ -253,7 +265,7 @@ function meanderProfileFor(shape: RiverShape): MeanderProfile {
  * give the shape; a `sin(u·π)^0.7` taper pins the source and mouth so only the
  * middle wanders, and `lat` is clamped to `nearLimit` so the channel never
  * crosses onto the town's bank. `scale` tunes amplitude per placement
- * (RiverPlacement.meanderScale); `profile` sets how sinuous the channel is.
+ * (RiverLayout.meanderScale); `profile` sets how sinuous the channel is.
  */
 function meanderCorridor(
   rng: Rng,
@@ -309,6 +321,20 @@ function meanderCorridor(
     pts = build(ampScale);
   }
   return pts;
+}
+
+/** A gentle meander's course along `flow`, `shift` off the town (origin) on `perp`, kept `nearLimit` clear of it:
+ * the same channel `synthSite` lays for a `gentle` river, for the editor's own plain site (`syntheticVectorInput`). */
+export function gentleRiverCourse(
+  rng: Rng,
+  flow: Point,
+  perp: Point,
+  shift: number,
+  span: number,
+  R: number,
+  nearLimit: number
+): Point[] {
+  return meanderCorridor(rng, flow, perp, shift, span, R, 1, nearLimit, "gentle");
 }
 
 /** Smallest distance between any two non-adjacent segments of a polyline. */
@@ -415,9 +441,12 @@ function toWindowEdge(tip: Point, inward: Point, half: number): Point {
   return Number.isFinite(t) ? [tip[0] + dx * t, tip[1] + dy * t] : tip;
 }
 
+/** A river beside the town keeps this far from its centre, in town radii: it runs past the town, never into it. */
+const BESIDE_CLEAR = 1.15;
+
 function synthRiver(
   rng: Rng,
-  placement: RiverPlacement,
+  placement: RiverLayout,
   id: number,
   half: number,
   R: number,
@@ -429,23 +458,25 @@ function synthRiver(
   // to cell edges and stops at the shoreline; the bends survive because the walk's
   // corridor pull is soft (riverPath.ts).
   const flowAz =
-    placement.shape === "toCoast" && waterbody ? waterbody.shoreAzimuthDeg : ((placement.axisDeg % 360) + 360) % 360;
+    placement.placement === "toCoast" && waterbody
+      ? waterbody.shoreAzimuthDeg
+      : ((placement.axisDeg % 360) + 360) % 360;
   const flow = azimuthToVec(flowAz);
   const perp: Point = [-flow[1], flow[0]];
   // `toCoast` carries no authored offset — nudge the channel just off the town
   // (random bank) so it isn't bisected; the rest use their placement offset.
   const shift =
-    placement.shape === "toCoast" && waterbody
+    placement.placement === "toCoast" && waterbody
       ? (rng() < 0.5 ? -1 : 1) * rng.range(0.22, 0.34) * R
       : placement.offsetRatio * R;
   // How close the channel may come to the town: a hair for `through` (town right
   // on the bank), a fraction of the offset for `beside` (stays clearly apart).
   const townClear = 0.22 * R;
-  const nearLimit = placement.shape === "beside" ? Math.max(townClear, Math.abs(shift) * 0.6) : townClear;
+  const nearLimit = placement.placement === "beside" ? Math.max(BESIDE_CLEAR * R, Math.abs(shift) * 0.6) : townClear;
 
   const seaward = waterbody ? azimuthToVec(waterbody.shoreAzimuthDeg) : null;
   const raw =
-    placement.shape === "greatBend"
+    placement.form === "greatBend"
       ? bendCorridor(rng, flow, perp, shift, span, R, nearLimit, seaward)
       : meanderCorridor(
           rng,
@@ -456,7 +487,7 @@ function synthRiver(
           R,
           placement.meanderScale,
           nearLimit,
-          meanderProfileFor(placement.shape)
+          meanderProfileFor(placement.form)
         );
   // Land each end of the corridor EXACTLY on the window boundary along its own
   // direction, so a river always enters / leaves at a map edge. A raw endpoint
@@ -559,7 +590,7 @@ function synthTerrain(relief: boolean, half: number, R: number, rng: Rng): BurgS
 
 function deriveArchetype(config: SiteConfig): BurgSiteArchetype {
   if (config.coast !== "none") return "harbor";
-  if (config.rivers.some(s => THROUGH_FAMILY.includes(s))) return "riverCrossing";
+  if (riverSettings(config).some(s => s.placement === "through")) return "riverCrossing";
   if (config.relief) return "hillTop";
   return "crossroads";
 }

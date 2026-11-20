@@ -3542,6 +3542,12 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
     // The previewed season persists across quality and edition switches of the same tree.
     let season = definition.seasons?.default;
     let appearance = definition.appearances?.default;
+    // Parametric controls persist across quality switches of the same model.
+    const presentationValues: Record<string, string> = Object.fromEntries(
+      (definition.presentation?.fields ?? []).map(field => [field.id, field.default])
+    );
+    const presentationChanged = () =>
+      !!definition.presentation?.fields.some(field => presentationValues[field.id] !== field.default);
     let marketActivity: "market-day" | "closed" = "market-day";
     let marketDetail: "near" | "distant" = "near";
     let selectedPart = "all";
@@ -3665,6 +3671,22 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         row.append(select);
         optionFields.append(document.createElement("br"), row);
       }
+      const presenting = !!variant && !!definition.presentation?.applies(variant.id);
+      if (presenting)
+        for (const field of definition.presentation!.fields) {
+          const row = document.createElement("label");
+          row.textContent = `${field.label}: `;
+          const select = document.createElement("select");
+          select.setAttribute("aria-label", field.label);
+          for (const option of field.options) select.add(new Option(option.label, option.id));
+          select.value = presentationValues[field.id];
+          select.addEventListener("change", () => {
+            presentationValues[field.id] = select.value;
+            showModel(variant);
+          });
+          row.append(select);
+          optionFields.append(document.createElement("br"), row);
+        }
       if (variant && definition.seasons) {
         const seasonRow = document.createElement("label");
         seasonRow.textContent = "Season: ";
@@ -3691,7 +3713,9 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
           selected: column(variant)
         };
       if (!variant) comparisonModel = { path: null, quality: definition.quality ?? "low" };
-      const partFactories = definition.parts?.(variant?.id, selectedPartPreset);
+      // A variant with nothing to list (an empty part list) shows its assembly only.
+      const listedParts = definition.parts?.(variant?.id, selectedPartPreset);
+      const partFactories = listedParts?.length ? listedParts : undefined;
       if (selectedPart !== "all" && !partFactories?.some(part => part.id === selectedPart)) selectedPart = "all";
       const partFactory = partFactories?.find(part => part.id === selectedPart);
       const displayedDependencies = partFactory ? partFactory.basedOn : variant?.basedOn;
@@ -3732,6 +3756,7 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         partFactory ||
         customAssembly ||
         (definition.appearances && appearance !== definition.appearances.default) ||
+        (presenting && presentationChanged()) ||
         (definition.marketDisplay && (marketActivity === "closed" || marketDetail === "distant"))
       ) {
         // Components and custom compositions must not overwrite the registered assembly's metrics.
@@ -3749,13 +3774,15 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
         : customAssembly
           ? assemble(partFactories!)
           : variant
-            ? definition.marketDisplay
-              ? definition.marketDisplay.create(variant.id, appearance ?? "ochre", marketActivity, marketDetail)
-              : definition.appearances
-                ? definition.appearances.create(variant.id, appearance!)
-                : definition.seasons && season !== definition.seasons.default
-                  ? definition.seasons.create(variant.id, season!)
-                  : variant.create()
+            ? presenting
+              ? definition.presentation!.create(variant.id, presentationValues)
+              : definition.marketDisplay
+                ? definition.marketDisplay.create(variant.id, appearance ?? "ochre", marketActivity, marketDetail)
+                : definition.appearances
+                  ? definition.appearances.create(variant.id, appearance!)
+                  : definition.seasons && season !== definition.seasons.default
+                    ? definition.seasons.create(variant.id, season!)
+                    : variant.create()
             : definition.create();
       massing = model;
       scene.add(model.group);
@@ -3796,6 +3823,11 @@ for (const [file, module] of Object.entries(medievalModules).sort(([a], [b]) => 
                 definition.appearances.options.find(option => option.id === appearance)?.label ?? appearance!
               )
             ]
+          : []),
+        ...(presenting
+          ? definition.presentation!.fields.map(field =>
+              fact(field.label, field.options.find(option => option.id === presentationValues[field.id])?.label ?? "")
+            )
           : []),
         ...(definition.partPresets
           ? [fact("Composition", definition.partPresets.find(preset => preset.id === selectedPartPreset)!.name)]

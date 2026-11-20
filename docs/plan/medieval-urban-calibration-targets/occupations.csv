@@ -10,12 +10,12 @@ metallurgy,smithing,鍛冶・蹄鉄,3,2,5,,,,,,833,Tools; Arms; Harnesses,11 smi
 metallurgy,cutlery,刃物,1.5,0.5,3,,,,,,1667,,11 smithies,E1 cutlers 0.3%
 metallurgy,metalwares,白鑞・真鍮・釘・錠前・針,4,2,20,,,,,,625,Bronze; Bullets,11 smithies (no pewterer or brazier model),"provisional: pewter, brass, nails, locks, pins; E2 metal 0.5 × leather includes export work"
 metallurgy,goldsmithing,金銀細工,1,0.3,3,,,,,,2500,,none (08 shop-houses),F1 goldsmiths 0.79 × shoemakers is the capital's; E1 0.12% of national employed
-woodworking,cooperage,樽,5,2,8,,,,,,500,Barrels,21 woodworking workshops,F1 barrel makers 0.32 × shoemakers
+woodworking,cooperage,樽,2,2,8,2.5,,5,,,1250,Barrels,21 woodworking workshops,"E2 coopers 104 vs cordwainers 789 freemen 1273-1534 (0.13 × shoemakers, inland York); F1 Paris 0.32 × shoemakers is the wine-region rate; port multiplier provisional (herring and provision casks)"
 woodworking,joinery,指物・挽物,3,1,6,,,,,,833,,21 woodworking workshops,"provisional: joiners and turners (furniture, wooden ware)"
 woodworking,bowyery,弓・矢,1,0.5,2,,,,,,2500,Arrows,21 woodworking workshops,craft-demand-calibration.md fletcher band (peacetime 0.8 quiver/month at 9000 people)
 woodworking,ropemaking,縄,1,0.5,2,2,,,,,2500,Ropes,none (ropewalk),craft-demand-calibration.md roper band; ports double for rigging
 masonry,limeAndTile,石灰焼き・煉瓦・瓦,2,1,3,,,,,,1250,Lime; Roman Concrete,30 lime kilns; 29 stone yards (no brick or tile kiln),"lime, brick and tile manufacture only; house masons stay on constructionMason"
-glassware,pottery,陶工・瓦,2,1,4,,,,,,1250,Ceramics,34 pottery workshops,provisional: town potters and tilers; most pottery came from village kilns
+glassware,pottery,陶工・瓦,0.5,0.1,2,,,,,,5000,Ceramics,34 pottery workshops,"E2 only a few York freemen were earth potters (Swanson: town-record potters were bronze founders); most pottery came from village kilns, a few towns had a suburban industry (Laverstock by Salisbury): about one works in a town of 5,000; tiles stay on limeAndTile"
 glassware,glazing,ガラス・ガラス窓,0.3,0,1,,,,,,8333,Glass; Lab Glassware,37 glassworkers' halls,provisional: glaziers; glass itself came from forest glasshouses
 printing,bookTrades,写字・羊皮紙・製本,0.5,0.2,1.5,,,,,,5000,Paper; Ink; Books,38 printing (no scriptorium),"provisional: scriveners, parchmenters, bookbinders; E2 parchment+bookbinders ~1.3% of leather freemen"
 printing,printing,印刷,2,1,4,,,,ageOfExploration,,1250,,38 printing,press work after the 1450s; with bookTrades it keeps the former 2.5 stationery band

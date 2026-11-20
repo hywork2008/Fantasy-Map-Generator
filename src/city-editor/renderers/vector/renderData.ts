@@ -1,16 +1,24 @@
-import { buildingAppearanceProfile, normalizeBuildingAppearanceContext } from "../../../buildings/appearance/resolver";
+import { normalizeBuildingAppearanceContext } from "../../../buildings/appearance/resolver";
 import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { TREE_SPECIES, type TreeSpecies, treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
 import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
+import { growthRandom } from "../../../utils/urbanMorphology";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../generators/geom";
 import { treeSpeciesForClimate } from "../../generators/landscapeTreeSpecies";
 import { type ContourLine, fieldContours } from "../../generators/terrainField/contours";
 import type { TownWaterKind } from "../../generators/townWater";
 import { curveSource } from "../../generators/vector/editing/paths";
-import { cellHouseCount, cellHouseRing, fabricHouseId, unpackLine } from "../../generators/vector/fabric/pack";
+import {
+  cellHouseCount,
+  cellHouseRing,
+  fabricHouseId,
+  unpackLine,
+  unpackPoints
+} from "../../generators/vector/fabric/pack";
 import { vectorLandscapeClimate } from "../../generators/vector/generation/forest";
-import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
+import { vectorTownProfile } from "../../generators/vector/generation/housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
 import { tanneryWaterWorks } from "../../generators/vector/generation/tanneryWaterWorks";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
@@ -24,7 +32,7 @@ import type { HarborCargoPile, HarborCrane } from "../../types/contracts/harborF
 import type { CemeteryPlan } from "../../types/document";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument, VectorPath, VectorPlacement } from "../../types/vector/document";
-import type { VectorFabricLines } from "../../types/vector/fabric";
+import type { VectorFabricCell, VectorFabricLines } from "../../types/vector/fabric";
 import type { VectorPolygon } from "../../types/vector/generation";
 import type { VectorHarborShip } from "../../types/vector/harbor";
 import type { VectorLandscapeTree } from "../../types/vector/landscape";
@@ -32,7 +40,6 @@ import type { VectorFurlongCourse } from "../../types/vector/landUse";
 import type { Monastery } from "../../types/vector/monastery";
 import type { VectorStage } from "../../types/vector/urban";
 import { collectOpenSpacePlan, type OpenSpacePlan } from "../openSpaceSites";
-import { automaticHousingProfile } from "../standaloneHousingAppearance";
 import { vectorDefenseSurfaces } from "./defense";
 import { vectorFerrySurfaces } from "./ferry";
 import { vectorGuildSurfaces } from "./guild";
@@ -127,6 +134,265 @@ export interface VectorRenderData {
    * The `river` surfaces stay as pick targets. Relief and harbours keep their own surfaces. */
   water?: { id: string; kind: TownWaterKind; polygons: VectorPolygon[] }[];
 }
+/** A plot wall this close to a facility's site belongs to the facility's own enclosure, and is left out. */
+const FACILITY_WALL_GAP_METERS = 0.3;
+/** Yard ground and boundary walls of a burgage street block are this tall; walls this wide. */
+const PLOT_WALL_METERS = { height: 1.1, width: 0.25 };
+
+/**
+ * A burgage street block's plots as surfaces (plan §5.4, B4): the yards as one ground (every plot, the vacant ones as
+ * gardens; the houses stand on it), the walls between plots and along their backs (never across the fronts, which
+ * the houses close), and a binaire block's venelles. Binaire plots are the houses themselves: they have no yard.
+ */
+export function burgagePlotSurfaces(
+  cell: VectorFabricCell,
+  warnings: string[] = [],
+  /** Facility sites: a facility's model brings its own yard and walls, so no plot wall runs through or along it. */
+  facilitySites: Point[][] = []
+): VectorRenderSurface[] {
+  const plots = cell.plots;
+  if (!plots) return [];
+  const out: VectorRenderSurface[] = [];
+  const venelles = plots.venelles;
+  if (venelles?.widths.length) {
+    let strips = venelles.widths.flatMap((w, i) => strip(unpackLine(venelles, i, cell.origin), w));
+    try {
+      strips = regionBoolean(strips, [], "union", false);
+    } catch {
+      warnings.push(`burgage-venelles:${cell.id}`);
+    }
+    out.push({
+      id: `${cell.id}~venelles`,
+      kind: "feature",
+      featureKind: "burgage",
+      pieceRole: "venelle",
+      polygons: strips,
+      color: "#6f6658",
+      heightMeters: 0,
+      elevationMeters: 0.03
+    });
+    return out;
+  }
+  // Only plots a house was built on are yards (a vacant plot, a park's lawn, outskirts the town did not need, are no
+  // one's): no ground, walls or trees of their own.
+  const all = plots.offsets.map((start, i) =>
+      unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
+    ),
+    built = builtPlots(cell, all),
+    rings = all.filter((_, i) => built[i]);
+  if (!rings.length) return out;
+  const parts = rings.map(outer => ({ outer, holes: [] as Point[][] }));
+  let yards: VectorPolygon[];
+  try {
+    yards = regionBoolean(parts, [], "union", false);
+  } catch {
+    warnings.push(`burgage-yards:${cell.id}`);
+    yards = parts;
+  }
+  out.push({
+    id: `${cell.id}~yards`,
+    kind: "feature",
+    featureKind: "burgage",
+    pieceRole: "yard",
+    polygons: yards,
+    color: "#b5b27f",
+    heightMeters: 0,
+    elevationMeters: 0.02
+  });
+  // Each edge once: the sides plots share, their backs, and the corners' sides; never a plot's front.
+  const fronts = all
+    .map((_, i) => unpackPoints(plots.fronts, cell.origin, i * 2, i * 2 + 2))
+    .filter((_, i) => built[i]);
+  const key = (a: Point, b: Point) => {
+    const p = `${Math.round(a[0] * 10)},${Math.round(a[1] * 10)}`,
+      q = `${Math.round(b[0] * 10)},${Math.round(b[1] * 10)}`;
+    return p < q ? `${p}|${q}` : `${q}|${p}`;
+  };
+  const seen = new Set<string>(),
+    walls: VectorPolygon[] = [];
+  const near = (r: Point[]) => r.some(p => Math.hypot(p[0] - cell.origin[0], p[1] - cell.origin[1]) < 400),
+    sites = facilitySites.filter(near);
+  rings.forEach((ring, i) => {
+    const [fa, fb] = fronts[i];
+    ring.forEach((a, k) => {
+      const b = ring[(k + 1) % ring.length];
+      const onFront = [a, b].every(p => nearestOnPolyline(p, [fa, fb]).dist < 0.02);
+      const id = key(a, b),
+        mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      if (onFront || seen.has(id) || Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.3) return;
+      if (
+        sites.some(
+          site =>
+            pointInPolygon(mid, site) ||
+            site.some(
+              (p, j) => nearestOnPolyline(mid, [p, site[(j + 1) % site.length]]).dist < FACILITY_WALL_GAP_METERS
+            )
+        )
+      )
+        return;
+      seen.add(id);
+      // In whole centimetres, like the plots: walls meeting at a corner then share their points exactly.
+      walls.push(
+        ...strip([a, b], PLOT_WALL_METERS.width).map(w => ({
+          outer: w.outer.map((p): Point => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]),
+          holes: []
+        }))
+      );
+    });
+  });
+  if (!walls.length) return out;
+  let merged: VectorPolygon[];
+  try {
+    merged = regionBoolean(walls, [], "union", false);
+    // A wall running into a facility's site stops at its edge: the facility's model brings its own enclosure.
+    const all = rings.flat(),
+      x0 = Math.min(...all.map(p => p[0])),
+      y0 = Math.min(...all.map(p => p[1])),
+      x1 = Math.max(...all.map(p => p[0])),
+      y1 = Math.max(...all.map(p => p[1])),
+      crossed = sites.filter(
+        site =>
+          site.some(p => p[0] >= x0) &&
+          site.some(p => p[0] <= x1) &&
+          site.some(p => p[1] >= y0) &&
+          site.some(p => p[1] <= y1)
+      );
+    if (crossed.length)
+      merged = regionBoolean(
+        merged,
+        crossed.map(outer => ({ outer, holes: [] })),
+        "difference",
+        false
+      );
+  } catch {
+    // Unjoined, every wall would be its own mesh in 3D; the block keeps its yards without them.
+    warnings.push(`burgage-walls:${cell.id}`);
+    return out;
+  }
+  out.push({
+    id: `${cell.id}~walls`,
+    kind: "feature",
+    featureKind: "burgage",
+    pieceRole: "plot-wall",
+    polygons: merged,
+    color: "#8f7d63",
+    heightMeters: PLOT_WALL_METERS.height,
+    elevationMeters: 0.02
+  });
+  return out;
+}
+
+/** Which of a street block's plots a house stands on (its front house or a rear one). */
+function builtPlots(cell: VectorFabricCell, rings: Point[][]): boolean[] {
+  const detached = new Set(cell.detached),
+    houses: Point[] = [];
+  for (let i = 0; i < cellHouseCount(cell); i++)
+    if (!detached.has(i)) houses.push(polygonCentroid(cellHouseRing(cell, i)));
+  return rings.map(ring => houses.some(h => pointInPolygon(h, ring)));
+}
+
+/** Fruit trees of burgage yards (plan §5.4, B5): an apple or a pear in the back half of a deep plot, two in a vacant
+ * one. Placed from the plot's own geometry, so a redraw puts them back where they were. */
+export function burgageYardTrees(cell: VectorFabricCell, blocked: Point[][]): VectorLandscapeTree[] {
+  const plots = cell.plots;
+  if (!plots || plots.venelles?.widths.length) return [];
+  const trees: VectorLandscapeTree[] = [];
+  const near = blocked.filter(r => r.some(p => Math.hypot(p[0] - cell.origin[0], p[1] - cell.origin[1]) < 400));
+  const rings = plots.offsets.map((start, i) =>
+      unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
+    ),
+    built = builtPlots(cell, rings);
+  plots.offsets.forEach((_, i) => {
+    // Only a yard keeps fruit trees.
+    if (!built[i]) return;
+    const ring = rings[i],
+      [a, b] = unpackPoints(plots.fronts, cell.origin, i * 2, i * 2 + 2),
+      frontage = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (frontage < 3) return;
+    const u: Point = [(b[0] - a[0]) / frontage, (b[1] - a[1]) / frontage],
+      c = ring.reduce((n, p) => [n[0] + p[0] / ring.length, n[1] + p[1] / ring.length] as Point, [0, 0] as Point);
+    let v: Point = [-u[1], u[0]];
+    if ((c[0] - a[0]) * v[0] + (c[1] - a[1]) * v[1] < 0) v = [-v[0], -v[1]];
+    const depth = Math.max(...ring.map(p => (p[0] - a[0]) * v[0] + (p[1] - a[1]) * v[1]));
+    if (depth < YARD_TREE_MIN_DEPTH) return;
+    const hash = growthRandom(`${cell.id}:yard-tree:${i}`),
+      vacant = !near.some(r => pointInPolygon(c, r) || r.some(p => pointInPolygon(p, ring)));
+    const at = vacant ? [0.55, 0.85] : hash < 0.6 ? [0.8] : [];
+    at.forEach((share, k) => {
+      const side = (k % 2 ? -1 : 1) * (hash - 0.5) * frontage * 0.4,
+        radius = 2 + hash * 1,
+        point: Point = [
+          a[0] + u[0] * (frontage / 2 + side) + v[0] * depth * share,
+          a[1] + u[1] * (frontage / 2 + side) + v[1] * depth * share
+        ];
+      // Clear of the plot's own sides and of every building.
+      if (!pointInPolygon(point, ring)) return;
+      if (ring.some((p, j) => nearestOnPolyline(point, [p, ring[(j + 1) % ring.length]]).dist < radius * 0.7)) return;
+      if (
+        near.some(r => pointInPolygon(point, r) || r.some(p => Math.hypot(p[0] - point[0], p[1] - point[1]) < radius))
+      )
+        return;
+      trees.push({
+        id: `${cell.id}~tree${i}.${k}`,
+        ownerId: cell.id,
+        point,
+        radiusMeters: radius,
+        heightMeters: 4.5 + hash * 2.5,
+        angleRadians: hash * Math.PI * 2,
+        species: (hash + k * 0.37) % 1 < 0.6 ? "domestic_apple" : "european_pear"
+      });
+    });
+  });
+  return trees;
+}
+
+/** Plots shallower than this keep no tree behind their house. */
+const YARD_TREE_MIN_DEPTH = 20;
+
+/** The 2D crowns of trees; 3D draws their species models instead. */
+function treeCrowns(id: string, trees: VectorLandscapeTree[]): VectorRenderSurface {
+  return {
+    id,
+    kind: "feature",
+    featureKind: "burgage",
+    pieceRole: "landscape-tree",
+    polygons: trees.map(t => ({
+      outer: Array.from(
+        { length: 10 },
+        (_, k): Point => [
+          t.point[0] + Math.cos((k / 10) * Math.PI * 2) * t.radiusMeters,
+          t.point[1] + Math.sin((k / 10) * Math.PI * 2) * t.radiusMeters
+        ]
+      ),
+      holes: []
+    })),
+    color: "#6f9455",
+    heightMeters: 0,
+    elevationMeters: 0.06
+  };
+}
+
+/** A line as quadrilaterals `width` wide, one per segment. */
+function strip(points: Point[], width: number): VectorPolygon[] {
+  return points.slice(1).flatMap((b, i) => {
+    const a = points[i],
+      l = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (l < 1e-6) return [];
+    const n: Point = [(-(b[1] - a[1]) / l) * (width / 2), ((b[0] - a[0]) / l) * (width / 2)];
+    return [
+      {
+        outer: [
+          [a[0] + n[0], a[1] + n[1]],
+          [b[0] + n[0], b[1] + n[1]],
+          [b[0] - n[0], b[1] - n[1]],
+          [a[0] - n[0], a[1] - n[1]]
+        ] as Point[],
+        holes: []
+      }
+    ];
+  });
+}
+
 /** Adopted geometry only. The same clipped surfaces feed screen SVG, exports and 3D. */
 export function vectorRenderData(
   doc: VectorCityDocument,
@@ -190,6 +456,8 @@ export function vectorRenderData(
     },
     surfaces: VectorRenderSurface[] = [],
     warnings: string[] = [];
+  /** Yard trees of burgage plots (B5): derived from the plots when drawn, never saved. */
+  const yardTrees: VectorLandscapeTree[] = [];
   const terrain = vectorTerrain(doc);
   const hiddenFeatures = new Set(doc.environment?.hidden ?? []);
   const hiddenPaths = new Set(
@@ -451,8 +719,20 @@ export function vectorRenderData(
       appearance = vectorHouseAppearance(doc);
     for (const district of Object.values(doc.fabric.districts))
       lines(district.id, "s", district.streets, district.origin, district.detachedLines);
+    const facilitySites = Object.values(doc.placements).flatMap(p =>
+      p.building?.kind === "facility" ? [p.site.outer] : []
+    );
     for (const cell of Object.values(doc.fabric.cells)) {
       lines(cell.id, "l", cell.lanes, cell.origin, cell.detachedLines);
+      // Burgage plots (docs/plan/ce-burgage-plot-fabric.md B4): yards and their boundary walls, under the houses.
+      if (cell.plots && cellHouseCount(cell)) {
+        burgagePlotSurfaces(cell, warnings, facilitySites).forEach(add);
+        // Fruit trees in the yards' back halves, clear of every house and of every facility's whole site (B5).
+        const houseRings = Array.from({ length: cellHouseCount(cell) }, (_, i) => cellHouseRing(cell, i)),
+          trees = burgageYardTrees(cell, [...houseRings, ...facilitySites]);
+        yardTrees.push(...trees);
+        if (trees.length) add(treeCrowns(`${cell.id}~trees`, trees));
+      }
       if (urban && stage !== "housing") continue;
       // One surface per street block: 2D draws it as one path, 3D batches it by storeys.
       const detached = new Set(cell.detached),
@@ -809,6 +1089,15 @@ export function vectorRenderData(
               kind: TownWaterKind = !w || w.riverPathId ? "river" : w.id.startsWith("fmg-coast:") ? "ocean" : "lake";
             return { id: s.id, kind, polygons: s.polygons };
           });
+  // Burgage yards, walls, venelles and yard trees lie on the ground: in the 2D plan they come before every building,
+  // or a facility placed before its street block's yards would be drawn under them.
+  const ground = surfaces.filter(s => s.featureKind === "burgage");
+  if (ground.length) {
+    const rest = surfaces.filter(s => s.featureKind !== "burgage"),
+      firstBuilding = rest.findIndex(s => s.kind === "building");
+    surfaces.splice(0, surfaces.length, ...rest);
+    surfaces.splice(firstBuilding < 0 ? surfaces.length : firstBuilding, 0, ...ground);
+  }
   return {
     water,
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
@@ -861,7 +1150,7 @@ export function vectorRenderData(
       ...Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.ditches.flatMap(d => d.region)),
       ...(doc.environment?.harbor?.navigation.water ?? [])
     ],
-    landscapeTrees: (doc.environment?.landscape?.trees ?? []).map(tree => ({
+    landscapeTrees: [...(doc.environment?.landscape?.trees ?? []), ...yardTrees].map(tree => ({
       ...tree,
       elevationMeters: terrain.heightAt(tree.point)
     })),
@@ -905,18 +1194,7 @@ function vectorParkTrees(doc: VectorCityDocument): VectorLandscapeTree[] {
 
 /** The town's appearance profile as the mesh editor reads it for its towers and gates: the houses' automatic one. */
 function vectorWallProfile(doc: VectorCityDocument): BuildingAppearanceProfile {
-  const descriptor = doc.site?.descriptor,
-    context = normalizeBuildingAppearanceContext({
-      period: doc.context.historicalPeriod,
-      tradition: descriptor?.civilization?.tradition,
-      temperatureC: descriptor?.climate?.temperatureC,
-      biome: descriptor?.biome ?? (descriptor?.climate?.biomeKey ? { key: descriptor.climate.biomeKey } : undefined)
-    });
-  return buildingAppearanceProfile({
-    profile: vectorHousingCulture(doc) ?? automaticHousingProfile(context, !!descriptor, doc.recipe.seed),
-    context,
-    rural: false
-  });
+  return vectorTownProfile(doc);
 }
 
 /**

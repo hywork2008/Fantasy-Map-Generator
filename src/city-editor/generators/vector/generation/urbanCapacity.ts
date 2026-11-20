@@ -98,7 +98,9 @@ export function vectorWallShares(
     .map(p => ({ p, inner: inWalls(p.position) }))
     .sort((a, b) => Number(b.inner) - Number(a.inner));
   for (const { p, inner } of placements) {
-    share[inner ? "inside" : "outside"][p.building!.kind === "facility" ? "facilities" : "houses"]++;
+    // A shop-house's rear works is its facility's second building (docs/plan/ce-town-trade-rear-works.md R2).
+    if (!p.building!.annexOf)
+      share[inner ? "inside" : "outside"][p.building!.kind === "facility" ? "facilities" : "houses"]++;
     units.push({ inner, dwellings: vectorPlacementDwellings(p) });
   }
   const cells = Object.values(doc.fabric?.cells ?? {});
