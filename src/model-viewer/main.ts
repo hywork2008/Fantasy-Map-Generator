@@ -96,6 +96,7 @@ import {
   grokTrebuchetParts
 } from "../buildings/siege/grokTrebuchet";
 import { createSiegeTower, SIEGE_TOWER } from "../buildings/siege/siegeTower";
+import { createTractionTrebuchet, TRACTION_TREBUCHET } from "../buildings/siege/tractionTrebuchet";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import {
   createHangingSign,
@@ -2616,6 +2617,60 @@ siegeTowerButton.addEventListener("click", () => {
   );
 });
 siegeHeading.append(siegeTowerButton);
+
+const tractionTrebuchetButton = document.createElement("button");
+tractionTrebuchetButton.dataset.id = "tractionTrebuchet";
+tractionTrebuchetButton.type = "button";
+tractionTrebuchetButton.textContent = "Traction trebuchet · Man-powered mangonel, 6th–13th century";
+function showTractionTrebuchet(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === tractionTrebuchetButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Siege engine side elevation";
+  levelTitle.textContent = "Siege engine plan";
+  const model = createTractionTrebuchet(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(7, 4.5, 8);
+  controls.target.set(0, 1.8, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const t = TRACTION_TREBUCHET;
+  appendFacts(
+    fact("Model", t.name),
+    fact("Author", t.author),
+    fact("Period", "Byzantine, Avar, Frankish and Islamic sieges, late 6th century to the 13th"),
+    fact(
+      "Dimensions",
+      `Beam ${t.beamLength.toFixed(2)} m (16 ft) divided 6 : 1 (${t.longArm.toFixed(2)} + ${t.shortArm.toFixed(2)} m); uprights ${t.uprightHeight.toFixed(2)} m; base struts ${t.sills[0].toFixed(2)} and ${t.sills[1].toFixed(2)} m; sling ${t.slingLength.toFixed(2)} m`
+    ),
+    fact("Crew", `Twelve to twenty pullers on ${t.ropes} ropes and one shooter at the sling`),
+    fact("Performance", "2.5–4.7 kg stones to 80–105 m, a little over four shots a minute (Tarver's reconstruction)"),
+    fact("Quality", quality === "high" ? "High" : "Low — four ropes, no windings, rings or fittings"),
+    fact("Note", t.note, "Mangonel"),
+    ...(quality === "high" ? [fact("High detail", t.highNote)] : [])
+  );
+}
+tractionTrebuchetButton.addEventListener("click", () => showTractionTrebuchet());
+siegeHeading.append(tractionTrebuchetButton);
+AUTHORED_VARIANTS[tractionTrebuchetButton.dataset.id] = {
+  author: TRACTION_TREBUCHET.author,
+  primary: true,
+  quality: true,
+  show: () => showTractionTrebuchet()
+};
 
 const artilleryHeading = modelCategory("Artillery");
 const cannonButton = document.createElement("button");

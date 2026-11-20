@@ -40,7 +40,7 @@ AGENTS.mdの「河川と橋の角度」の規則では、橋の角度の上限�
 - [x] A02. **櫂・竿で漕ぐ小型渡し船** — 人と小荷物を運ぶ。古代〜近世。既存の手漕ぎ舟とは用途と船幅で区別する。2026-11-19に [ferryNachen.ts](../../src/buildings/ships/ferryNachen.ts) として実装し、MVの Ships に `ferry-nachen` で登録した（`SHIP_VARIANTS` の `ship.ferry-nachen`、Low／High。author は Claude Opus 5.5）。CEへの配置は未実装。
   - 寸法：ジーク川 Weldergoven の渡しの舟2隻のうち、大きい方に合わせた。1846年4月15日付のジーク川の渡しの一覧で、40 × 5 × 2¼ プロイセン・フィート（12.56 × 1.57 × 0.70 m）。この舟は主に人を渡すためのもので、荷車や大きな家畜は渡せなかった。小さい方は9.42 × 0.86 × 0.47 m。Dieren の渡しにも、大型船とは別に約5 × 0.95 m の小舟が2隻あった。
   - 形式：モーゼル川の Dreibord（厚い板3枚で作る。底板1枚と舷側板2枚）。1〜2人の船頭が竿（Deibaam）と手漕ぎの櫂で進め、乗客用に作った舟は6〜10人を乗せた（regionalgeschichte.net「Die Reisenachen」）。座席5本に2人ずつで、乗客は10人とした。船底の反り、舷の開き、舷の反り上がり、座席の間隔、櫂の寸法は推定である。
-- [ ] A03. **渡し場の桟橋と綱の支柱** — 両岸の着岸台、綱を張る柱、巻き上げ機。CEの渡し場に置く設備。Kuhn（1983）によれば、荷車を乗せるには水位に合わせて上下する浮き桟橋（Landeschiff）が要る。固定の桟橋では荷車を乗せられない。浮き桟橋か、水際まで下る斜路のどちらかで作る。St. Goar の渡しの浮き桟橋の船（1786年の見積り、Kuhn 付録3）は、長さ60 Schuh・底幅7½ Schuh・舷の高さ4 Schuh。Kuhn の換算（80 Schuh ≒ 22.8 m）で約17.1 × 2.1 × 1.1 m になる。
+- [ ] A03. **渡し場の桟橋と綱の支柱**（2026-11-20：CE のオーバーホール中のため保留） — 両岸の着岸台、綱を張る柱、巻き上げ機。CEの渡し場に置く設備。Kuhn（1983）によれば、荷車を乗せるには水位に合わせて上下する浮き桟橋（Landeschiff）が要る。固定の桟橋では荷車を乗せられない。浮き桟橋か、水際まで下る斜路のどちらかで作る。St. Goar の渡しの浮き桟橋の船（1786年の見積り、Kuhn 付録3）は、長さ60 Schuh・底幅7½ Schuh・舷の高さ4 Schuh。Kuhn の換算（80 Schuh ≒ 22.8 m）で約17.1 × 2.1 × 1.1 m になる。
 
 - [x] A04. **帆と櫂の大型渡し船** — 綱を張れない広い川・河口・海峡を渡る渡し船。人・家畜・荷車を載せ、帆と櫂で走る。FMG連携によりCEの川幅は最大で12 km近くになり、綱を使うA01や、流れで渡る渡し船では渡れない。
   - 根拠：Kuhn（1983）によれば、綱を使わない漕ぐ渡し船（Ponte・Schale）が「古くから」の方式で、ライン川の下流では帆を付けたものもあった。フォース湾の Queensferry には12世紀から定期便があり、1821年に外輪蒸気船が曳くようになるまで帆船で渡した。大ベルト海峡（Nyborg–Korsør 約26 km）には、中世に途中のスプロー島（Nyborg から約8.5 km）に王の待機所があった。
@@ -88,7 +88,11 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
 
 ### B. 中世の戦場の基本セット
 
-- [ ] B01. **人力投石機（マンゴネル）** — 大勢で綱を引いて腕木を振る投石機。6〜13世紀。既存の平衡錘式トレビュシェットの前の段階にあたる。
+- [x] B01. **人力投石機（マンゴネル）** — 大勢で綱を引いて腕木を振る投石機。6〜13世紀。既存の平衡錘式トレビュシェットの前の段階にあたる。2026-11-20に [tractionTrebuchet.ts](../../src/buildings/siege/tractionTrebuchet.ts) として実装し、`PLACEABLE_OBJECTS`（ID `tractionTrebuchet`）、MVの Siege engines の見出し、`object.tractionTrebuchet@high` に登録した（Low／High。author は Claude Opus 5.5）。
+  - 寸法：W. T. S. Tarver による実物大の復元（Technology and Culture 36, 1995）に合わせた。12世紀の al-Tarsusi の兵法書とヨーロッパの写本から作った「フランク式」の機械で、腕木16 ft（4.88 m）を軸で6対1に分ける。腕木の根元には三角の補強と、引き綱用の輪8個を付けた重い塊がある。柱は12 ft（3.66 m）、地面の梁は12 ft と16 ft、投石紐は41インチ（1.04 m）、鉤はまっすぐな5インチの鉄。
+  - 性能（復元機）：引き手12〜20人で、2.5〜4.7 kgの石を約80〜105 m、最大は3.1 kgで145 m、1分間に4発強。al-Tarsusi は射程80〜120 mとする。
+  - 時代：586年または597年のテッサロニキ包囲（アヴァール人）でヨーロッパに確認でき、12世紀末に平衡錘式へ主役を譲った。1291年のアッコン包囲でも多数が使われた。
+  - 推定の部分：地面の梁・筋かい・柱の組み方と、休止の姿勢（長い腕を後ろの地面へ下ろす）。引き手は省いた。
 - [ ] B02. **攻城砲（ボンバード）** — 木の台に載せた大口径の鍛鉄砲。14〜15世紀。Mons MegやDulle Grietなど現存する砲の寸法を参照する。
 - [ ] B03. **軍用テント・陣幕（パビリオン）** — 円錐形・寄棟形のテント、指揮官の陣幕、野営地の幕の囲い。中世〜近世。
 - [ ] B04. **大盾（パヴィス）と移動式の防壁** — 弩兵が立てる大盾と、車輪付きの板の防壁。14〜15世紀。
@@ -145,7 +149,7 @@ CEの `FERRY_LANDING_RESERVE_METERS = 24`（[ferryLanding.ts](../../src/city-edi
 
 ## 着手の順番
 
-A（A01・A04・A02・A05 は完了。次は A03）→ B（B01〜B04を先に）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
+A（A01・A04・A02・A05 は完了。A03 は CE のオーバーホールが終わるまで保留〔2026-11-20〕）→ B（B01 は完了。B02〜B04 を先に）→ C（C01〜C07を先に）→ D01・D02 → E01〜E03 → 残り。
 
 上の各グループの中では番号順に進める。地域や時代が限られるモデル（E10、D04など）は、使う文化圏と年代の要望が出た時点で順位を上げる。
 
@@ -163,6 +167,8 @@ A（A01・A04・A02・A05 は完了。次は A03）→ B（B01〜B04を先に）
 - [MVの一覧と属性](/src/model-viewer/catalogueIndex.ts)
 - [CEの渡し場](/src/city-editor/generators/ferryLanding.ts)
 - H. W. Kuhn, Frühe Gierponten: fliegende Brücken auf dem Rhein im 17. und 18. Jahrhundert, Deutsches Schiffahrtsarchiv 6 (1983), 25–64（[SSOAR](https://www.ssoar.info/ssoar/handle/document/52531)）
+- W. T. S. Tarver, The Traction Trebuchet: A Reconstruction of an Early Medieval Siege Engine, Technology and Culture 36 (1995), 136–167（[UCCS Historical Engineering Society の PDF](https://uccshes.files.wordpress.com/2012/09/reconstruction-of-a-traction-trebuchet.pdf)）
+- [Mangonel（Wikipedia）](https://en.wikipedia.org/wiki/Mangonel)
 - [Die Fährnachen（weldergoven.de）](http://www.weldergoven.de/?page_id=202) — 1846年のジーク川の渡しの一覧
 - [Die Reisenachen（regionalgeschichte.net）](https://www.regionalgeschichte.net/bibliothek/aufsaetze/zimmer-reisenachen-personenschifffahrt-mosel.html)
 - [Cable ferry（Wikipedia）](https://en.wikipedia.org/wiki/Cable_ferry)

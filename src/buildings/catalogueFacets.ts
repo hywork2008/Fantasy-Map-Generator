@@ -257,6 +257,13 @@ const PLACEABLE_IDS: Record<string, ModelFacets> = {
   trebuchet: f("weapon", HIGH_LATE, ["european", "middle-eastern"], ["military", "siege"]),
   batteringRam: f("weapon", span("classicalAntiquity", "lateMedieval"), EU, ["military", "siege"]),
   siegeTower: f("weapon", span("classicalAntiquity", "lateMedieval"), EU, ["military", "siege"]),
+  tractionTrebuchet: f(
+    "weapon",
+    span("lateAntiquity", "highMedieval"),
+    ["european", "mediterranean", "middle-eastern"],
+    ["military", "siege"],
+    [586, 1291]
+  ),
   hotAirBalloon: f("vehicle", span("preIndustrialEra", "rocketryEra"), ANY, ["aviation"], [1783, 2100]),
   airship: f("vehicle", span("steamEra", "petroleumEra"), ANY, ["aviation", "transport"], [1852, 1940]),
   steamLocomotive: f("vehicle", span("steamEra", "petroleumEra"), ANY, ["railway", "transport"]),

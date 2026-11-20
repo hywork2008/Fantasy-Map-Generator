@@ -8,6 +8,7 @@ import type { ModelFacets } from "./modelFacets";
 import { BATTERING_RAM, createBatteringRam } from "./siege/batteringRam";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createSiegeTower, SIEGE_TOWER } from "./siege/siegeTower";
+import { createTractionTrebuchet, TRACTION_TREBUCHET } from "./siege/tractionTrebuchet";
 import { createTrebuchet, TREBUCHET } from "./siege/trebuchet";
 import { B2, createB2 } from "./vehicles/b2Bomber";
 import { B29, createB29 } from "./vehicles/b29Bomber";
@@ -63,6 +64,13 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
     name: SIEGE_TOWER.name,
     author: SIEGE_TOWER.author,
     create: createSiegeTower
+  },
+  {
+    id: "tractionTrebuchet",
+    category: "Siege engines",
+    name: TRACTION_TREBUCHET.name,
+    author: TRACTION_TREBUCHET.author,
+    create: createTractionTrebuchet
   },
   {
     id: "hotAirBalloon",

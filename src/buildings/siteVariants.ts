@@ -17,6 +17,7 @@ import {
 } from "./props/medievalContainers";
 import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createGrokTrebuchet, GROK_TREBUCHET } from "./siege/grokTrebuchet";
+import { createTractionTrebuchet, TRACTION_TREBUCHET } from "./siege/tractionTrebuchet";
 import { B2, createB2 } from "./vehicles/b2Bomber";
 import { B29, createB29 } from "./vehicles/b29Bomber";
 import { BENZ_MOTORWAGEN, createBenzMotorwagen } from "./vehicles/benzMotorwagen";
@@ -92,6 +93,14 @@ export const OBJECT_VARIANTS = [
     author: BENZ_MOTORWAGEN.author,
     credits: [{ author: BENZ_MOTORWAGEN.author, date: "2026-11-19", note: BENZ_MOTORWAGEN.highNote }],
     create: () => createBenzMotorwagen("high")
+  },
+  {
+    id: variantId("object.tractionTrebuchet", "high", TRACTION_TREBUCHET.author),
+    family: "object.tractionTrebuchet",
+    level: "high",
+    author: TRACTION_TREBUCHET.author,
+    credits: [{ author: TRACTION_TREBUCHET.author, date: "2026-11-20", note: TRACTION_TREBUCHET.highNote }],
+    create: () => createTractionTrebuchet("high")
   }
 ];
 
