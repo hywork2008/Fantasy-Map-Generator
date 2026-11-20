@@ -316,6 +316,7 @@
         "allowExpansion": "自動合成入力の範囲内で郊外を追加",
         "tanneryBends": "川の曲がりでのなめし場",
         "tanneryBendsOptions": { "continuous": "曲がりに沿って1列に並べる", "leat": "工房用水路を掘る" },
+        "timings": "ステージ別の所要時間",
         "plotFabric": "区画の作り方",
         "plotFabricOptions": {
           "compact": "コンパクト（住宅が密集）",

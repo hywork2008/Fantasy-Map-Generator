@@ -16,13 +16,22 @@ import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import { parseIncomingPayload } from "../../services/io/incomingCity";
-import { startVectorGeneration, type VectorGenerationTask } from "../../services/vectorGenerationWorkerClient";
+import {
+  startVectorGeneration,
+  type VectorGenerationTask,
+  type VectorGenerationTimings
+} from "../../services/vectorGenerationWorkerClient";
 import type { PlotFabric } from "../../types/contracts/burgage";
 import type { BurgSiteDescriptor } from "../../types/contracts/burgSiteDescriptor";
 import type { GenerationSettings } from "../../types/generation";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorGenerationSettings } from "../../types/vector/generation";
 import type { TanneryBends, VectorStage } from "../../types/vector/urban";
+import {
+  formatGenerationTimingReport,
+  generationTimingReport,
+  logGenerationTimingReport
+} from "./generationTimingReport";
 
 const text = (key: string) => editorText(`cityEditor.vector.generation.${key}` as EditorMessageKey);
 export function createVectorGenerationPanel(
@@ -288,26 +297,38 @@ export function createVectorGenerationPanel(
       scope.active &&
       token === epoch &&
       (readEntryKey ? readEntryKey() === entry : JSON.stringify(peek()) === snapshot);
-    job = start(sourceOverride ?? read(), task, undefined, progress => {
-      if (!current()) return;
-      const count = progress.total === undefined ? "" : ` (${progress.completed ?? 0}/${progress.total})`;
-      status.textContent = `${text("running")} ${text(`progress.${progress.phase}`)}${count}`;
-    });
+    let timings: VectorGenerationTimings | undefined;
+    const source = sourceOverride ?? read();
+    job = start(
+      source,
+      task,
+      undefined,
+      progress => {
+        if (!current()) return;
+        const count = progress.total === undefined ? "" : ` (${progress.completed ?? 0}/${progress.total})`;
+        status.textContent = `${text("running")} ${text(`progress.${progress.phase}`)}${count}`;
+      },
+      value => {
+        timings = value;
+      }
+    );
     void job.result
       .then(result => {
         if (!result || !current()) return;
         job = undefined;
+        const adopted = performance.now();
         if (task.kind === "city") {
           commit(result.document, text("city"));
           updateStages(result.document);
           showDiagnostics(result.document);
           showUrban(result.document);
-          return;
+        } else {
+          preview(result.document, key, result.stages);
+          if (key === "develop") showUrban(result.document);
+          else
+            status.textContent = `${text("result")} ${Object.keys(result.document.paths).length} / ${result.document.generation!.blocks.length} / ${result.document.generation!.diagnostics.length}`;
         }
-        preview(result.document, key, result.stages);
-        if (key === "develop") showUrban(result.document);
-        else
-          status.textContent = `${text("result")} ${Object.keys(result.document.paths).length} / ${result.document.generation!.blocks.length} / ${result.document.generation!.diagnostics.length}`;
+        if (timings) showTimings(task, result.document, timings, performance.now() - adopted);
       })
       .catch(error => {
         if (current()) {
@@ -374,6 +395,33 @@ export function createVectorGenerationPanel(
   expansion.checked = true;
   expansion.dataset.generationField = "allowExpansion";
   field("allowExpansion", expansion);
+  // Stage timings of the last generation, always kept: shown here and logged to the developer console.
+  const timingBox = document.createElement("details"),
+    timingSummary = document.createElement("summary"),
+    timingOutput = document.createElement("pre");
+  timingBox.dataset.vectorGenerationTimings = "";
+  timingBox.hidden = true;
+  timingOutput.style.cssText = "margin:4px 0;font-size:11px;white-space:pre;overflow-x:auto";
+  timingBox.append(timingSummary, timingOutput);
+  const showTimings = (
+    task: VectorGenerationTask,
+    doc: VectorCityDocument,
+    timings: VectorGenerationTimings,
+    adoptMs: number
+  ) => {
+    const rivers = Object.values(doc.paths).filter(p => p.role === "river").length,
+      urban = task.kind === "city" ? task.urban : task.kind === "urban" ? task.settings : undefined,
+      settings = urban ? `${urban.mode} / ${urban.plotFabric ?? "compact"}` : "streets only",
+      seedText = task.kind === "urban" ? "" : ` / seed ${task.settings.seed}`,
+      report = generationTimingReport(`${task.kind}: ${settings} / rivers ${rivers}${seedText}`, timings, [
+        { stage: "page/adopt-and-draw", ms: adoptMs }
+      ]);
+    timingSummary.textContent = `${text("timings")}: ${report.totalMs.toFixed(0)} ms`;
+    timingOutput.textContent = formatGenerationTimingReport(report);
+    timingBox.dataset.totalMs = String(report.totalMs);
+    timingBox.hidden = false;
+    logGenerationTimingReport(report);
+  };
   const showUrban = (doc: VectorCityDocument) => {
     const u = doc.urban;
     if (!u) return;
@@ -530,6 +578,7 @@ export function createVectorGenerationPanel(
   status.style.cssText = "display:block;margin:8px 0";
   parent.insertBefore(generateCity, firstAction);
   parent.insertBefore(status, firstAction);
+  parent.insertBefore(timingBox, firstAction);
   body.append(diagnosticList, gapBox);
   scope.listen(stage, "change", () => {
     const doc = pending?.stages.find(s => s.id === stage.value)?.document ?? pending?.document ?? read();

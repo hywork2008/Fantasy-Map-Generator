@@ -6,7 +6,8 @@ import { createVectorDistrictPool, vectorDistrictWorkerCount } from "./vectorDis
 import type {
   VectorGenerationPlans,
   VectorGenerationReply,
-  VectorGenerationRequest
+  VectorGenerationRequest,
+  VectorGenerationStageTiming
 } from "./vectorGenerationWorkerClient";
 
 self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
@@ -15,6 +16,10 @@ self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
   const pool = createVectorDistrictPool(
     typeof Worker === "undefined" ? 1 : (data.districtWorkers ?? vectorDistrictWorkerCount())
   );
+  const started = performance.now(),
+    stages: VectorGenerationStageTiming[] = [];
+  const observe = (group: VectorGenerationStageTiming["group"]) => (phase: string, ms: number) =>
+    stages.push({ group, phase, ms });
   try {
     if (source.revision !== inputRevision) throw new Error("generation-revision");
     const progress = (
@@ -32,24 +37,30 @@ self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
       task.kind === "city"
         ? {
             document: await generateVectorUrbanAsync(
-              generateVectorSkeleton(source, task.settings).document,
+              generateVectorSkeleton(source, task.settings, observe("skeleton")).document,
               task.urban,
               plan,
               undefined,
-              { progress, planned: keep }
+              { progress, planned: keep, timings: observe("urban") }
             ),
             stages: []
           }
         : task.kind === "skeleton"
-          ? generateVectorSkeleton(source, task.settings)
+          ? generateVectorSkeleton(source, task.settings, observe("skeleton"))
           : {
               document: await generateVectorUrbanAsync(source, task.settings, plan, undefined, {
                 progress,
-                planned: keep
+                planned: keep,
+                timings: observe("urban")
               }),
               stages: []
             };
-    self.postMessage({ id, inputRevision, result, planned } satisfies VectorGenerationReply);
+    const timings = {
+      stages,
+      workerMs: performance.now() - started,
+      postedAt: performance.timeOrigin + performance.now()
+    };
+    self.postMessage({ id, inputRevision, result, planned, timings } satisfies VectorGenerationReply);
   } catch (error) {
     self.postMessage({
       id,

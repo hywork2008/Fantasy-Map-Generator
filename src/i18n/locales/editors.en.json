@@ -316,6 +316,7 @@
         "allowExpansion": "Allow suburbs within automatic synthetic input",
         "tanneryBends": "Tanners' row at river bends",
         "tanneryBendsOptions": { "continuous": "One continuous row", "leat": "Tanners' leat" },
+        "timings": "Stage timings",
         "plotFabric": "Plot pattern",
         "plotFabricOptions": {
           "compact": "Compact (dense houses)",
