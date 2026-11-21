@@ -424,6 +424,8 @@ export function buildGenerationPanel(ctx: GenerationPanelContext) {
   for (const key of FEATURE_KEYS) {
     const input = ctx.checkbox(ctx.generation.generateSettings.config.features[key], checked => {
       ctx.generation.generateSettings.config.features[key] = checked;
+      // This one Port toggle stands for every water: the meshless settings split it per water (`ports`).
+      if (key === "port") delete ctx.generation.generateSettings.config.ports;
     });
     input.dataset.feature = key;
     featureInputs.set(key, input);

@@ -95,6 +95,34 @@ describe("the town beyond its wall grows along the gate roads (gate-ribbon plan 
     expect(city.urban!.report.unplacedDwellings).toBe(0);
   });
 
+  it("leaves no ring of blocks round an open sea wall whose land reaches round its ends", () => {
+    const settings = { ...defaultGenerationSettings(), population: defaultPopulationSettings(5000) };
+    settings.config = {
+      ...settings.config,
+      coast: "straight",
+      rivers: ["toCoast"],
+      features: { ...settings.config.features, walls: true, port: true }
+    };
+    settings.facilityLayout = "population";
+    const input = vectorInputFromEditor({
+        settings,
+        seed: "a1",
+        frame: { extentMeters: 1068, cityRadiusMeters: 250, blockSizeMeters: 50 },
+        lotOccupancy: 0.8
+      }),
+      wall = vectorWallChoice(settings, "a1", input.context.historicalPeriod ?? "ageOfExploration", 1068),
+      skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed: "a1", ...wall }).document,
+      city = generateVectorUrban(skeleton, {
+        ...DEFAULT_VECTOR_URBAN,
+        mode: "medieval-facilities",
+        population: 5000,
+        lotOccupancy: 0.8
+      });
+    expect(wall.wallCoast).toBe("open");
+    onApproaches(city);
+    expect(city.urban!.report.unplacedDwellings).toBe(0);
+  });
+
   it("houses what the interior cannot hold along the approaches, not round the wall", () => {
     const city = town("w2-square", 5000, 7000);
     onApproaches(city);

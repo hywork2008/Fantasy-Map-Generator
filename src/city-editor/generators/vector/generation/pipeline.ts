@@ -30,6 +30,7 @@ import { compactRing, offsetRing } from "../geometry/routing";
 import { pointSegmentDistance, samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
+import { vectorHarborWater, vectorPortWater } from "../harbor";
 import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument, withDeferredValidation } from "../validation/document";
 import { BASTION_REGION_PREFIX, reserveVectorBastions } from "./bastions";
@@ -1275,7 +1276,10 @@ function skeleton(
   // A port's quays need a street down to the water (P5b): one to the bank nearest the centre, ended a few metres
   // inland. The rest of the town is reached by the lanes round its blocks.
   if (settings.port) {
-    const shore = allVectorWater(doc)
+    // Only a water whose port toggle is on takes quays.
+    const served = vectorPortWater(doc),
+      portWater = vectorHarborWater(doc)?.flatMap(b => (served(b.river) ? [b.polygon] : [])) ?? allVectorWater(doc);
+    const shore = portWater
       .flatMap(w => [w.outer, ...w.holes])
       .flatMap(r => densify([...r, r[0]], 4))
       .filter(p => containsRegion(doc.site!.domain, p))

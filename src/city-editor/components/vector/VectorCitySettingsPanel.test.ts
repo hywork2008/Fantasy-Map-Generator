@@ -48,7 +48,7 @@ describe("meshless city settings without the mesh editor", () => {
     const ui = mount();
     try {
       ui.pick("coast", "bay");
-      ui.pick("port", "true");
+      ui.pick("portCoast", "true");
       ui.pick("walls", "true");
       ui.pick("wallShape", "round");
       ui.pick("historicalPeriod", "lateMedieval");
@@ -63,6 +63,31 @@ describe("meshless city settings without the mesh editor", () => {
       expect(doc.context.historicalPeriod).toBe("lateMedieval");
       expect(doc.context.requestedSettings?.config.coast).toBe("bay");
       expect(doc.site?.water.length).toBeGreaterThan(0);
+    } finally {
+      ui.dispose();
+    }
+  });
+
+  it("toggles the port of the coast and of each river apart", () => {
+    const ui = mount();
+    try {
+      ui.pick("coast", "straight");
+      ui.pick("river1", "");
+      ui.pick("portCoast", "true");
+      expect(ui.input.settings.config.ports?.coast).toBe(true);
+      expect(ui.input.settings.config.features.port).toBe(true);
+      // A river's port is set once the river is there.
+      expect(ui.field<HTMLInputElement>("portRiver1").disabled).toBe(true);
+      ui.pick("river1", "toCoast");
+      ui.pick("portRiver1", "true");
+      ui.pick("portCoast", "false");
+      expect(ui.input.settings.config.ports).toEqual({ coast: false, rivers: [true, false] });
+      expect(ui.input.settings.config.features.port).toBe(true);
+      expect(vectorInputFromEditor(ui.input).site?.descriptor?.burg.portWaters).toEqual({ sea: false, riverIds: [1] });
+      // The toggle of a water that is gone keeps its choice, but the town has no port.
+      ui.pick("river1", "");
+      expect(ui.input.settings.config.ports?.rivers[0]).toBe(true);
+      expect(ui.input.settings.config.features.port).toBe(false);
     } finally {
       ui.dispose();
     }

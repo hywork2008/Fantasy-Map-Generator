@@ -21,10 +21,21 @@ export interface SiteConfig {
   /** Built programme the standalone user toggles (Port / Walls / …). Written
    * straight onto the synthetic descriptor's `burg.*` flags (synthSite.ts). */
   features: CityFeatureSet;
+  /** Which waters take a port: the coast, and each river by index. `features.port` is kept as "any of them on a
+   * water the site has" (`withPortTargets`). Absent (settings saved before the targets were split), `features.port`
+   * stands for every water. */
+  ports?: PortTargets;
   /** Wall-pattern overrides applied on top of the matrix plan (S4 only). */
   wall: WallChoice;
   /** Urban morphology layout (Bram circulade or Organic). Default is "auto". */
   layout?: CityLayout;
+}
+
+/** The port toggle of each water of a standalone site. */
+export interface PortTargets {
+  coast: boolean;
+  /** By river index (River 1, River 2). */
+  rivers: boolean[];
 }
 
 export type CoastShape = "none" | "straight" | "bay" | "cape";

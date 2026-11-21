@@ -130,6 +130,11 @@ export function synthSite(
   // Features come straight from the SiteConfig toggles — no population heuristics.
   // `port` still needs somewhere to dock, so it collapses to false without water.
   const features = config.features;
+  // Split port toggles name the waters that take quays; one on a water the site lacks gives none.
+  const portWaters = config.ports && {
+    sea: config.ports.coast && waterbody !== null,
+    riverIds: rivers.filter((_, i) => config.ports!.rivers[i] === true).map(r => r.riverId)
+  };
 
   return {
     version: DESCRIPTOR_VERSION,
@@ -142,7 +147,8 @@ export function synthSite(
       population,
       dwellings: getUrbanDwellings(population),
       capital: false,
-      port: features.port && waterbody !== null,
+      port: features.port && (portWaters ? portWaters.sea || portWaters.riverIds.length > 0 : waterbody !== null),
+      ...(portWaters ? { portWaters } : {}),
       citadel: features.citadel,
       plaza: features.plaza,
       walls: features.walls,

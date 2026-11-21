@@ -2,7 +2,14 @@ import { BUILDING_APPEARANCE_PROFILES, type BuildingAppearanceProfile } from "..
 import { BURIAL_CULTURE_PRESETS, getBurialCulturePreset } from "../../../data/burialCultures";
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
 import { HISTORICAL_PERIODS } from "../../../types/historicalPeriod";
-import { RIVER_FORMS, RIVER_PLACEMENTS, riverConfig, riverSettings } from "../../generators/site/siteConfig";
+import {
+  portTargets,
+  RIVER_FORMS,
+  RIVER_PLACEMENTS,
+  riverConfig,
+  riverSettings,
+  withPortTargets
+} from "../../generators/site/siteConfig";
 import type { VectorEditorGenerationInput } from "../../generators/vector/generation/editorInput";
 import { vectorHousingCulture } from "../../generators/vector/generation/housingCulture";
 import { matchesVectorUrbanFingerprint, vectorUrbanFingerprint } from "../../generators/vector/generation/urbanState";
@@ -100,13 +107,13 @@ export function createVectorCitySettingsPanel(
       "coast",
       ["none", "straight", "bay", "cape"],
       () => s().config.coast,
-      v => (s().config = { ...s().config, coast: v })
+      v => (s().config = withPortTargets({ ...s().config, coast: v }))
     )
   );
   // Each river by where it runs and, apart, by its channel's form (docs/plan/ce-outskirts-workshop-sizes.md §8.21).
   const setRivers = (next: RiverSetting[]) => {
     const { riverForms: _forms, ...rest } = s().config;
-    s().config = { ...rest, ...riverConfig(next.slice(0, 2)) };
+    s().config = withPortTargets({ ...rest, ...riverConfig(next.slice(0, 2)) });
   };
   const placementAt = (i: number) =>
     select<RiverPlacement | "">(
@@ -134,12 +141,41 @@ export function createVectorCitySettingsPanel(
       }
     );
   const rivers = [add(placementAt(0)), add(formAt(0)), add(placementAt(1)), add(formAt(1))];
-  for (const feature of ["walls", "citadel", "plaza", "temple", "port", "shanty"] as const)
+  for (const feature of ["walls", "citadel", "plaza", "temple", "shanty"] as const)
     add(
       check(
         feature,
         () => s().config.features[feature] === true,
         v => (s().config = { ...s().config, features: { ...s().config.features, [feature]: v } })
+      )
+    );
+  // An FMG city's waters are its own: one Port toggle for them all, as before the toggles were split.
+  const port = add(
+    check(
+      "port",
+      () => s().config.features.port === true,
+      v => (s().config = { ...s().config, features: { ...s().config.features, port: v } })
+    )
+  );
+  // A standalone site's port on each water apart: the coast, River 1 and River 2 (any of them, or all three).
+  const portCoast = add(
+      check(
+        "portCoast",
+        () => portTargets(s().config).coast,
+        v => (s().config = withPortTargets(s().config, { ...portTargets(s().config), coast: v }))
+      )
+    ),
+    portRivers = [0, 1].map(i =>
+      add(
+        check(
+          `portRiver${i + 1}`,
+          () => portTargets(s().config).rivers[i],
+          v => {
+            const targets = portTargets(s().config);
+            targets.rivers[i] = v;
+            s().config = withPortTargets(s().config, targets);
+          }
+        )
       )
     );
   add(
@@ -309,6 +345,11 @@ export function createVectorCitySettingsPanel(
     const count = riverSettings(s().config).length;
     (rivers[1].element as HTMLSelectElement).disabled ||= count < 1;
     (rivers[3].element as HTMLSelectElement).disabled ||= count < 2;
+    port.element.parentElement!.hidden = !fixedSite;
+    for (const c of [portCoast, ...portRivers]) c.element.parentElement!.hidden = fixedSite;
+    // A port toggle is set on a water the site has; one kept from before a water was removed stays as chosen.
+    (portCoast.element as HTMLInputElement).disabled = s().config.coast === "none";
+    for (const [i, c] of portRivers.entries()) (c.element as HTMLInputElement).disabled = count <= i;
   }
   sync();
   return { refresh: sync };

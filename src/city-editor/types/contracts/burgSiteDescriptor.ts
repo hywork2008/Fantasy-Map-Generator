@@ -49,6 +49,9 @@ export interface BurgSiteDescriptor {
     waterfrontCheck?: import("../../../types/models").Burg["waterfrontCheck"];
     /** Optional for legacy descriptors; independent of clipped water geometry. */
     waterAccess?: import("../../../types/burgWater").BurgWaterAccess;
+    /** A standalone site's port toggles (`SiteConfig.ports`): the sea, and the rivers by `riverId`, that take quays.
+     * Absent, a port has quays on every water. */
+    portWaters?: { sea: boolean; riverIds: number[] };
     citadel: boolean;
     plaza: boolean;
     walls: boolean;

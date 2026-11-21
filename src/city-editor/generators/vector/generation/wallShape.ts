@@ -6,6 +6,7 @@ import { bastionEra, resolveWallShape, unitWallShape } from "../../generation/sk
 import { polygonArea } from "../../geom";
 import { makeRng } from "../../prng";
 import { DEFAULT_INNER_WALLED_AREA_SHARE } from "../../settlementExtent";
+import { portTargets } from "../../site/siteConfig";
 import { unitBastionedTownArea } from "./bastions";
 import { vectorCastleChoice } from "./castleChoice";
 
@@ -86,7 +87,13 @@ export function vectorWallChoice(
     // The mesh editor's Wall coast: `auto` leaves a port's waterfront open and walls any other shore.
     ...(() => {
       const coast = settings.config.wall?.coast ?? "auto",
-        resolved = coast === "auto" ? (settings.config.features.port ? "open" : "seaWall") : coast;
+        // Only a coast port opens it: a river port alone has no quay on the sea.
+        resolved =
+          coast === "auto"
+            ? settings.config.features.port && portTargets(settings.config).coast
+              ? "open"
+              : "seaWall"
+            : coast;
       return resolved === "seaWall" ? {} : { wallCoast: resolved };
     })(),
     // The mesh editor's old town takes the walled share, 45% by default (`innerWalledAreaShare`).

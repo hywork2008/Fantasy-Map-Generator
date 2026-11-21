@@ -28,6 +28,20 @@ const inside = (p: VectorPolygon[], domain: VectorPolygon[]) =>
   regionBoolean(p, domain, "difference").reduce((n, r) => n + regionArea(r), 0) < 1e-5;
 
 /**
+ * Whether a body of `vectorHarborWater` takes quays: a standalone site's port toggles name the sea and the rivers
+ * (`burg.portWaters`); without them every water does. A river is told by its FMG river id in the path id.
+ */
+export function vectorPortWater(doc: VectorCityDocument): (river?: string) => boolean {
+  const targets = doc.site?.descriptor?.burg.portWaters;
+  if (!targets) return () => true;
+  return river => {
+    if (!river) return targets.sea;
+    const id = /^fmg-river:(\d+):/.exec(river)?.[1];
+    return id !== undefined && targets.riverIds.includes(Number(id));
+  };
+}
+
+/**
  * The physical water a harbour plan navigates: the site's water, and the channel of each fixed river the site draws
  * only as a path (P5b-3). A river the user may still move has no fixed water, so a harbour plan cannot take it.
  */

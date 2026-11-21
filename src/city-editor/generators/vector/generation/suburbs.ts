@@ -16,6 +16,7 @@ import { allVectorWater } from "../geometry/water";
 
 /** A road ending this close to the wall line ends at its gate. */
 const GATE_METERS = 15;
+const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
 /**
  * The approach land-use bands of a walled meshless town (P7a), by the mesh editor's rules (`suburbanProfile`): one
@@ -318,15 +319,30 @@ export function clipVectorDomainToWall(doc: VectorCityDocument): VectorCityDocum
   const ring = outerWallRing(doc);
   if (ring) inside = [{ outer: ring, holes: [] }];
   else {
-    // An open wall line ending at the shore: the pieces of the site it cuts off from the centre are outside.
+    // An open wall line ending at the shore: the land it hides from the centre is outside. A piece of the site that
+    // reaches round a wall's end along the shore, or along a river through it, is cut at the wall all the same, so
+    // no strip outside the wall is left to the town (a round town ringing an oval sea wall).
     const lines = walls.map(w => samplePath(w).map(q => q.point)),
       crosses = (a: Point, b: Point) =>
-        lines.some(line => line.slice(1).some((q, i) => segmentsIntersect(a, b, line[i], q)));
-    inside = regionBoolean(
-      site.domain,
-      walls.map(w => pathSurface(w)),
-      "difference"
-    ).filter(piece => {
+        lines.some(line => line.slice(1).some((q, i) => segmentsIntersect(a, b, line[i], q))),
+      far = site.domain.flatMap(d => d.outer).reduce((n, p) => Math.max(n, distance(p, site.center)), 0) * 2 + 1,
+      beyond = (p: Point): Point => {
+        const d = distance(p, site.center) || 1;
+        return [
+          site.center[0] + ((p[0] - site.center[0]) / d) * far,
+          site.center[1] + ((p[1] - site.center[1]) / d) * far
+        ];
+      },
+      // The shadow of each wall segment seen from the centre, out past the site.
+      shadows = lines.flatMap(line =>
+        line.slice(1).flatMap((b, i): VectorPolygon[] => {
+          const a = line[i],
+            cross =
+              (a[0] - site.center[0]) * (b[1] - site.center[1]) - (a[1] - site.center[1]) * (b[0] - site.center[0]);
+          return Math.abs(cross) < 1e-6 ? [] : [{ outer: [a, b, beyond(b), beyond(a)], holes: [] }];
+        })
+      );
+    inside = regionBoolean(site.domain, [...walls.map(w => pathSurface(w)), ...shadows], "difference").filter(piece => {
       const c = polygonCentroid(piece.outer);
       return !crosses(c, site.center);
     });

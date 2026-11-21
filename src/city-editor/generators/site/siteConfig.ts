@@ -2,6 +2,7 @@ import type {
   CityFeatureSet,
   CityLayout,
   CoastShape,
+  PortTargets,
   RiverForm,
   RiverPlacement,
   RiverSetting,
@@ -64,6 +65,20 @@ export function riverConfig(settings: RiverSetting[]): Pick<SiteConfig, "rivers"
   const implied = riverSettings({ rivers }).every((s, i) => s.form === forms[i]);
   return implied ? { rivers } : { rivers, riverForms: forms };
 }
+/** The port toggle of each water; settings saved before the targets were split put a port on every water. */
+export function portTargets(config: Pick<SiteConfig, "ports" | "features">): PortTargets {
+  if (config.ports) return { coast: config.ports.coast, rivers: [0, 1].map(i => config.ports!.rivers[i] === true) };
+  const on = config.features.port;
+  return { coast: on, rivers: [on, on] };
+}
+
+/** `config` with these port targets, and `features.port` on when one of them is on a water the site has. Called
+ * again after the coast or the rivers change, so a toggle on a water that is gone keeps its choice but no port. */
+export function withPortTargets(config: SiteConfig, targets: PortTargets = portTargets(config)): SiteConfig {
+  const port = (targets.coast && config.coast !== "none") || config.rivers.some((_, i) => targets.rivers[i] === true);
+  return { ...config, ports: targets, features: { ...config.features, port } };
+}
+
 export const FEATURE_KEYS: (keyof CityFeatureSet)[] = ["port", "walls", "citadel", "plaza", "temple", "shanty"];
 export const WALL_ENVELOPE_CHOICES: WallEnvelopeChoice[] = ["auto", "hull", "notchFilled"];
 export const WALL_COAST_CHOICES: WallCoastChoice[] = ["auto", "open", "seaWall", "opening"];

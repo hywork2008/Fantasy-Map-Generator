@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { vectorRenderData } from "../../../renderers/vector/renderData";
 import { defaultGenerationSettings } from "../../generation/settings";
 import { defaultPopulationSettings } from "../../populationPlan";
+import { withPortTargets } from "../../site/siteConfig";
 import { pathIsClosed } from "../geometry/curves";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
@@ -89,5 +91,54 @@ describe("generated sea harbour (feature parity P5b)", () => {
     expect(skeleton.environment?.harbor?.piers.length).toBeGreaterThan(0);
     const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: 5000, lotOccupancy: 1 });
     expect(city.urban!.report.unplacedPopulation).toBe(0);
+  });
+
+  // A coast town with a river through it to the sea: the port's waters by their own toggles (Coast / River 1).
+  const estuary = (ports?: { coast: boolean; rivers: boolean[] }) => {
+    const seed = "a1",
+      settings = { ...defaultGenerationSettings(), population: defaultPopulationSettings(5000) };
+    settings.config = withPortTargets(
+      {
+        ...settings.config,
+        coast: "straight",
+        rivers: ["toCoast"],
+        features: { ...settings.config.features, port: true, walls: true }
+      },
+      ports
+    );
+    const doc = vectorInputFromEditor({ settings, seed, frame, lotOccupancy: 1 }),
+      wall = vectorWallChoice(settings, seed, "lateMedieval");
+    return { wall, skeleton: generateVectorSkeleton(doc, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document };
+  };
+  // The site's water is the sea (body 0), then the river (body 1); a harbour space is named by its shore.
+  const onRiver = (id: string) => id.startsWith("harbor:shore:1:");
+
+  it("lays the river's quays along a landing reach downstream, not along its whole course through the town", () => {
+    const { skeleton } = estuary(),
+      harbor = skeleton.environment!.harbor!,
+      riverShores = new Set(harbor.spaces.filter(s => onRiver(s.id)).map(s => s.id.split(":")[3]));
+    // 120 m of bank in shores of at most 60 m.
+    expect(riverShores.size).toBeGreaterThan(0);
+    expect(riverShores.size).toBeLessThanOrEqual(10);
+    // The harbour's water lies under the bridges in the plan view.
+    const surfaces = vectorRenderData(skeleton).surfaces,
+      water = surfaces.findIndex(s => s.pieceRole === "harbor-water"),
+      bridge = surfaces.findIndex(s => s.kind === "bridge");
+    expect(bridge).toBeGreaterThan(-1);
+    expect(water).toBeLessThan(bridge);
+  });
+
+  it("puts a port only on the waters whose toggles are on", () => {
+    const coast = estuary({ coast: true, rivers: [false] });
+    expect(coast.wall.wallCoast).toBe("open");
+    const coastSpaces = coast.skeleton.environment!.harbor!.spaces;
+    expect(coastSpaces.length).toBeGreaterThan(0);
+    expect(coastSpaces.some(s => onRiver(s.id))).toBe(false);
+    const river = estuary({ coast: false, rivers: [true] });
+    // A river port alone leaves the sea side of the wall closed.
+    expect(river.wall.wallCoast).toBeUndefined();
+    const riverSpaces = river.skeleton.environment!.harbor!.spaces;
+    expect(riverSpaces.length).toBeGreaterThan(0);
+    expect(riverSpaces.every(s => onRiver(s.id))).toBe(true);
   });
 });

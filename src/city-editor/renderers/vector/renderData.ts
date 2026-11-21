@@ -573,6 +573,9 @@ export function vectorRenderData(
     });
   for (const w of doc.environment?.harbor ? [] : (doc.site?.water ?? []))
     add({ id: w.id, kind: "river", polygons: w.polygons, color: "#71abc4", heightMeters: 0, elevationMeters: 0.08 });
+  // A harbour's water stands for the site's water and lies under its bridges, as the site's water does.
+  const harbor = doc.environment?.harbor ? vectorHarborSurfaces(doc.environment.harbor) : [];
+  surfaces.push(...harbor.filter(h => h.pieceRole === "harbor-water"));
   const defenseWalls = new Set(Object.values(doc.environment?.defenses ?? {}).flatMap(p => p.circuit.wallPathIds));
   for (const p of paths.filter(p => p.role !== "road" && !defenseWalls.has(p.id))) {
     if (p.role === "river" && doc.site?.water.some(w => w.riverPathId === p.id)) continue;
@@ -863,7 +866,7 @@ export function vectorRenderData(
   surfaces.unshift(...grounds);
   for (const plan of Object.values(doc.environment?.defenses ?? {}))
     surfaces.push(...vectorDefenseSurfaces(plan, frame));
-  if (doc.environment?.harbor) surfaces.push(...vectorHarborSurfaces(doc.environment.harbor));
+  surfaces.push(...harbor.filter(h => h.pieceRole !== "harbor-water"));
   for (const ferry of Object.values(doc.environment?.ferries ?? {})) surfaces.push(...vectorFerrySurfaces(ferry));
   for (const house of Object.values(doc.environment?.monasteries ?? {}))
     surfaces.push(...vectorMonasterySurfaces(house));

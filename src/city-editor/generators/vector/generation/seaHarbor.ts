@@ -20,7 +20,7 @@ import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { vectorWaterSurfaces } from "../geometry/water";
-import { validateVectorHarbor, vectorHarborWater } from "../harbor";
+import { validateVectorHarbor, vectorHarborWater, vectorPortWater } from "../harbor";
 import { vectorOccupiedSites } from "../occupancy";
 
 export const GENERATED_HARBOR_ID = "harbor:generated";
@@ -38,6 +38,9 @@ const SHORE_CHORD = { min: 12, max: 60, deviation: 1.5 };
 const SHORE_LAND_DEPTH = 40;
 /** A shore this near a point where the land blocks could not be cut round the harbour is left out on a retry. */
 const FAULT_RADIUS = 30;
+/** Bank a river port lays its quays along, both banks together: a town's landing reach, not the whole river
+ * through it, which would leave its central banks to yards instead of houses. */
+const RIVER_QUAY_METERS = 120;
 
 const area = (regions: VectorPolygon[]) => regions.reduce((n, r) => n + regionArea(r), 0);
 const ring = (outer: Point[]): VectorPolygon => ({ outer, holes: [] });
@@ -70,6 +73,42 @@ function solidParts(region: VectorPolygon, depth = 0): Point[][] {
   return [side(Math.min(...xs) - 1, x), side(x, Math.max(...xs) + 1)].flatMap(box =>
     regionBoolean([region], [box], "intersection").flatMap(part => solidParts(part, depth + 1))
   );
+}
+
+/**
+ * Keep each river's landing reach: its shores furthest downstream (along the river's path, source to mouth) until
+ * `RIVER_QUAY_METERS` of bank, both banks together. Craft come up from the mouth or the sea, and the quays then lie
+ * below the town's bridges. Sea shores are kept whole. Mutates `shores`.
+ */
+function riverLandings(doc: VectorCityDocument, shores: HarborShore[]) {
+  // How far down its river a point lies: the station of the river path's nearest sample.
+  const position = (river: string, p: Point) => {
+    const path = doc.paths[river],
+      points = path ? samplePath(path).map(q => q.point) : [];
+    let station = 0,
+      best = { at: 0, distance: Infinity };
+    points.forEach((q, i) => {
+      if (i) station += Math.hypot(q[0] - points[i - 1][0], q[1] - points[i - 1][1]);
+      const distance = Math.hypot(p[0] - q[0], p[1] - q[1]);
+      if (distance < best.distance) best = { at: station, distance };
+    });
+    return best.at;
+  };
+  const keep = new Set<HarborShore>(shores.filter(s => !s.riverId));
+  for (const river of new Set(shores.flatMap(s => (s.riverId ? [s.riverId] : [])))) {
+    const ranked = shores
+      .filter(s => s.riverId === river)
+      .map(s => ({ s, at: position(river, [(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2]) }))
+      .sort((x, y) => y.at - x.at);
+    let length = 0;
+    for (const { s } of ranked) {
+      if (length > 0 && length + s.length > RIVER_QUAY_METERS) break;
+      keep.add(s);
+      length += s.length;
+    }
+  }
+  const kept = shores.filter(s => keep.has(s));
+  shores.splice(0, shores.length, ...kept);
 }
 
 export type VectorHarborOutcome = { document: VectorCityDocument } | { failure: string };
@@ -137,7 +176,10 @@ function raise(
   const shores: HarborShore[] = [],
     lands = new Map<string, Point[]>(),
     waterIds: string[] = [];
+  const served = vectorPortWater(doc);
   bodies.forEach(({ polygon: sea, river }, k) => {
+    // A water whose port toggle is off keeps its navigation but takes no quay.
+    if (!served(river)) return;
     const waterId = `harbor-water:${k}`,
       // Long straight edges are split so no shore runs longer than a harbour cell's edge.
       outline = sea.outer.flatMap((a, i) => {
@@ -220,6 +262,7 @@ function raise(
       });
     }
   });
+  riverLandings(doc, shores);
   if (!shores.length) return { failure: "harbor-no-shore" };
 
   const streets = roads.flatMap(r =>
