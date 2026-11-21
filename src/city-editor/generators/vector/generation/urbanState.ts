@@ -36,13 +36,16 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // offers a guild hall more than its middle (§8.25).
 // v58–v60: a bastioned town's roads enter through its curtains where a turn allows; no two gates overlap; a wall a
 // river grazes may be drawn a little smaller (§8.26).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v58";
+// v59–v62: touching quays are one quayside with one cart path, and the streets' blocks front quays and paths; a strip
+// one row deep backs onto its wall, bank or precinct with no lane; a slit through a hole is one street; a cut from a
+// notch leaves no sliver beside a street (§8.32); a port's wall open to the shore bounds its burgage plots (§8.33).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v59";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v59";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v60";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v60";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v61";
 /** Compact lots in medium-sized blocks (`compactBlockScale`). */
-export const VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v61";
+export const VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v62";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

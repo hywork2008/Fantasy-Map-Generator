@@ -53,5 +53,18 @@ describe("vector perimeter districts", () => {
     expect(
       jobs.every(j => !j.outline.some(p => p[0] > cx - 4.9 && p[0] < cx + 4.9 && p[1] > cy - 4.9 && p[1] < cy + 4.9))
     ).toBe(true);
+    // The slit through the hole is one boundary: one district lays its street, the other fronts it, so no two
+    // streets run side by side along it.
+    const plan = planVectorPerimeter(structuredClone(doc), [holed], DEFAULT_VECTOR_URBAN),
+      alongSlit = plan.districts.filter(d =>
+        d.streets.some(
+          s =>
+            s.points.length === 2 &&
+            Math.abs(s.points[0][0] - s.points[1][0]) < 0.5 &&
+            Math.abs(s.points[0][1] - s.points[1][1]) > 1 &&
+            s.points.every(p => Math.abs(p[0] - cx) < 3)
+        )
+      );
+    expect(alongSlit).toHaveLength(1);
   });
 });

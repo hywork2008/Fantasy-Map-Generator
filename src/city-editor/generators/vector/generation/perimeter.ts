@@ -35,7 +35,7 @@ import { curveSource } from "../editing/paths";
 import { fabricCellHash, fabricDistrictHash } from "../fabric/hash";
 import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import { packLines, packPoints, unpackPoints } from "../fabric/pack";
-import { evaluateAnchor } from "../geometry/curves";
+import { evaluateAnchor, pathIsClosed } from "../geometry/curves";
 import { gateOpening, junctionSurface } from "../geometry/network";
 import { regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { offsetRing, sampledClosedRing } from "../geometry/routing";
@@ -123,6 +123,9 @@ export interface PerimeterPlanContext {
 export interface PerimeterDistrictJob {
   districtId: string;
   outline: Point[];
+  /** Outline edges against another district's edge with nothing between them (a slit cut through a hole): one
+   * street serves both, laid by the district that `keep`s it and fronted by the other. */
+  neighbours?: { edge: number; keep: boolean }[];
 }
 export interface PerimeterDistrictResult {
   district: DistrictPlan;
@@ -198,6 +201,79 @@ function withoutHoles(block: VectorBlock): VectorBlock[] {
     }));
 }
 
+/**
+ * The harbour's quays, yards and cart paths as frontage: a quayside is a street in itself, so a district fronts it as
+ * it fronts a main road and lays no street of its own beside it. The quays' own land ends on the space outlines; a cart
+ * path's reservation is at least 4 m wide (`harborReservations`).
+ */
+function harborFrontages(doc: VectorCityDocument): PerimeterPlanContext["roads"] {
+  const harbor = doc.environment?.harbor;
+  if (!harbor) return [];
+  return [
+    ...harbor.spaces.map(s => ({ points: [...s.polygon.outer, s.polygon.outer[0]], frontage: 1 })),
+    ...harbor.frontages.map(f => ({ points: [f.a, f.b], frontage: Math.max(4, f.widthMeters) })),
+    ...harbor.accesses.map(a => ({ points: a.points, frontage: Math.max(4, a.widthMeters) }))
+  ];
+}
+
+/** Two districts' edges at most this far apart, with nothing between them, are one boundary. */
+const NEIGHBOUR_GAP_METERS = 1;
+/** Edges this close to parallel (sine of the angle) can share a street. */
+const NEIGHBOUR_SINE = Math.sin((10 * Math.PI) / 180);
+
+/**
+ * Edges of two districts that lie against each other, as the two sides of the 0.2 m slit `withoutHoles` cuts: each
+ * would otherwise lay a street along its side, two lanes side by side. The district whose id sorts first keeps its
+ * street, so the choice does not depend on the jobs' order; the other one fronts it. Mutates the jobs.
+ */
+function markNeighbourEdges(jobs: PerimeterDistrictJob[]) {
+  const edges = new RBush<{
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+    job: number;
+    a: Point;
+    b: Point;
+  }>();
+  edges.load(
+    jobs.flatMap((job, j) =>
+      job.outline.map((a, k) => {
+        const b = job.outline[(k + 1) % job.outline.length];
+        return { ...boxOf([a, b], NEIGHBOUR_GAP_METERS), job: j, a, b };
+      })
+    )
+  );
+  jobs.forEach((job, j) => {
+    const neighbours: NonNullable<PerimeterDistrictJob["neighbours"]> = [];
+    job.outline.forEach((a, k) => {
+      const b = job.outline[(k + 1) % job.outline.length],
+        length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (length < 1) return;
+      const direction: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length],
+        near = edges.search(boxOf([a, b])).filter(e => {
+          if (e.job === j) return false;
+          const l = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]);
+          return (
+            l > 1e-6 &&
+            Math.abs(direction[0] * (e.b[1] - e.a[1]) - direction[1] * (e.b[0] - e.a[0])) / l <= NEIGHBOUR_SINE
+          );
+        }),
+        other = [0.1, 0.5, 0.9]
+          .map(t => {
+            const p: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t],
+              hit = near
+                .map(e => ({ job: e.job, dist: nearestOnPolyline(p, [e.a, e.b]).dist }))
+                .sort((x, y) => x.dist - y.dist)[0];
+            return hit && hit.dist <= NEIGHBOUR_GAP_METERS ? hit.job : -1;
+          })
+          .reduce((x, y) => (x === y ? x : -1));
+      if (other >= 0) neighbours.push({ edge: k, keep: job.districtId < jobs[other].districtId });
+    });
+    if (neighbours.length) job.neighbours = neighbours;
+  });
+}
+
 /** District jobs in block order and their shared context. District ids are assigned over every block, so the
  * ids never depend on how the jobs are split. */
 export function perimeterJobs(
@@ -235,13 +311,18 @@ export function perimeterJobs(
       .find(ring => ring !== undefined);
     if (outline) jobs.push({ districtId, outline });
   }
+  markNeighbourEdges(jobs);
+  const roads = [
+    ...primary.map(path => ({
+      points: samplePath(path).map(p => p.point),
+      frontage: path.width.leftMeters + path.width.rightMeters
+    })),
+    ...harborFrontages(doc)
+  ];
   return {
     context: {
-      roads: primary.map(path => ({
-        points: samplePath(path).map(p => p.point),
-        frontage: path.width.leftMeters + path.width.rightMeters
-      })),
-      frontageReach: Math.max(0, ...primary.map(p => p.width.leftMeters + p.width.rightMeters + 0.1)) + 1e-6,
+      roads,
+      frontageReach: Math.max(0, ...roads.map(r => r.frontage + 0.1)) + 1e-6,
       seed: doc.recipe.seed,
       laneWidthMeters: settings.laneWidthMeters,
       walls,
@@ -260,14 +341,26 @@ export function perimeterJobs(
 }
 
 /** The plot type from the housing culture, and the wall rings that tell intramural street blocks. */
+/**
+ * The outer town wall as rings. A coastal town's wall runs from shore to shore and makes no circuit: closed across its
+ * ends along the shore, it bounds the town all the same (as `generateVectorUrban` tells its core), so its street blocks
+ * are intramural, not laid out as the open country's.
+ */
+function outerWallRings(doc: VectorCityDocument): Point[][] {
+  const circuits = Object.values(doc.connections.circuits)
+    .filter(c => !c.parentCircuitId)
+    .map(c => sampledClosedRing(doc, c.pathId));
+  if (circuits.length) return circuits;
+  const shore = Object.values(doc.paths).find(p => p.role === "wall" && !pathIsClosed(p) && !p.id.includes("inner"));
+  return shore ? [samplePath(shore).map(q => q.point)] : [];
+}
+
 function burgagePlanContext(doc: VectorCityDocument, dense: boolean): BurgagePlanContext {
   const culture = vectorHousingCulture(doc);
   return {
     ...(dense ? { dense: true } : {}),
     profile: burgageProfileFor(culture),
-    wallRings: Object.values(doc.connections.circuits)
-      .filter(c => !c.parentCircuitId)
-      .map(c => sampledClosedRing(doc, c.pathId)),
+    wallRings: outerWallRings(doc),
     ...(culture === "stone-upland" ? { shallow: true } : {})
   };
 }
@@ -290,6 +383,7 @@ const ceContext = (context: PerimeterPlanContext) => ({
   // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
   streetCellMeters: COARSE_STREET_CELL_METERS,
   streetWidthMeters: COARSE_STREET_WIDTH_METERS,
+  noSliverCuts: true,
   ...(context.blockScale ? { blockScale: context.blockScale } : {})
 });
 const districtFace = (id: string): Face => ({
@@ -330,7 +424,8 @@ const streetPlanKey = (
   context: PerimeterPlanContext,
   job: PerimeterDistrictJob,
   boundaries: PerimeterStreetPlan["boundaries"]
-) => `${planKey(context)}|${job.districtId}|${JSON.stringify(job.outline)}|${JSON.stringify(boundaries)}`;
+) =>
+  `${planKey(context)}|${job.districtId}|${JSON.stringify(job.outline)}|${JSON.stringify(boundaries)}|${JSON.stringify(job.neighbours ?? [])}`;
 /** Keeps plans computed elsewhere (a worker pool) so later dependency updates here can reuse them. */
 export function rememberPerimeterResults(
   request: PerimeterRequest,
@@ -426,7 +521,18 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
     const road = roadsNear(mid, context.frontageReach).find(
       p => nearestOnPolyline(mid, p.points).dist <= p.frontage + 0.1
     );
-    return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
+    const neighbour = !road ? job.neighbours?.find(n => n.edge === i) : undefined;
+    // A street shared with the district across a slit: kept by one, fronted by the other.
+    if (neighbour && !neighbour.keep)
+      return { a, b, feature: true, barrier: false, setback: ROAD_FACADE_CLEARANCE_METERS };
+    return {
+      a,
+      b,
+      feature: !!road,
+      barrier: !road,
+      setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3,
+      ...(neighbour ? { shared: true } : {})
+    };
   });
   const boundaries = fullBoundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback })),
     key = streetPlanKey(context, job, boundaries),

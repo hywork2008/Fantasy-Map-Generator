@@ -110,7 +110,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v60");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v61");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>

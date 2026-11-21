@@ -113,13 +113,18 @@ describe("generated sea harbour (feature parity P5b)", () => {
   // The site's water is the sea (body 0), then the river (body 1); a harbour space is named by its shore.
   const onRiver = (id: string) => id.startsWith("harbor:shore:1:");
 
-  it("lays the river's quays along a landing reach downstream, not along its whole course through the town", () => {
+  it("lays the river's quays along a landing reach downstream and links each quayside by one cart path", () => {
     const { skeleton } = estuary(),
       harbor = skeleton.environment!.harbor!,
       riverShores = new Set(harbor.spaces.filter(s => onRiver(s.id)).map(s => s.id.split(":")[3]));
     // 120 m of bank in shores of at most 60 m.
     expect(riverShores.size).toBeGreaterThan(0);
     expect(riverShores.size).toBeLessThanOrEqual(10);
+    // Touching quays are one quayside, a street in itself: one cart path links it to the town's streets, not one
+    // from every quay (a row of parallel paths with lanes between them).
+    const quayShores = new Set(harbor.spaces.map(s => s.id.split(":").slice(0, 4).join(":")));
+    expect(harbor.accesses.length).toBeGreaterThan(0);
+    expect(harbor.accesses.length).toBeLessThan(quayShores.size / 2);
     // The harbour's water lies under the bridges in the plan view.
     const surfaces = vectorRenderData(skeleton).surfaces,
       water = surfaces.findIndex(s => s.pieceRole === "harbor-water"),
