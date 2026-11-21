@@ -2,6 +2,7 @@ import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flint
 import { createPavise, PAVISE } from "../buildings/arms/pavise";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
+import { AMPHITHEATRE, createAmphitheatre } from "../buildings/roman/amphitheatre";
 import { createForumBaths, FORUM_BATHS } from "../buildings/roman/forumBaths";
 import { createInsula, INSULA } from "../buildings/roman/insula";
 import { createFordCarrier, FORD_CARRIER } from "../buildings/ships/fordCarrier";
@@ -3008,6 +3009,64 @@ AUTHORED_VARIANTS[forumBathsButton.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showForumBaths()
+};
+
+const amphitheatreButton = document.createElement("button");
+amphitheatreButton.dataset.id = "amphitheatre";
+amphitheatreButton.type = "button";
+amphitheatreButton.textContent = "Amphitheatre · Pompeii, c. 70 BC";
+function showAmphitheatre(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === amphitheatreButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Side elevation";
+  levelTitle.textContent = "Plan";
+  const model = createAmphitheatre(quality);
+  massing = model;
+  scene.add(model.group);
+  // The model carries its own ground round the building; the viewer's disc would cover the sunken arena.
+  ground.visible = false;
+  model.group.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(-95, 70, 105);
+  controls.target.set(0, -2, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const { arena, outer, rows, terrace } = AMPHITHEATRE;
+  appendFacts(
+    fact("Model", AMPHITHEATRE.name),
+    fact("Author", AMPHITHEATRE.author),
+    fact("Period", "Built about 70 BC by Valgus and Porcius; the oldest stone amphitheatre known"),
+    fact(
+      "Size",
+      `${outer.length} × ${outer.width} m overall; arena ${arena.length} × ${arena.width} m, ${-AMPHITHEATRE.arenaFloor} m below the ground; terrace ${terrace.toFixed(1)} m above it`
+    ),
+    fact(
+      "Seating",
+      `${rows.ima + rows.media + rows.summa} rows (${rows.ima} + ${rows.media} + ${rows.summa}); about ${Math.round(AMPHITHEATRE.seatingLength / AMPHITHEATRE.seatPerPerson / 100) * 100} places at ${AMPHITHEATRE.seatPerPerson} m each, against the recorded ${AMPHITHEATRE.recordedCapacity.toLocaleString("en")}`
+    ),
+    fact("Source", `Ring widths measured from ${AMPHITHEATRE.scale}; row height, corridors and boxes proportioned`),
+    fact("Quality", quality === "high" ? "High" : "Low — seating, arena wall, gallery, terrace, piers and stairways"),
+    fact("Note", AMPHITHEATRE.note, "Amphitheatre"),
+    ...(quality === "high" ? [fact("High detail", AMPHITHEATRE.highNote)] : [])
+  );
+}
+amphitheatreButton.addEventListener("click", () => showAmphitheatre());
+romanHeading.append(amphitheatreButton);
+AUTHORED_VARIANTS[amphitheatreButton.dataset.id] = {
+  author: AMPHITHEATRE.author,
+  primary: true,
+  quality: true,
+  show: () => showAmphitheatre()
 };
 
 const fieldDefencesHeading = modelCategory("Field defences");
