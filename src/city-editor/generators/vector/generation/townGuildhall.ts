@@ -6,7 +6,7 @@ import type { VectorPolygon } from "../../../types/vector/generation";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
 import { polygonCentroid, segmentSegmentHit } from "../../geom";
 import { buildPopulationFacilityRequests } from "../../populationFacilityRequests";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionsExceed, regionsOverlap } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { vectorTownCulture, vectorTownProfile } from "./housingCulture";
 import { CIVIC_PLAZA_ID } from "./market";
@@ -105,8 +105,8 @@ export function raiseTownGuildhall(doc: VectorCityDocument, role: EnclosedGuildR
         outer: p.outer.map(place),
         holes: p.holes.map(h => h.map(place))
       }));
-      if (regionBoolean(footprint, [plaza.boundary], "difference").some(r => regionArea(r) > 1e-5)) continue;
-      if (regionBoolean(footprint, solids, "intersection").some(r => regionArea(r) > 1e-5)) continue;
+      if (regionsExceed(footprint, [plaza.boundary], 1e-5)) continue;
+      if (regionsOverlap(footprint, solids, 1e-5)) continue;
       doc.placements[TOWN_GUILDHALL_ID] = {
         id: TOWN_GUILDHALL_ID,
         modelId: asset.bvModel!.id,

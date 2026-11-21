@@ -7,7 +7,7 @@ import { validateVectorDefenses } from "../defense";
 import { validateVectorFerries } from "../ferry";
 import { validateVectorForest } from "../forest";
 import { evaluateAnchor } from "../geometry/curves";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionBoolean, regionsExceed, regionsOverlap } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
 import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -262,12 +262,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
         if (doc.paths[f.waterAnchor.pathId]?.role !== "river") throw Error();
         evaluateAnchor(doc.paths[f.waterAnchor.pathId], f.waterAnchor);
       }
-      if (
-        f.placementIds.some(id =>
-          regionBoolean([doc.placements[id].site], [f.boundary], "difference").some(p => regionArea(p) > 1e-5)
-        )
-      )
-        throw Error();
+      if (f.placementIds.some(id => regionsExceed([doc.placements[id].site], [f.boundary], 1e-5))) throw Error();
       if (
         f.editPolicy === "fixed" &&
         (f.pathIds.some(id => doc.paths[id].editPolicy !== "fixed") ||
@@ -284,12 +279,10 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
         ...doc,
         paths: Object.fromEntries(Object.entries(doc.paths).filter(([id]) => !f.pathIds.includes(id)))
       });
-      if (regionBoolean([f.boundary], foreignWater, "intersection").some(p => regionArea(p) > 1e-5)) throw Error();
+      if (regionsOverlap([f.boundary], foreignWater, 1e-5)) throw Error();
       if (
         f.kind === "harbor" &&
-        f.pieces
-          .filter(p => p.role === "ship")
-          .some(p => regionBoolean([p.polygon], foreignWater, "difference").some(p => regionArea(p) > 1e-5))
+        f.pieces.filter(p => p.role === "ship").some(p => regionsExceed([p.polygon], foreignWater, 1e-5))
       )
         throw Error();
       if (
@@ -310,11 +303,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
         )
       )
         throw Error();
-      if (
-        f.kind !== "harbor" &&
-        f.pieces.some(p => regionBoolean([p.polygon], [f.boundary], "difference").some(r => regionArea(r) > 1e-5))
-      )
-        throw Error();
+      if (f.kind !== "harbor" && f.pieces.some(p => regionsExceed([p.polygon], [f.boundary], 1e-5))) throw Error();
       if (
         !containsRegion([f.boundary], f.entrance) &&
         !f.boundary.outer.some(p => Math.hypot(p[0] - f.entrance[0], p[1] - f.entrance[1]) < 0.005)

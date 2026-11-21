@@ -21,7 +21,7 @@ it("registers instruments High and retains the Low shape and CE default identity
   );
   const low = definition.variants![0].create();
   try {
-    expect(landmarkFingerprint(low.group)).toBe("40bb823c47bea68eab5a8d0b36aa8ac03571d7fcc0009b9ae17a9410e29aeb86");
+    expect(landmarkFingerprint(low.group)).toBe("897f43a2ac82e58329b5a57888df527cc7758eddf80f466df9d65ab879a4a59e");
   } finally {
     low.dispose();
   }

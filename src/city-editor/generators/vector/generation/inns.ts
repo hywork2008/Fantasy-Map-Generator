@@ -2,7 +2,7 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
 import { placeInnsOnApproach } from "../../gateInnPlacement";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionBoolean, regionsExceed } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { validateVectorInns } from "../inn";
 import { vectorWorksSite } from "./guilds";
@@ -42,7 +42,7 @@ export function raiseVectorInns(
   if (!inns.length) return { document: doc, wanted: wanted.length, placed: 0 };
   const outside = inns
     .map((inn): VectorPolygon => ({ outer: inn.footprint, holes: [] }))
-    .filter(r => regionBoolean([r], site.domain, "difference").some(p => regionArea(p) > 1e-3));
+    .filter(r => regionsExceed([r], site.domain, 1e-3));
   const next: VectorCityDocument = {
     ...doc,
     site: outside.length ? { ...site, domain: regionBoolean(site.domain, outside, "union") } : site,

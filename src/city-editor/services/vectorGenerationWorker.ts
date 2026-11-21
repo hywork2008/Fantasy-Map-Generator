@@ -2,6 +2,7 @@ import type { PerimeterCellResult, PerimeterStreetPlan } from "../generators/vec
 import { generateVectorSkeleton } from "../generators/vector/generation/pipeline";
 import type { VectorUrbanDistrictRequest } from "../generators/vector/generation/urban";
 import { generateVectorUrbanAsync } from "../generators/vector/generation/urban";
+import { validatedContentKey } from "../generators/vector/validation/document";
 import { createVectorDistrictPool, vectorDistrictWorkerCount } from "./vectorDistrictPool";
 import type {
   VectorGenerationPlans,
@@ -10,12 +11,20 @@ import type {
   VectorGenerationStageTiming
 } from "./vectorGenerationWorkerClient";
 
+const districtWorkers = (requested?: number) =>
+  typeof Worker === "undefined" ? 1 : (requested ?? vectorDistrictWorkerCount());
+// Districts are planned in nested workers where the browser allows them; the result does not depend on it. They are
+// started with this worker, which the page starts ahead of the generation, so their code is loaded before it.
+let districts = { count: districtWorkers(), pool: createVectorDistrictPool(districtWorkers()) };
+
 self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
   const { id, inputRevision, source, task } = data;
-  // Districts are planned in nested workers where the browser allows them; the result does not depend on it.
-  const pool = createVectorDistrictPool(
-    typeof Worker === "undefined" ? 1 : (data.districtWorkers ?? vectorDistrictWorkerCount())
-  );
+  if (districtWorkers(data.districtWorkers) !== districts.count) {
+    districts.pool.dispose();
+    const count = districtWorkers(data.districtWorkers);
+    districts = { count, pool: createVectorDistrictPool(count) };
+  }
+  const { pool } = districts;
   const started = performance.now(),
     stages: VectorGenerationStageTiming[] = [];
   const observe = (group: VectorGenerationStageTiming["group"]) => (phase: string, ms: number) =>
@@ -37,7 +46,8 @@ self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
       task.kind === "city"
         ? {
             document: await generateVectorUrbanAsync(
-              generateVectorSkeleton(source, task.settings, observe("skeleton")).document,
+              generateVectorSkeleton(source, task.settings, observe("skeleton"), undefined, { urbanFollows: true })
+                .document,
               task.urban,
               plan,
               undefined,
@@ -60,7 +70,8 @@ self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
       workerMs: performance.now() - started,
       postedAt: performance.timeOrigin + performance.now()
     };
-    self.postMessage({ id, inputRevision, result, planned, timings } satisfies VectorGenerationReply);
+    const validatedKey = validatedContentKey(result.document);
+    self.postMessage({ id, inputRevision, result, planned, timings, validatedKey } satisfies VectorGenerationReply);
   } catch (error) {
     self.postMessage({
       id,

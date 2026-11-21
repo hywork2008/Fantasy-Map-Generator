@@ -28,8 +28,11 @@ describe("windmills and the gallows beyond the town (feature parity P6f)", () =>
       .map(pathSurface);
     for (const mill of marks.windmills) {
       const ring = [{ outer: windmillSweep(mill), holes: [] }];
-      expect(regionBoolean(ring, town, "intersection").reduce((n, r) => n + regionArea(r), 0)).toBeLessThan(1e-3);
-      expect(regionBoolean(ring, roads, "intersection").reduce((n, r) => n + regionArea(r), 0)).toBeLessThan(1e-3);
+      // Summed piece by piece: the clipping kernel can report a ring enclosed by touching pieces as covered.
+      const overlap = (pieces: typeof town) =>
+        pieces.reduce((n, q) => n + regionBoolean(ring, [q], "intersection").reduce((m, r) => m + regionArea(r), 0), 0);
+      expect(overlap(town)).toBeLessThan(1e-3);
+      expect(overlap(roads)).toBeLessThan(1e-3);
     }
     const city = generateVectorUrban(skeleton, { ...DEFAULT_VECTOR_URBAN, population: d.burg.population });
     expect(city.environment?.landmarks).toEqual(marks);

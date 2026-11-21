@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-11-20
+
+- docs/plan/ce-meshless-geometry-foundation-performance.md - CE meshless の生成を、ステージ構成は変えずに共通の幾何処理（多角形演算・占有判定・検証）を作り直して速くする
+
 2026-11-19
 
 - docs/plan/ce-outskirts-workshop-sizes.md - 町の外の作業場（皮なめし・樽屋・鍛冶・窯場・陶工・馬の粉ひき・綱打ち場）の大きさを史料と照らし、綱打ち場を置けるようにすることと、鍛冶の作り直しから進める

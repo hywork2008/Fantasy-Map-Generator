@@ -1,7 +1,7 @@
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
-import { regionArea, regionBoolean } from "./geometry/regions";
+import { regionArea, regionBoolean, regionsOverlap } from "./geometry/regions";
 import { simpleContour } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
 
@@ -35,7 +35,7 @@ export function validateVectorInns(doc: VectorCityDocument): string[] {
           inn.entrance.every(point) &&
           regionBoolean([ring(inn.court)], [ring(inn.footprint)], "difference").every(r => regionArea(r) < 1e-3) &&
           regionBoolean([ring(inn.footprint)], domain, "difference").every(r => regionArea(r) < 1e-3) &&
-          !regionBoolean([ring(inn.footprint)], water, "intersection").some(r => regionArea(r) > 1e-3)
+          !regionsOverlap([ring(inn.footprint)], water, 1e-3)
       );
     return ok ? [] : ["inns"];
   } catch {

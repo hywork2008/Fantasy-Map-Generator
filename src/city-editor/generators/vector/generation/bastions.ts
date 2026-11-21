@@ -3,7 +3,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import { polygonArea } from "../../geom";
 import { featureReservations } from "../environmentState";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 
@@ -79,7 +79,7 @@ export function reserveVectorBastions(doc: VectorCityDocument, wallId: string, s
     let pieces: VectorPolygon[];
     try {
       // A road through a bastion (a gate in its face) needs the bastion's ground to reach the town: it stays open.
-      if (regionBoolean([{ outer: bastion, holes: [] }], roads, "intersection").some(p => regionArea(p) > 1)) continue;
+      if (regionsOverlap([{ outer: bastion, holes: [] }], roads, 1)) continue;
       pieces = regionBoolean(
         regionBoolean([{ outer: bastion, holes: [] }], doc.site!.domain, "intersection"),
         keepOff,

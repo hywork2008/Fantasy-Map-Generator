@@ -3,7 +3,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import { fabricLine, nearestFabricLine } from "../fabric/lines";
 import { waterDistance } from "../generation/urbanPacking";
 import { evaluateAnchor } from "../geometry/curves";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionBoolean, regionsExceed, regionsOverlap } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
 import { vectorOccupiedSites } from "../occupancy";
 import { fabricLineSurface } from "./fabricLineSurface";
@@ -43,8 +43,7 @@ export function transformVectorPlacement(
       holes: r.holes.map(h => h.map(transform))
     }));
     const obstacles = [...Object.values(doc.paths).map(pathSurface), ...vectorOccupiedSites(doc, "site", id)];
-    if (regionBoolean([p.site], obstacles, "intersection").some(r => regionArea(r) > 1e-5))
-      throw Error("dependency-placement-obstacle");
+    if (regionsOverlap([p.site], obstacles, 1e-5)) throw Error("dependency-placement-obstacle");
     const plot = doc.environment?.terrain?.plots.find(plot => `freeform:placement:${plot.ownerId}` === id);
     if (plot) plot.outline = plot.outline.map(transform);
     p.position = [...position];
@@ -98,7 +97,7 @@ export function transformVectorPlacement(
     b.riverbankDistanceMeters = distance;
   }
   b.reserved = regionBoolean([p.site], regionBoolean(corridors, roads, "difference"), "union");
-  if (source.urban && regionBoolean(b.reserved, source.urban.domain, "difference").some(r => regionArea(r) > 1e-5))
+  if (source.urban && regionsExceed(b.reserved, source.urban.domain, 1e-5))
     throw new Error("dependency-placement-domain");
   p.position = [...position];
   p.facingDegrees = facingDegrees;

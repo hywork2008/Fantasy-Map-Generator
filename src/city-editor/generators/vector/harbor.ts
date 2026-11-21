@@ -9,7 +9,7 @@ import { polygonHarborWaterField, SEA_CHANNEL_HALF_WIDTH } from "../harborNaviga
 import { validShipDisplayState } from "../shipDisplayState";
 import { defenseAccessSurface } from "./defense";
 import { evaluateAnchor } from "./geometry/curves";
-import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
+import { containsRegion, regionArea, regionBoolean, regionsOverlap } from "./geometry/regions";
 import { ringInside } from "./geometry/routing";
 import { pathSurface, simpleContour } from "./geometry/surfaces";
 
@@ -256,7 +256,7 @@ export function validateVectorHarbor(doc: VectorCityDocument): string[] {
       siteWater = physical?.map(w => w.polygon) ?? [];
     if (
       !physical ||
-      regionBoolean(n.land, n.water, "intersection").some(r => regionArea(r) > 1e-5) ||
+      regionsOverlap(n.land, n.water, 1e-5) ||
       !inside(n.water, siteWater) ||
       !inside(siteWater, n.water)
     )

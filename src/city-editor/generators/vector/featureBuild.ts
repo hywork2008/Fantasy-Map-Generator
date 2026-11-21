@@ -13,7 +13,7 @@ import { curveSource } from "./editing/paths";
 import { featureReservations } from "./environmentState";
 import { evaluateAnchor } from "./geometry/curves";
 import { nearestRoadAnchor } from "./geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
+import { containsRegion, regionArea, regionsExceed, regionsOverlap } from "./geometry/regions";
 import { offsetRing } from "./geometry/routing";
 import { pathSurface } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
@@ -33,8 +33,7 @@ export interface VectorFeatureDraft {
   moatWidthMeters: number;
 }
 
-const overlap = (a: VectorPolygon[], b: VectorPolygon[]) =>
-  regionBoolean(a, b, "intersection").some(p => regionArea(p) > 1e-5);
+const overlap = (a: VectorPolygon[], b: VectorPolygon[]) => regionsOverlap(a, b, 1e-5);
 function box(center: Point, w: number, h: number, angle = 0): VectorPolygon {
   const c = Math.cos(angle),
     s = Math.sin(angle);
@@ -131,7 +130,7 @@ export function buildVectorFeature(
     height: number,
     color: string
   ) => {
-    if (role !== "ship" && regionBoolean([polygon], [f.boundary], "difference").some(p => regionArea(p) > 1e-5)) return;
+    if (role !== "ship" && regionsExceed([polygon], [f.boundary], 1e-5)) return;
     f.pieces.push({ id: `${id}:piece:${f.pieces.length + 1}`, role, polygon, heightMeters: height, color });
   };
   let approachStart = entrance;
@@ -293,8 +292,7 @@ export function buildVectorFeature(
       [footprint.halfX, footprint.halfZ],
       [-footprint.halfX, footprint.halfZ]
     ].map(([x, z]) => [center[0] + x * c + z * s, center[1] + x * s - z * c]);
-    if (regionBoolean([{ outer, holes: [] }], [f.boundary], "difference").some(p => regionArea(p) > 1e-5))
-      throw Error("feature-model-space");
+    if (regionsExceed([{ outer, holes: [] }], [f.boundary], 1e-5)) throw Error("feature-model-space");
     const model = definition.create();
     let height = 0;
     try {

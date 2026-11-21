@@ -578,6 +578,21 @@ function contentKey(value: unknown): string | undefined {
   return `${text.length}:${(a >>> 0).toString(16)}:${(b >>> 0).toString(16)}`;
 }
 
+/**
+ * The content key of a document this thread has validated, or undefined: a generation worker sends it with its result,
+ * so the page does not validate the same content again (a structured clone keeps the content).
+ */
+export function validatedContentKey(value: unknown): string | undefined {
+  const key = contentKey(value);
+  return key !== undefined && validatedContent.includes(key) ? key : undefined;
+}
+/** Records content another thread validated with this same validator (`validatedContentKey`). */
+export function acceptValidatedContent(key: string): void {
+  if (validatedContent.includes(key)) return;
+  validatedContent.push(key);
+  if (validatedContent.length > VALIDATED_CONTENT_LIMIT) validatedContent.shift();
+}
+
 let deferred = 0;
 /**
  * Run a batch of edits whose intermediate documents need no checks of their own (a generator adding a gate at each

@@ -1,6 +1,5 @@
-import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
-import { compactModel } from "../compactModel";
+import { compactModel, uncompactedModelHeight } from "../compactModel";
 import type { EnclosedGuildRole } from "./enclosedGuildTrades";
 import type { Surface } from "./modelKit";
 import {
@@ -79,6 +78,10 @@ function guildDevice(k: TradeKit, role: EnclosedGuildRole, x: number, y: number,
  * windows, the guild's Stube above it lit by a row of close-set windows, and the guild's sign. No interior is built.
  */
 export function createOpusGuildHouse(input: OpusGuildHouseSpec, quality: TradeQuality): CityStructureMeshes {
+  return compactModel(buildOpusGuildHouse(input, quality));
+}
+/** The model's kit parts before baking. */
+function buildOpusGuildHouse(input: OpusGuildHouseSpec, quality: TradeQuality): CityStructureMeshes {
   const l = opusGuildHouseLayout(input),
     spec = l.spec,
     k = new TradeKit(`opus-guild-house-${spec.role}-${quality}`, quality === "high", streetHouseColors(l)),
@@ -139,7 +142,7 @@ export function createOpusGuildHouse(input: OpusGuildHouseSpec, quality: TradeQu
   // The guild's sign hangs beside the portal, under the Stube.
   const x = spec.mirror ? l.door.a - 0.35 : l.door.b + 0.35;
   k.signBracket(x, l.z1, l.ground - 0.15, (cx, cy, cz) => guildDevice(k, spec.role, cx, cy, cz));
-  return compactModel(k.finish());
+  return k.finish();
 }
 
 const heights = new Map<string, number>();
@@ -148,13 +151,7 @@ export function opusGuildHouseHeight(spec: OpusGuildHouseSpec): number {
   const key = opusGuildHouseSpecKey(spec);
   let result = heights.get(key);
   if (result === undefined) {
-    const model = createOpusGuildHouse(spec, "low");
-    try {
-      const box = new THREE.Box3().setFromObject(model.group, true);
-      result = box.max.y - box.min.y;
-    } finally {
-      model.dispose();
-    }
+    result = uncompactedModelHeight(buildOpusGuildHouse(spec, "low"));
     heights.set(key, result);
   }
   return result;

@@ -18,7 +18,7 @@ it("registers glassworking High and retains the Low shape and CE default identit
   expect(medievalDefinition(definition).variant).toBe("medieval.glassworkers-guild-hall@default#codex-gpt-6.1-sol");
   const low = definition.variants![0].create();
   try {
-    expect(landmarkFingerprint(low.group)).toBe("9e23da63c47e369a6e466879c1bb2476414c4805bf3cfde7ed4ca38e28f8cf8a");
+    expect(landmarkFingerprint(low.group)).toBe("2a072c9950449119d9acfbd11796c024715ecf5152b76debd5baa95932789aab");
   } finally {
     low.dispose();
   }

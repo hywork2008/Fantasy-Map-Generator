@@ -7,7 +7,7 @@ import { waterDistance } from "../generation/urbanPacking";
 import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
 import { evaluateAnchor } from "../geometry/curves";
 import { bridgeGeometry, dryLandingExtent, gateOpening, junctionSurface, unit } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
@@ -79,7 +79,7 @@ const near = (a: VectorPolygon[], b: VectorPolygon[]) => {
 /** Positive-area overlap. Only polygons whose bounding boxes meet can overlap, so the others are left out. */
 const overlap = (a: VectorPolygon[], b: VectorPolygon[]) => {
   const close = near(a, b);
-  return close.length > 0 && regionBoolean(a, close, "intersection").some(p => regionArea(p) > 1e-5);
+  return close.length > 0 && regionsOverlap(a, close, 1e-5);
 };
 const parts = (p: VectorPlacement) => p.building?.reserved ?? [p.site];
 function obstacles(doc: VectorCityDocument): VectorPolygon[] {

@@ -10,7 +10,7 @@ import { facilityUseOf } from "../../facilityUses";
 import { convexHull, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import { evaluateAnchor } from "../geometry/curves";
 import { nearestRoadAnchor } from "../geometry/network";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionBoolean, regionsExceed, regionsOverlap } from "../geometry/regions";
 import { simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import {
   connectTanneryRow,
@@ -199,7 +199,7 @@ export function placeFacilitiesOnPlots(
       const line = lines[item.k];
       if (!line.fabric) return false;
       const surface = surfaceOf(item.k);
-      return !!surface && regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6);
+      return !!surface && regionsOverlap([site], [surface], 1e-6);
     });
 
   for (const request of requests) {
@@ -317,9 +317,7 @@ export function placeFacilitiesOnPlots(
             sized = true;
             if (!laid) continue;
             const blocked = (site: VectorPolygon) =>
-              occupied
-                .search(boxOf(site.outer))
-                .some(o => regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) ||
+              occupied.search(boxOf(site.outer)).some(o => regionsOverlap([site], [o.polygon], 1e-5)) ||
               protectedLand.search(boxOf(site.outer, 1e-6)).some(o => surfacesOverlap(site, o.polygon)) ||
               crossesLine(site);
             if (
@@ -568,7 +566,7 @@ function layFacility(
     outer: p.outer.map(transform),
     holes: p.holes.map(h => h.map(transform))
   }));
-  if (regionBoolean(footprint, [site], "difference").some(r => regionArea(r) > 1e-5)) return;
+  if (regionsExceed(footprint, [site], 1e-5)) return;
   // The door on the front, joined to the line the plots face.
   const door = transform(entrance.point),
     line = lines[run[0].line],
@@ -720,7 +718,7 @@ function layRearWorks(
         holes: []
       }
     ];
-  if (regionBoolean(footprint, [site], "difference").some(r => regionArea(r) > 1e-5)) return;
+  if (regionsExceed(footprint, [site], 1e-5)) return;
   // As bvFacilityAsset turns model metres into plan metres: +Z the house is -Y on the plan.
   const asset = rearWorksAsset(trade),
     door = opusRearWorksLayout(opusRearWorksPreset(trade, fit)).entrance;

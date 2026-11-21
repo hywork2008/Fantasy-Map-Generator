@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { BUILDING_PALETTES, type BuildingPaletteId } from "../appearance/palette";
-import { compactModel } from "../compactModel";
+import { compactModel, uncompactedModelHeight } from "../compactModel";
 import type { Surface } from "./modelKit";
 import { TradeKit, type TradeQuality, WALL_THICKNESS, type WallOpening } from "./opusTradeKit";
 import { tradeGoods } from "./opusWorkhomeGoods";
@@ -377,6 +377,10 @@ export function raiseStreetHouse(
 
 /** The Opus shop-house workhome of a spec (plan §4): street front only, no interior ledger. */
 export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQuality): CityStructureMeshes {
+  return compactModel(buildOpusWorkhome(input, quality));
+}
+/** The model's kit parts before baking. */
+function buildOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQuality): CityStructureMeshes {
   const l = opusWorkhomeLayout(input),
     spec = l.spec,
     k = new TradeKit(`opus-workhome-${spec.role}-${quality}`, quality === "high", streetHouseColors(l));
@@ -402,7 +406,7 @@ export function createOpusWorkhome(input: OpusWorkhomeSpec, quality: TradeQualit
     Array.from({ length: spec.storeys - 1 }, () => l.upper)
   );
   sign(k, l);
-  return compactModel(k.finish());
+  return k.finish();
 }
 
 const heights = new Map<string, number>();
@@ -411,13 +415,7 @@ export function opusWorkhomeHeight(spec: OpusWorkhomeSpec): number {
   const key = opusWorkhomeSpecKey(spec);
   let result = heights.get(key);
   if (result === undefined) {
-    const model = createOpusWorkhome(spec, "low");
-    try {
-      const box = new THREE.Box3().setFromObject(model.group, true);
-      result = box.max.y - box.min.y;
-    } finally {
-      model.dispose();
-    }
+    result = uncompactedModelHeight(buildOpusWorkhome(spec, "low"));
     heights.set(key, result);
   }
   return result;

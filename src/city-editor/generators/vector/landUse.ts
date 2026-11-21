@@ -7,7 +7,7 @@ import {
   VECTOR_LAND_USE_KINDS,
   type VectorLandUseKind
 } from "../../types/vector/landUse";
-import { regionArea, regionBoolean } from "./geometry/regions";
+import { regionArea, regionBoolean, regionsOverlap } from "./geometry/regions";
 import { pathSurface, simpleContour } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
 
@@ -48,7 +48,7 @@ export function validateVectorLandUse(doc: VectorCityDocument): string[] {
                 r.outer.every(p => Math.abs(p[0]) <= half && Math.abs(p[1]) <= half)
             ) &&
             Math.abs(z.regions.reduce((n, r) => n + regionArea(r), 0) - z.areaM2) < 1 &&
-            !regionBoolean(z.regions, water, "intersection").some(r => regionArea(r) > 1)
+            !regionsOverlap(z.regions, water, 1)
         ) &&
         validFurlongs(use.furlongs, half);
     return ok ? [] : ["land-use"];
@@ -105,9 +105,7 @@ export function refitVectorLandUse(doc: VectorCityDocument): void {
     return regions.length ? [{ ...z, regions, areaM2: regions.reduce((n, r) => n + regionArea(r), 0) }] : [];
   });
   // A furlong the edit runs over is ploughed afresh only when the town is generated again: it goes.
-  const furlongs = use.furlongs?.filter(
-    f => !regionBoolean(f.outline, cover, "intersection").some(r => regionArea(r) > 1)
-  );
+  const furlongs = use.furlongs?.filter(f => !regionsOverlap(f.outline, cover, 1));
   if (zones.length) {
     const { furlongs: _, ...rest } = use;
     doc.environment!.landUse = furlongs?.length ? { ...rest, zones, furlongs } : { ...rest, zones };

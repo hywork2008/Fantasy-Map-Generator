@@ -8,7 +8,7 @@ import { pointInPolygon, polygonCentroid } from "../../geom";
 import { featureReservations } from "../environmentState";
 import { fabricLinesNear } from "../fabric/lines";
 import { unpackPoints } from "../fabric/pack";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
@@ -86,10 +86,7 @@ export function layoutVectorWells(
   );
   const overlaps = (polygon: Point[], pad = 0) => {
     const candidates = solids.search(boxOf(polygon, pad)).map(s => s.polygon);
-    return (
-      candidates.length > 0 &&
-      regionBoolean([{ outer: polygon, holes: [] }], candidates, "intersection").some(r => regionArea(r) > 1e-3)
-    );
+    return candidates.length > 0 && regionsOverlap([{ outer: polygon, holes: [] }], candidates, 1e-3);
   };
   const lines = (list: { points: Point[]; widthMeters: number }[], polygon: Point[], clearance: number) =>
     list.some(l => nearLine(polygon, l.points, l.widthMeters / 2 + clearance));

@@ -1,7 +1,7 @@
 import type { VectorCityDocument } from "../../types/vector/document";
 import { pathIntersections } from "./geometry/intersections";
 import { bridgeGeometry } from "./geometry/network";
-import { regionArea, regionBoolean } from "./geometry/regions";
+import { regionsOverlap } from "./geometry/regions";
 import { pathSurface } from "./geometry/surfaces";
 import { vectorWaterSurfaces } from "./geometry/water";
 /** Import only straight, fully landed crossings that pass the common historical policy. */
@@ -9,8 +9,7 @@ export function adoptFreeformBridges(doc: VectorCityDocument): void {
   const waters = vectorWaterSurfaces(doc);
   for (const road of Object.values(doc.paths).filter(p => p.role === "road"))
     for (const river of Object.values(doc.paths).filter(p => p.role === "river")) {
-      if (!regionBoolean([pathSurface(road)], [pathSurface(river)], "intersection").some(p => regionArea(p) > 1e-5))
-        continue;
+      if (!regionsOverlap([pathSurface(road)], [pathSurface(river)], 1e-5)) continue;
       if (road.source.kind !== "curve" || river.source.kind !== "curve") throw Error("freeform-crossing");
       const hits = pathIntersections(road, river);
       if (!hits.length) throw Error("freeform-crossing");

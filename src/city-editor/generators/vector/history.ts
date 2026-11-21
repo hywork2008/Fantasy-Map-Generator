@@ -49,6 +49,19 @@ export class VectorDocumentHistory implements DocumentHistoryState<VectorCityDoc
     this.cursor++;
     return this.document;
   }
+  /**
+   * Commits a document handed over to the history (a generation worker's result, which no one else holds): kept
+   * without copying it in or out. The caller must not change it afterwards; `document` gives an editable copy.
+   */
+  adopt(document: VectorCityDocument, label = "Edit"): void {
+    assertVectorDocument(document);
+    this.snapshots.splice(this.cursor + 1, this.snapshots.length, {
+      document,
+      entry: { label, time: Date.now() },
+      key: {}
+    });
+    this.cursor++;
+  }
   amendTop(document: VectorCityDocument, label = this.snapshots[this.cursor].entry.label): VectorCityDocument {
     const snapshot = this.snapshot(document, label);
     this.snapshots.splice(this.cursor, this.snapshots.length, snapshot);

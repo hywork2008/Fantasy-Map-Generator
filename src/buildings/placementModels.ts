@@ -56,6 +56,7 @@ import { objectDrawing, PLACEABLE_OBJECTS, placeableObject } from "./placeableOb
 import type { PlacementQuality } from "./placementContract";
 import { axisBoxFromBounds, type FootprintBox, footprintBox } from "./placementContract";
 import footprintTable from "./placementFootprints.json";
+import heightTable from "./placementHeights.json";
 import type { BuildingRecord } from "./record";
 import { BASILICA_QUALITIES } from "./temples/basilicaTemple";
 import { BASILICA_VARIANTS } from "./temples/basilicaVariants";
@@ -262,6 +263,53 @@ export function measureAllPlacementFootprints(): Record<string, FootprintBox> {
   } finally {
     measureAhead = true;
     footprints.clear();
+  }
+}
+
+const heights = new Map<string, number>();
+const heightsAhead = heightTable as Record<string, number>;
+let measureHeightsAhead = true;
+
+/**
+ * A model's height as its bounds give it, measured once ahead like the footprints (`placementHeights.json`, kept equal
+ * to the models by `placementFootprints.test.ts`): a BV facility records it, and a generation worker would otherwise
+ * build each facility's whole model to read it.
+ */
+export function placementHeight(id: string, quality: PlacementQuality): number | null {
+  const key = `${id}:${quality}`,
+    known = heights.get(key) ?? (measureHeightsAhead ? heightsAhead[key] : undefined);
+  if (known !== undefined) return known;
+  const definition = placementDefinition(id, quality);
+  if (!definition) return null;
+  const model = definition.create();
+  try {
+    const height = new THREE.Box3().setFromObject(model.group, true).getSize(new THREE.Vector3()).y;
+    heights.set(key, height);
+    return height;
+  } finally {
+    model.dispose();
+  }
+}
+
+/** Every BV facility height measured from its model, as `placementHeights.json` holds them (tests only). */
+export function measureAllPlacementHeights(): Record<string, number> {
+  measureHeightsAhead = false;
+  heights.clear();
+  try {
+    const out: Record<string, number> = {};
+    for (const [id, source] of sources) {
+      if (!source.definition && !source.qualities) continue;
+      const qualities = placementQualities(id);
+      for (const quality of ["low", "high"] as const) {
+        if (qualities.length && !qualities.includes(quality)) continue;
+        const height = placementHeight(id, quality);
+        if (height !== null) out[`${id}:${quality}`] = height;
+      }
+    }
+    return Object.fromEntries(Object.entries(out).sort(([a], [b]) => (a < b ? -1 : 1)));
+  } finally {
+    measureHeightsAhead = true;
+    heights.clear();
   }
 }
 

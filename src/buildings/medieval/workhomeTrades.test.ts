@@ -71,7 +71,10 @@ it.each(WORKHOME_TRADE_COMBINATIONS.flatMap(pair => (["low", "high"] as const).m
       expect(modelParts(output.group)).toHaveLength(6);
       const definition = models.find(m => m.id === `trade-workhome.${shell.formId}.${role}`)!,
         variant = definition.variants!.find(v => v.level === quality)!;
-      expect(adoptedVariant(variant.family, quality).id).toBe(variant.id);
+      // CE draws the Opus street-front shop-house on this study's envelope (adopted 2026-11-18); the study stays
+      // registered for the model viewer.
+      expect(variant.id).toBe(`${variant.family}@${quality}#codex-gpt-6.1-sol`);
+      expect(adoptedVariant(variant.family, quality).id).toBe(`${variant.family}@${quality}#claude-opus-5.5`);
       const box = new THREE.Box3().setFromObject(output.group, true);
       for (let i = 0; i < 3; i++) {
         expect(box.min.getComponent(i)).toBeGreaterThanOrEqual(p.envelope.min[i] - 1e-5);
@@ -144,7 +147,7 @@ it.each(WORKHOME_TRADE_COMBINATIONS.flatMap(pair => (["low", "high"] as const).m
 );
 
 it("preserves legacy textile and woodworking geometry and materials", () => {
-  const baseline = JSON.parse(readFileSync("docs/analytics/ce-workhome-trades-legacy-baseline-20261104.json", "utf8"));
+  const baseline = JSON.parse(readFileSync("docs/analytics/ce-workhome-trades-legacy-baseline-20261121.json", "utf8"));
   for (const v of [...textile, ...woodworking].flatMap(m => m.variants!)) {
     const output = v.create(),
       hash = createHash("sha256");

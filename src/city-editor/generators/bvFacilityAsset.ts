@@ -1,8 +1,8 @@
-import * as THREE from "three";
 import {
   placementCatalog,
   placementDefinition,
   placementFootprint,
+  placementHeight,
   placementQualities
 } from "../../buildings/placementModels";
 import type { LandmarkAsset, Point } from "../types/document";
@@ -20,13 +20,7 @@ export function bvFacilityAsset(
   const footprint = placementFootprint(modelId, quality)!;
   const width = footprint.halfX * 2,
     depth = footprint.halfZ * 2;
-  const model = placementDefinition(modelId, quality)!.create();
-  let heightMeters: number;
-  try {
-    heightMeters = new THREE.Box3().setFromObject(model.group, true).getSize(new THREE.Vector3()).y;
-  } finally {
-    model.dispose();
-  }
+  const heightMeters = placementHeight(modelId, quality)!;
   const outer: Point[] = [
     [-width / 2, -depth / 2],
     [width / 2, -depth / 2],

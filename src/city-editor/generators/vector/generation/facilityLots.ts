@@ -22,6 +22,8 @@ import {
   regionBoolean,
   regionContains,
   regionProbe,
+  regionsExceed,
+  regionsOverlap,
   ringSurelyApart,
   ringSurelyInside
 } from "../geometry/regions";
@@ -115,11 +117,7 @@ export function placeFacilitiesOnLots(
         const line = lines[item.k];
         if (!line.fabric) return false;
         const surface = surfaceOf(item.k);
-        return (
-          !!surface &&
-          !ringSurelyApart(site.outer, surface) &&
-          regionBoolean([site], [surface], "intersection").some(r => regionArea(r) > 1e-6)
-        );
+        return !!surface && !ringSurelyApart(site.outer, surface) && regionsOverlap([site], [surface], 1e-6);
       }),
     { occupied, protectedLand } = facilityLand(doc);
   // Each street block's outline, indexed once: the sites are sampled against it point by point.
@@ -333,19 +331,11 @@ export function placeFacilitiesOnLots(
         // leaves of them, so the row runs on wall to wall (pre-acceptance U3). Its outline keeps off land taken.
         let site: VectorPolygon = { outer: hull, holes: [] };
         // The samples can miss a corner of the outline across the block's edge, which the whole lots used to hide.
-        if (
-          !ringSurelyInside(hull, ring) &&
-          regionBoolean([site], [{ outer: ring, holes: [] }], "difference").some(r => regionArea(r) > 0.01)
-        )
-          continue;
+        if (!ringSurelyInside(hull, ring) && regionsExceed([site], [{ outer: ring, holes: [] }], 0.01)) continue;
         if (
           occupied
             .search(boxOf(site.outer))
-            .some(
-              o =>
-                !ringSurelyApart(site.outer, o.polygon) &&
-                regionBoolean([site], [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)
-            )
+            .some(o => !ringSurelyApart(site.outer, o.polygon) && regionsOverlap([site], [o.polygon], 1e-5))
         )
           continue;
         if (protectedLand.search(boxOf(site.outer, 1e-6)).some(o => surfacesOverlap(site, o.polygon))) continue;
@@ -357,10 +347,7 @@ export function placeFacilitiesOnLots(
           holes: p.holes.map(h => h.map(transform))
         }));
         // The building stands wholly on its parcel (the samples above can miss a corner across the block's edge).
-        if (
-          !footprint.every(f => ringSurelyInside(f.outer, site.outer)) &&
-          regionBoolean(footprint, [site], "difference").some(r => regionArea(r) > 1e-5)
-        )
+        if (!footprint.every(f => ringSurelyInside(f.outer, site.outer)) && regionsExceed(footprint, [site], 1e-5))
           continue;
         if (wantsWater && waterDistance(doc, [site]) > request.riverbankMaxDistanceMeters!) continue;
         // The door on the front, joined to the line the lots face.
@@ -454,9 +441,7 @@ export function placeFacilitiesOnLots(
               parcel.length === 1 &&
               !parcel[0].holes.length &&
               simpleContour(parcel[0].outer, true) &&
-              !occupied
-                .search(boxOf(parcel[0].outer))
-                .some(o => regionBoolean(parcel, [o.polygon], "intersection").some(r => regionArea(r) > 1e-5)) &&
+              !occupied.search(boxOf(parcel[0].outer)).some(o => regionsOverlap(parcel, [o.polygon], 1e-5)) &&
               !protectedLand.search(boxOf(parcel[0].outer, 1e-6)).some(o => surfacesOverlap(parcel[0], o.polygon)) &&
               // The leftovers of the lots reach no street or lane either.
               !crossesLine(parcel[0]) &&
@@ -680,10 +665,27 @@ function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeter
   const water = allVectorWater(doc),
     center = doc.site!.center,
     half = doc.frame.extentMeters / 2,
-    wet = (p: Point) => water.some(w => containsRegion([w], p)),
+    // The bank walk tests tens of thousands of points against the same water: each polygon's outline is indexed once.
+    within = (polygons: VectorPolygon[]) => {
+      const probes = polygons.map(w => {
+        const box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+        for (const [x, y] of w.outer) {
+          box.minX = Math.min(box.minX, x);
+          box.minY = Math.min(box.minY, y);
+          box.maxX = Math.max(box.maxX, x);
+          box.maxY = Math.max(box.maxY, y);
+        }
+        return { box, probe: regionProbe(w) };
+      });
+      return (p: Point) =>
+        probes.some(
+          ({ box, probe }) =>
+            p[0] >= box.minX && p[0] <= box.maxX && p[1] >= box.minY && p[1] <= box.maxY && probe.contains(p)
+        );
+    },
+    wet = within(water),
     // Standing water that is no river's (the sea, a lake): a river's course into it has left its banks.
-    sea = (doc.site?.water ?? []).filter(w => !w.riverPathId).flatMap(w => w.polygons),
-    atSea = (p: Point) => sea.some(w => containsRegion([w], p)),
+    atSea = within((doc.site?.water ?? []).filter(w => !w.riverPathId).flatMap(w => w.polygons)),
     runs: { bank: Point[]; landSide: 1 | -1; startMeters: number; upstream: boolean }[] = [];
   let framed = false;
   for (const raw of riverCourses(doc)) {
@@ -901,8 +903,7 @@ export function reserveTanneryRow(
   );
   const placed: string[] = [];
   let framed = banks.framed;
-  const overlaps = (a: VectorPolygon, b: VectorPolygon) =>
-    regionBoolean([a], [b], "intersection").some(r => regionArea(r) > 1e-7);
+  const overlaps = (a: VectorPolygon, b: VectorPolygon) => regionsOverlap([a], [b], 1e-7);
   // Yards with no road or street before them are served by a tanners' lane along their fronts.
   // A lane may cross fields and woods as a farm track does, never a burial ground, a park or a reserved feature.
   const laneAside = [
@@ -1086,7 +1087,7 @@ export function reserveTanneryRow(
         if (simple(next)) {
           grown = next;
           placed.push(id);
-        } else if (!regionBoolean(reserved, grown, "difference").some(r => regionArea(r) > 1e-6)) placed.push(id);
+        } else if (!regionsExceed(reserved, grown, 1e-6)) placed.push(id);
         else delete doc.placements[id];
       }
     }
@@ -1149,7 +1150,7 @@ export function connectTanneryRow(
         .some(item => {
           if (!ctx.lines[item.k].fabric) return false;
           const surface = ctx.surfaceOf(item.k);
-          return !!surface && regionBoolean(reserved, [surface], "intersection").some(r => regionArea(r) > 1e-6);
+          return !!surface && regionsOverlap(reserved, [surface], 1e-6);
         });
     if (crossed || !line || !end || reach < 0.01) {
       delete doc.placements[id];
@@ -1244,11 +1245,7 @@ function layTannersLanes(
     surface.outer.some(p => Math.abs(p[0]) > ctx.half || Math.abs(p[1]) > ctx.half) ||
     obstacles
       .search(boxOf(surface.outer))
-      .some(
-        o =>
-          (except === true ? !o.road : o.road !== except) &&
-          regionBoolean([surface], [o.polygon], "intersection").some(a => regionArea(a) > 1e-5)
-      );
+      .some(o => (except === true ? !o.road : o.road !== except) && regionsOverlap([surface], [o.polygon], 1e-5));
   const drop = (group: typeof fronts) => {
     for (const f of group) {
       delete doc.placements[f.id];
@@ -1303,6 +1300,9 @@ function layTannersLanes(
         test.contains([p[0], p[1] - c])
       );
     };
+  // Samples of the way between cells, cached on a half-metre lattice for every search of the pass: neighbouring moves
+  // and the searches from neighbouring yards share most of them, and only roads, which they ignore, are added meanwhile.
+  const blockedAt = new Map<number, boolean>();
   const routeAround = (head: Point) => {
     const g = LANE_GRID_METERS,
       r = Math.ceil(LANE_REACH_METERS / g),
@@ -1327,8 +1327,6 @@ function layTannersLanes(
       return v;
     };
     // A thin obstacle (a wall, a narrow creek) can lie between two cells: the way between them is sampled too.
-    // Cached on a half-metre lattice: neighbouring moves share most of their samples.
-    const blockedAt = new Map<number, boolean>();
     const pointBlocked = (p: Point) => {
       const k = Math.round(p[0] * 2) * 100003 + Math.round(p[1] * 2);
       let v = blockedAt.get(k);
@@ -1343,8 +1341,29 @@ function layTannersLanes(
       }
       return v;
     };
+    const frameOut = (p: Point) => Math.abs(p[0]) > ctx.half - clearance || Math.abs(p[1]) > ctx.half - clearance;
     const wayClear = (a: Point, b: Point) => {
       const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])));
+      if (n === 1) return true;
+      // Most moves keep well off every obstacle: with no obstacle's edge within its clearance of the move's box and its
+      // start outside, no sample between can lie in it or near its edge, and none is tested.
+      if (!frameOut(a) && !frameOut(b)) {
+        const x0 = Math.min(a[0], b[0]),
+          y0 = Math.min(a[1], b[1]),
+          x1 = Math.max(a[0], b[0]),
+          y1 = Math.max(a[1], b[1]);
+        if (
+          obstacles
+            .search({ minX: x0 - clearance, minY: y0 - clearance, maxX: x1 + clearance, maxY: y1 + clearance })
+            .every(o => {
+              if (o.road) return true;
+              const c = o.yard ? YARD_CLEARANCE : clearance,
+                test = tested(o.polygon);
+              return !test.nearBox(x0 - c, y0 - c, x1 + c, y1 + c) && !test.contains(a);
+            })
+        )
+          return true;
+      }
       for (let t = 1; t < n; t++)
         if (pointBlocked([a[0] + ((b[0] - a[0]) * t) / n, a[1] + ((b[1] - a[1]) * t) / n])) return false;
       return true;
@@ -1622,7 +1641,7 @@ function tryTannersLeat(
     } catch {
       return undefined;
     }
-    const meets = (r: VectorPolygon) => regionBoolean([surface], [r], "intersection").some(x => regionArea(x) > 1e-5);
+    const meets = (r: VectorPolygon) => regionsOverlap([surface], [r], 1e-5);
     if (ctx.roads.some(meets)) return undefined;
     if ([...ctx.setAside, ...ctx.protectedLand, ...ctx.occupied].some(meets)) return undefined;
     if (ctx.walls.some(w => points.some(p => nearestOnPolyline(p, w).dist < ROW_WALL_CLEARANCE_METERS)))

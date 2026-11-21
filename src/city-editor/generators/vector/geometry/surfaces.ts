@@ -1,4 +1,3 @@
-import RBush from "rbush";
 import type { Point } from "../../../types/primitives";
 import type { VectorPath } from "../../../types/vector/document";
 import { pointInPolygon, polygonArea, segmentsIntersect } from "../../geom";
@@ -18,29 +17,40 @@ const cross = (a: Point, b: Point) => a[0] * b[1] - a[1] * b[0];
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 const distance = (a: Point, b: Point) => Math.hypot(...sub(a, b));
 
-/** Spatial broad phase plus exact segment tests; adjacent edges may share endpoints. */
+/**
+ * Broad phase by a sweep along x (the pairs whose boxes meet), then exact segment tests; adjacent edges may share
+ * endpoints. Most rings are small and tested once, so a sort beats building a spatial index.
+ */
 export function simpleContour(points: Point[], closed: boolean): boolean {
-  type Edge = { minX: number; minY: number; maxX: number; maxY: number; index: number; a: Point; b: Point };
-  const tree = new RBush<Edge>();
   const count = points.length - (closed ? 0 : 1);
+  if (count <= 0) return true;
+  const minX = new Float64Array(count),
+    minY = new Float64Array(count),
+    maxX = new Float64Array(count),
+    maxY = new Float64Array(count);
   for (let i = 0; i < count; i++) {
     const a = points[i],
       b = points[(i + 1) % points.length];
     if (distance(a, b) < 1e-9) return false;
-    const edge: Edge = {
-      a,
-      b,
-      index: i,
-      minX: Math.min(a[0], b[0]),
-      minY: Math.min(a[1], b[1]),
-      maxX: Math.max(a[0], b[0]),
-      maxY: Math.max(a[1], b[1])
-    };
-    for (const other of tree.search(edge)) {
-      if (other.index === i - 1 || (closed && i === count - 1 && other.index === 0)) continue;
-      if (segmentsIntersect(a, b, other.a, other.b)) return false;
+    minX[i] = Math.min(a[0], b[0]);
+    minY[i] = Math.min(a[1], b[1]);
+    maxX[i] = Math.max(a[0], b[0]);
+    maxY[i] = Math.max(a[1], b[1]);
+  }
+  const order = Array.from({ length: count }, (_, i) => i).sort((i, j) => minX[i] - minX[j]);
+  for (let s = 0; s < count; s++) {
+    const i = order[s];
+    for (let t = s + 1; t < count; t++) {
+      const j = order[t];
+      if (minX[j] > maxX[i]) break;
+      if (minY[j] > maxY[i] || maxY[j] < minY[i]) continue;
+      // The later edge first, as it was tested against those before it.
+      const hi = Math.max(i, j),
+        lo = Math.min(i, j);
+      if (lo === hi - 1 || (closed && hi === count - 1 && lo === 0)) continue;
+      if (segmentsIntersect(points[hi], points[(hi + 1) % points.length], points[lo], points[(lo + 1) % points.length]))
+        return false;
     }
-    tree.insert(edge);
   }
   return true;
 }

@@ -6,7 +6,7 @@ import { facilityUseOf } from "../../facilityUses";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon } from "../../geom";
 import { evaluateAnchor } from "../geometry/curves";
 import { nearestRoadAnchor } from "../geometry/network";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionBoolean, regionsOverlap } from "../geometry/regions";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { facilityLand } from "./facilityLots";
@@ -90,7 +90,7 @@ export function reserveEdgeWorks(
       ...roads,
       ...water
     ];
-    return !regionBoolean([site], others, "intersection").some(r => regionArea(r) > 1e-5);
+    return !regionsOverlap([site], others, 1e-5);
   };
 
   const place = (request: BVFacilityRequest, start: number): boolean => {

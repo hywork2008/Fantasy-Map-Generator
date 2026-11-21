@@ -17,6 +17,7 @@ import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import { parseIncomingPayload } from "../../services/io/incomingCity";
 import {
+  prepareVectorGenerationWorker,
   startVectorGeneration,
   type VectorGenerationTask,
   type VectorGenerationTimings
@@ -56,6 +57,8 @@ export function createVectorGenerationPanel(
   summary.textContent = text("title");
   details.append(summary, body);
   parent.append(details);
+  // The first generation's worker loads its code while the settings are chosen.
+  if (start === startVectorGeneration) prepareVectorGenerationWorker();
   status.className = "ce-vector-generation-status";
   status.setAttribute("aria-live", "polite");
   body.style.cssText = "display:flex;flex-direction:column;gap:6px;margin:10px 0";

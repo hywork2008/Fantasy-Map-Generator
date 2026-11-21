@@ -24,8 +24,8 @@ import { curveSource, removeVectorPath } from "../editing/paths";
 import { featureReservations } from "../environmentState";
 import { evaluateAnchor, pathIsClosed, pathSegmentIds } from "../geometry/curves";
 import { pathIntersections } from "../geometry/intersections";
-import { bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { bridgeGeometry, distance, gateOpening, nearestRoadAnchor, unit, widthAt } from "../geometry/network";
+import { containsRegion, regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { compactRing, offsetRing } from "../geometry/routing";
 import { pointSegmentDistance, samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
@@ -37,7 +37,7 @@ import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCast
 import { connectVectorCivicCentre } from "./civic";
 import { raiseVectorPlazaFurniture } from "./civicFurniture";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
-import { raiseVectorForest } from "./forest";
+import { raiseVectorForest, vectorForestSettings } from "./forest";
 import { spreadApproaches, squareWallCrossings } from "./gateApproaches";
 import { raiseVectorGuilds } from "./guilds";
 import { vectorTownCulture, vectorTownProfile } from "./housingCulture";
@@ -193,7 +193,7 @@ function extendApproachesThroughWall(
       source: curveSource([from, to], "polyline", false),
       width: { leftMeters: road.width.leftMeters, rightMeters: road.width.rightMeters, stations: [] }
     };
-    if (regionBoolean([pathSurface(path)], water, "intersection").some(r => regionArea(r) > 1e-5)) continue;
+    if (regionsOverlap([pathSurface(path)], water, 1e-5)) continue;
     doc.paths[id] = path;
     joinVectorGenerationAnchors(doc, [inner, { pathId: id, segmentId: pathSegmentIds(path)[0], t: 0 }]);
     extended.add(road.id);
@@ -224,12 +224,7 @@ function wallCrossingsFit(
       return u[0] * v[0] + u[1] * v[1] < Math.cos((15 * Math.PI) / 180);
     }),
     gates: { at: Point; opening: number }[] = [];
-  if (
-    blocked &&
-    !crossSites &&
-    regionBoolean([pathSurface(wall)], blocked, "intersection").some(r => regionArea(r) > 1e-5)
-  )
-    return false;
+  if (blocked && !crossSites && regionsOverlap([pathSurface(wall)], blocked, 1e-5)) return false;
   for (const other of crossers)
     for (const hit of pathIntersections(wall, other)) {
       const a = unit(evaluateAnchor(wall, hit.a, true)),
@@ -282,7 +277,7 @@ function addTownMoat(doc: VectorCityDocument, wallId: string, settings: VectorGe
     for (const hit of pathIntersections(moat, road)) {
       const segment =
         road.source.kind === "curve" ? road.source.segments.find(s => s.id === hit.b.segmentId) : undefined;
-      if (!segment || segment.kind !== "line") throw new Error("moat-bridge");
+      if (segment?.kind !== "line") throw new Error("moat-bridge");
       const tangent = unit(evaluateAnchor(moat, hit.a, true)),
         axis = unit(evaluateAnchor(road, hit.b, true)),
         sine = Math.abs(tangent[0] * axis[1] - tangent[1] * axis[0]),
@@ -563,6 +558,14 @@ function despike(polygons: VectorPolygon[]): VectorPolygon[] {
  * road, say). A saved block needs every hole strictly inside, so such a hole is grown by 1 cm about its centre
  * and cut again: it becomes a notch in the outline. Seeds whose skeleton hit this failed to generate at all. */
 function openTouchingHoles(polygons: VectorPolygon[]): VectorPolygon[] {
+  // Opening one hole can leave another touching the new outline (a crossing restored a few ulps off a grid line):
+  // opened again, a few times at most.
+  for (let round = 0; round < 3 && polygons.some(touchingHoles); round++) polygons = openTouchingHolesOnce(polygons);
+  return polygons;
+}
+const touchingHoles = (polygon: VectorPolygon) =>
+  polygon.holes.some(h => h.some(p => !pointInPolygon(p, polygon.outer)));
+function openTouchingHolesOnce(polygons: VectorPolygon[]): VectorPolygon[] {
   return polygons.flatMap(polygon => {
     const touching = polygon.holes.filter(h => h.some(p => !pointInPolygon(p, polygon.outer)));
     if (!touching.length) return [polygon];
@@ -612,6 +615,43 @@ function splitOverlappingOutlines(polygons: VectorPolygon[]): VectorPolygon[] {
     return regionBoolean([polygon], shave, "difference");
   });
 }
+/** Farthest a road's port is moved back along it to clear the edge of the free land. */
+const PORT_PULLBACK_METERS = 40;
+/**
+ * The end `end` of `road`, or where the street search can start from it: a street keeps `clearance` from the edge of
+ * the free land, so an end closer to it (an approach run down to the bank beside a bridge) is moved back along the
+ * road to its first sample that keeps it, within PORT_PULLBACK_METERS; the stub beyond stays the road's own.
+ */
+function portClearOfEdges(road: VectorPath, end: CurveAnchor, free: VectorPolygon[], clearance: number): CurveAnchor {
+  const edgeGap = (p: Point) => {
+    let gap = Infinity;
+    for (const polygon of free)
+      for (const ring of [polygon.outer, ...polygon.holes])
+        for (let i = 0; i < ring.length; i++)
+          gap = Math.min(gap, pointSegmentDistance(p, ring[i], ring[(i + 1) % ring.length]));
+    return gap;
+  };
+  const at = evaluateAnchor(road, end);
+  if (edgeGap(at) >= clearance) return end;
+  const samples = samplePath(road),
+    fromStart = distance(samples[0].point, at) <= distance(samples.at(-1)!.point, at),
+    along = fromStart ? samples : [...samples].reverse();
+  // Every metre along the road's samples (a straight approach has only its two ends).
+  for (let k = 1, walked = 0; k < along.length && walked <= PORT_PULLBACK_METERS; k++) {
+    const a = along[k - 1].point,
+      b = along[k].point,
+      l = distance(a, b);
+    for (let d = 1; d <= l && walked + d <= PORT_PULLBACK_METERS; d++) {
+      const q: Point = [a[0] + ((b[0] - a[0]) * d) / l, a[1] + ((b[1] - a[1]) * d) / l];
+      if (!containsRegion(free, q) || edgeGap(q) < clearance) continue;
+      const anchor = nearestRoadAnchor(road, q, samples),
+        p = evaluateAnchor(road, anchor);
+      if (containsRegion(free, p) && edgeGap(p) >= clearance) return anchor;
+    }
+    walked += l;
+  }
+  return end;
+}
 export function deriveVectorBlocks(doc: VectorCityDocument, extra: VectorPolygon[] = []): VectorBlock[] {
   const roads = Object.values(doc.paths).filter(p => p.role === "road"),
     land = splitOverlappingOutlines(
@@ -634,20 +674,31 @@ export interface VectorGenerationResult {
   document: VectorCityDocument;
   stages: { id: "inputs" | "skeleton" | "regions"; document: VectorCityDocument }[];
 }
+export interface VectorSkeletonOptions {
+  /** An urban pass follows at once (a whole city): work it redoes or drops is skipped. */
+  urbanFollows?: boolean;
+}
 /** Adopted geometry is computed here, never while rendering or loading a document. */
 export function generateVectorSkeleton(
   input: VectorCityDocument,
   settings: VectorGenerationSettings = DEFAULT_VECTOR_GENERATION,
   timings?: GenerationTimingObserver,
-  routingTimings?: GenerationTimingObserver
+  routingTimings?: GenerationTimingObserver,
+  options: VectorSkeletonOptions = {}
 ): VectorGenerationResult {
   try {
-    return skeleton(input, settings, timings, routingTimings);
+    return skeleton(input, settings, timings, routingTimings, options);
   } catch (error) {
     // An old town walled before its streets can leave land between the walls that no approach reaches (a river
     // cutting the ring). The mesh editor then falls back too; here the old-town wall is cut into the laid streets.
     if (settings.innerWall?.order !== "inner-first" || String(error) !== "Error: fixed-port-unreachable") throw error;
-    const result = skeleton(input, { ...settings, innerWall: { ...settings.innerWall, order: "outer-first" } });
+    const result = skeleton(
+      input,
+      { ...settings, innerWall: { ...settings.innerWall, order: "outer-first" } },
+      undefined,
+      undefined,
+      options
+    );
     for (const doc of [result.document, ...result.stages.map(s => s.document)])
       doc.generation?.diagnostics.push({
         code: "inner-first-fallback",
@@ -661,7 +712,8 @@ function skeleton(
   input: VectorCityDocument,
   settings: VectorGenerationSettings,
   timings?: GenerationTimingObserver,
-  routingTimings?: GenerationTimingObserver
+  routingTimings?: GenerationTimingObserver,
+  options: VectorSkeletonOptions = {}
 ): VectorGenerationResult {
   const timed = generationTiming(timings);
   assertVectorDocument(input);
@@ -969,10 +1021,7 @@ function skeleton(
         })),
         steepEnough = (path: VectorPath) => {
           try {
-            return (
-              wallCrossingsFit(path, crossers, settings) &&
-              !regionBoolean([pathSurface(path)], siteDecks, "intersection").some(r => regionArea(r) > 1e-5)
-            );
+            return wallCrossingsFit(path, crossers, settings) && !regionsOverlap([pathSurface(path)], siteDecks, 1e-5);
           } catch {
             // An outline the polygon operations cannot take is no candidate.
             return false;
@@ -1178,8 +1227,7 @@ function skeleton(
   for (const road of Object.values(doc.paths).filter(p => p.role === "road")) {
     const inDomain = regionBoolean([pathSurface(road)], doc.site!.domain, "intersection");
     const exposed = regionBoolean(inDomain, decks, "difference");
-    if (regionBoolean(exposed, waters, "intersection").some(r => regionArea(r) > 1e-5))
-      throw new Error(`unbridged-road:${road.id}`);
+    if (regionsOverlap(exposed, waters, 1e-5)) throw new Error(`unbridged-road:${road.id}`);
   }
   timed("walls-gates-bridges");
   if (settings.layout === "circulade" || settings.layout === "bram") layConcentricStreets(doc, settings, extended);
@@ -1202,8 +1250,9 @@ function skeleton(
     );
     const a = endpoints.find(a => containsRegion(free, evaluateAnchor(road, a)));
     if (a) {
-      ports.push(evaluateAnchor(road, a));
-      bindings.push([a]);
+      const port = portClearOfEdges(road, a, free, settings.roadWidthMeters / 2 + settings.clearanceMeters + 0.011);
+      ports.push(evaluateAnchor(road, port));
+      bindings.push([port]);
     }
   }
   const required = ports.length;
@@ -1308,6 +1357,7 @@ function skeleton(
       for (const hit of pathIntersections(roads[i], roads[j]))
         if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) joinVectorGenerationAnchors(doc, [hit.a, hit.b]);
   rebuildRoadGraph(doc);
+  timed("connections-and-validation/road-joins");
   connectVectorCivicCentre(doc);
   // An English-style town's guildhall stands in its market place before the stalls set out round it (plan W5c). A
   // square too small for it keeps the hall among the town's facilities, as designed, so nothing is reported.
@@ -1319,6 +1369,7 @@ function skeleton(
   // The square's stocks or cross (B6b), after its stalls and aisles.
   if (doc.environment?.features[CIVIC_PLAZA_ID] && doc.placements["civic:church"] && !raiseVectorPlazaFurniture(doc))
     diagnostics.push({ code: "plaza-furniture-unplaced", entityId: CIVIC_PLAZA_ID, severity: "warning" });
+  timed("connections-and-validation/civic-centre");
   if (deferredInner) {
     // The line is eased in or out a little until every street crosses it steeply, clear of its corners, of the
     // next gate and of protected sites; the streets were laid without it.
@@ -1360,6 +1411,7 @@ function skeleton(
     if (!placed) diagnostics.push({ code: "inner-wall-unplaced", entityId: "auto-inner-wall", severity: "warning" });
   }
   if (deferredInner) rebuildRoadGraph(doc);
+  timed("connections-and-validation/inner-wall");
   if (doc.regions[CASTLE_SITE_ID]) {
     doc = raiseVectorCastle(doc, settings);
     if (!doc.environment?.features[CASTLE_FEATURE_ID])
@@ -1369,12 +1421,14 @@ function skeleton(
   // church without a cemetery, as the mesh editor's zoning does; it is said rather than moved into the town (P6a).
   if (doc.environment?.features["feature:civic-church"] && !doc.environment.features["feature:civic-cemetery"])
     diagnostics.push({ code: "cemetery-unplaced", entityId: "feature:civic-church", severity: "warning" });
+  timed("connections-and-validation/castle");
   // Ferries where the roads end on the bank of a river no bridge of the period spans (P5b-4); the harbour keeps off
   // their landings.
   const ferried = raiseVectorFerries(doc);
   doc = ferried.document;
   for (const road of ferried.failures)
     diagnostics.push({ code: "ferry-unplaced", entityId: road, severity: "warning" });
+  timed("connections-and-validation/ferries");
   // The harbour comes last: its quays link to the laid streets and keep off the walls and precincts (P5b).
   if (settings.port) {
     // The land blocks are cut round the harbour next. Where the polygon kernel cannot cut them round it, or a block's
@@ -1403,6 +1457,7 @@ function skeleton(
     }
     if (outcome) diagnostics.push({ code: "harbor-unplaced", entityId: outcome, severity: "warning" });
   }
+  timed("connections-and-validation/harbor");
   // Religious houses take whole land blocks between the streets (P6c), after the harbour has its
   // shore, as the mesh editor keeps harbour wards from them.
   const housed = raiseVectorMonasteries(doc, deriveVectorBlocks(doc));
@@ -1410,21 +1465,25 @@ function skeleton(
   const founded = Object.keys(doc.environment?.monasteries ?? {}).length;
   if (founded < housed.wanted)
     diagnostics.push({ code: "monastery-unplaced", entityId: String(housed.wanted - founded), severity: "warning" });
+  timed("connections-and-validation/monasteries");
   // The guilds of an FMG town's economy: halls in the core, yards outside the town (P6d).
   const guilds = raiseVectorGuilds(doc, deriveVectorBlocks(doc));
   doc = guilds.document;
   if (guilds.placed < guilds.wanted)
     diagnostics.push({ code: "guild-unplaced", entityId: String(guilds.wanted - guilds.placed), severity: "warning" });
+  timed("connections-and-validation/guilds");
   // Inns and caravanserais on the busiest approach, beyond the town (P6e).
   const lodged = raiseVectorInns(doc, deriveVectorBlocks(doc));
   doc = lodged.document;
   if (lodged.placed < lodged.wanted)
     diagnostics.push({ code: "inn-unplaced", entityId: String(lodged.wanted - lodged.placed), severity: "warning" });
+  timed("connections-and-validation/inns");
   // Land for the extramural shanty along the busiest approaches beyond the wall (P6h), before the open landmarks.
   const faubourg = raiseVectorShantyLand(doc);
   doc = faubourg.document;
   if (wantsShanty(doc) && !faubourg.grown && Object.values(doc.paths).some(p => p.role === "wall"))
     diagnostics.push({ code: "shanty-unplaced", entityId: "land", severity: "warning" });
+  timed("connections-and-validation/shanty");
   // Land for the roadside ribbon along each approach beyond the glacis (P7a).
   // Dwellings the interior cannot hold lengthen the ribbon, which keeps a barbican's reach in its era (W2).
   const period = doc.context.historicalPeriod ?? "ageOfExploration",
@@ -1454,6 +1513,7 @@ function skeleton(
       entityId: String(Math.round(ribbon.unplacedLength)),
       severity: "warning"
     });
+  timed("connections-and-validation/ribbon");
   // The gallows and the windmills on open ground beyond the town (P6f).
   const marks = raiseVectorOpenLandmarks(doc, deriveVectorBlocks(doc));
   doc = marks.document;
@@ -1461,11 +1521,17 @@ function skeleton(
     diagnostics.push({ code: "landmark-unplaced", entityId: String(marks.wanted - marks.placed), severity: "warning" });
   // The open land by use (U5b), then woodland over its wild ground by the forest settings, last: both keep clear of
   // everything raised before (P7b).
-  doc = raiseVectorLandUse(doc);
+  timed("connections-and-validation/landmarks");
+  // The urban pass splits the open land again round the finished town and drops this split: before it, the split is
+  // drawn only for the woodland, which keeps off the farmed land, and its furlongs not at all.
+  if (!options.urbanFollows) doc = raiseVectorLandUse(doc);
+  else if (vectorForestSettings(doc)?.mode === "surroundings") doc = raiseVectorLandUse(doc, [], { furlongs: false });
+  timed("connections-and-validation/land-use");
   doc = raiseVectorForest(doc);
+  timed("connections-and-validation/forest");
   doc.revision++;
   assertVectorDocument(doc);
-  timed("connections-and-validation");
+  timed("connections-and-validation/validation");
   stages.push({ id: "skeleton", document: structuredClone(doc) });
   const blocks = deriveVectorBlocks(doc);
   for (const b of blocks)

@@ -4,7 +4,7 @@ import { placementFootprint } from "../../../../buildings/placementModels";
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import { matchesVectorUrbanFingerprint } from "../generation/urbanState";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionsOverlap } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
 import { vectorOccupiedSites } from "../occupancy";
 import { assertVectorDocument } from "../validation/document";
@@ -57,8 +57,7 @@ export function addVectorObject(
   if (outer.some(p => Math.abs(p[0]) > half || Math.abs(p[1]) > half)) throw new Error("object-outside-frame");
   const site = { outer, holes: [] as Point[][] };
   const obstacles = [...Object.values(source.paths).map(pathSurface), ...vectorOccupiedSites(source, "site")];
-  if (regionBoolean([site], obstacles, "intersection").some(r => regionArea(r) > 1e-5))
-    throw new Error("object-obstacle");
+  if (regionsOverlap([site], obstacles, 1e-5)) throw new Error("object-obstacle");
   const model = definition.create();
   let height: number;
   try {

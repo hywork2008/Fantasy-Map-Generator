@@ -10,7 +10,7 @@ import { featureReservations } from "../environmentState";
 import { buildVectorFeature } from "../featureBuild";
 import { evaluateAnchor } from "../geometry/curves";
 import { distance } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionArea, regionsOverlap } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -97,7 +97,7 @@ export function reserveVectorCastle(doc: VectorCityDocument, settings: VectorGen
           if (
             site.outer.some(p => !containsRegion(doc.site!.domain, p)) ||
             (outerWall && site.outer.some(p => !pointInPolygon(p, outerWall))) ||
-            regionBoolean([site], blocked, "intersection").some(r => regionArea(r) > 1e-5)
+            regionsOverlap([site], blocked, 1e-5)
           )
             continue;
           doc.regions[CASTLE_SITE_ID] = { id: CASTLE_SITE_ID, kind: "reservation", ...site };

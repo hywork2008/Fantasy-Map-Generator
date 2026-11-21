@@ -8,7 +8,7 @@ import { curveSource, removeVectorPath } from "../editing/paths";
 import { evaluateAnchor } from "../geometry/curves";
 import { pathIntersections } from "../geometry/intersections";
 import { bridgeGeometry, distance, nearestRoadAnchor, unit } from "../geometry/network";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater, vectorWaterSurfaces } from "../geometry/water";
@@ -149,11 +149,11 @@ export function bridgeSyntheticCrossings(source: VectorCityDocument): VectorCity
     for (const road of Object.values(doc.paths).filter(p => p.role === "road" && relaid.has(p.id))) {
       let wet = true;
       try {
-        wet = regionBoolean(
+        wet = regionsOverlap(
           regionBoolean(regionBoolean([pathSurface(road)], input.site!.domain, "intersection"), decks, "difference"),
           water,
-          "intersection"
-        ).some(r => regionArea(r) > 1e-5);
+          1e-5
+        );
       } catch {
         // A surface that cannot be built is cut back like a wet one.
       }

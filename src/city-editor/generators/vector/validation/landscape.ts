@@ -6,7 +6,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import { validForestSettings } from "../../forestSettings";
 import { treeCrown, VECTOR_LANDSCAPE_TREE_LIMIT } from "../geometry/landscape";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionsExceed } from "../geometry/regions";
 import { ringInside } from "../geometry/routing";
 import { simpleContour } from "../geometry/surfaces";
 
@@ -233,11 +233,11 @@ function checkLandscape(
             (!Array.isArray(part.holes) || part.holes.length > 64 || !part.holes.every(ring))) ||
           !line(part.entrances, 0) ||
           typeof part.locked !== "boolean" ||
-          regionBoolean(
+          regionsExceed(
             [{ outer: part.footprint, holes: part.holes ?? [] }],
             [{ outer: cemetery.boundary, holes: [] }],
-            "difference"
-          ).some(r => regionArea(r) > 1e-5)
+            1e-5
+          )
         )
           fail();
       for (const access of cemetery.accesses)
@@ -269,11 +269,11 @@ function checkLandscape(
         fail();
       if (
         tree.ownerId === "landscape:forest" &&
-        regionBoolean(
+        regionsExceed(
           [treeCrown(tree)],
           f.regionIds.map(id => doc.regions[id]),
-          "difference"
-        ).some(r => regionArea(r) > 1e-5)
+          1e-5
+        )
       )
         fail();
     }

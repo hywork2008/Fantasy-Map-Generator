@@ -15,7 +15,7 @@ import { insetConvexKernel } from "../lotGeometry";
 import { prepareVectorEdit } from "./editing/dependencies";
 import { featureReservations } from "./environmentState";
 import { treeCrown, VECTOR_LANDSCAPE_TREE_LIMIT } from "./geometry/landscape";
-import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
+import { containsRegion, regionArea, regionBoolean, regionsOverlap } from "./geometry/regions";
 import { pathSurface } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
 import { vectorOccupiedSites } from "./occupancy";
@@ -115,7 +115,7 @@ export function rebuildVectorLandscape(doc: VectorCityDocument): void {
       species
     };
     if (domain && !within(treeCrown(tree), domain)) return;
-    if (regionBoolean([treeCrown(tree)], water, "intersection").some(p => regionArea(p) > 1e-5)) return;
+    if (regionsOverlap([treeCrown(tree)], water, 1e-5)) return;
     landscape.trees.push(tree);
   };
   // Authored park/cemetery planting precedes automatic woodland and never loses its slot to it.

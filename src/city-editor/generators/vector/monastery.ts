@@ -3,7 +3,7 @@ import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorPolygon } from "../../types/vector/generation";
 import { pointInPolygon } from "../geom";
 import type { Monastery } from "../monasteryLayout";
-import { containsRegion, regionArea, regionBoolean } from "./geometry/regions";
+import { containsRegion, regionArea, regionBoolean, regionsOverlap } from "./geometry/regions";
 import { simpleContour } from "./geometry/surfaces";
 import { allVectorWater } from "./geometry/water";
 
@@ -41,7 +41,7 @@ export function validateVectorMonasteries(doc: VectorCityDocument): string[] {
         m.courts.every(c => polygon(c.polygon) && inside(c.polygon)) &&
         m.trees.every(t => point(t.at) && Number.isFinite(t.radius)) &&
         regionBoolean([ring(m.precinct)], domain, "difference").every(r => regionArea(r) < 1) &&
-        !regionBoolean([ring(m.precinct)], water, "intersection").some(r => regionArea(r) > 1e-3) &&
+        !regionsOverlap([ring(m.precinct)], water, 1e-3) &&
         containsRegion(domain, m.gate);
       return ok ? [] : [`monastery:${id}`];
     } catch {

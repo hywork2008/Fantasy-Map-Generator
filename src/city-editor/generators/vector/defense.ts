@@ -6,7 +6,7 @@ import type { VectorCityDocument } from "../../types/vector/document";
 import { FORTRESS_WALL_BIND_METERS } from "../bastionedTown/geometry";
 import { nearestOnPolyline } from "../geom";
 import { evaluateAnchor } from "./geometry/curves";
-import { regionArea, regionBoolean } from "./geometry/regions";
+import { regionsOverlap } from "./geometry/regions";
 import { ringInside } from "./geometry/routing";
 import { simpleContour } from "./geometry/surfaces";
 
@@ -327,12 +327,7 @@ export function validateVectorDefenses(doc: VectorCityDocument): string[] {
           fail();
         const axis: Point = [p.bridge[1][0] - p.bridge[0][0], p.bridge[1][1] - p.bridge[0][1]];
         for (const ditch of plan.ditches) {
-          if (
-            !regionBoolean(defenseAccessSurface(p.bridge, p.widthMeters), ditch.region, "intersection").some(
-              r => regionArea(r) > 1e-5
-            )
-          )
-            continue;
+          if (!regionsOverlap(defenseAccessSurface(p.bridge, p.widthMeters), ditch.region, 1e-5)) continue;
           const mid: Point = [(p.bridge[0][0] + p.bridge[1][0]) / 2, (p.bridge[0][1] + p.bridge[1][1]) / 2];
           for (const polygon of ditch.region) {
             const hit = nearestOnPolyline(mid, [...polygon.outer, polygon.outer[0]]),
