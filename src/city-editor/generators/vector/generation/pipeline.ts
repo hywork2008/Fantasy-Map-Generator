@@ -24,7 +24,7 @@ import { curveSource, removeVectorPath } from "../editing/paths";
 import { featureReservations } from "../environmentState";
 import { evaluateAnchor, pathIsClosed, pathSegmentIds } from "../geometry/curves";
 import { pathIntersections } from "../geometry/intersections";
-import { bridgeGeometry, distance, gateOpening, unit, widthAt } from "../geometry/network";
+import { bridgeGeometry, distance, gateOpening, nearestRoadAnchor, unit, widthAt } from "../geometry/network";
 import { containsRegion, regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { compactRing, offsetRing } from "../geometry/routing";
 import { pointSegmentDistance, samplePath, simplifyFreehand } from "../geometry/sampling";
@@ -615,6 +615,43 @@ function splitOverlappingOutlines(polygons: VectorPolygon[]): VectorPolygon[] {
     return regionBoolean([polygon], shave, "difference");
   });
 }
+/** Farthest a road's port is moved back along it to clear the edge of the free land. */
+const PORT_PULLBACK_METERS = 40;
+/**
+ * The end `end` of `road`, or where the street search can start from it: a street keeps `clearance` from the edge of
+ * the free land, so an end closer to it (an approach run down to the bank beside a bridge) is moved back along the
+ * road to its first sample that keeps it, within PORT_PULLBACK_METERS; the stub beyond stays the road's own.
+ */
+function portClearOfEdges(road: VectorPath, end: CurveAnchor, free: VectorPolygon[], clearance: number): CurveAnchor {
+  const edgeGap = (p: Point) => {
+    let gap = Infinity;
+    for (const polygon of free)
+      for (const ring of [polygon.outer, ...polygon.holes])
+        for (let i = 0; i < ring.length; i++)
+          gap = Math.min(gap, pointSegmentDistance(p, ring[i], ring[(i + 1) % ring.length]));
+    return gap;
+  };
+  const at = evaluateAnchor(road, end);
+  if (edgeGap(at) >= clearance) return end;
+  const samples = samplePath(road),
+    fromStart = distance(samples[0].point, at) <= distance(samples.at(-1)!.point, at),
+    along = fromStart ? samples : [...samples].reverse();
+  // Every metre along the road's samples (a straight approach has only its two ends).
+  for (let k = 1, walked = 0; k < along.length && walked <= PORT_PULLBACK_METERS; k++) {
+    const a = along[k - 1].point,
+      b = along[k].point,
+      l = distance(a, b);
+    for (let d = 1; d <= l && walked + d <= PORT_PULLBACK_METERS; d++) {
+      const q: Point = [a[0] + ((b[0] - a[0]) * d) / l, a[1] + ((b[1] - a[1]) * d) / l];
+      if (!containsRegion(free, q) || edgeGap(q) < clearance) continue;
+      const anchor = nearestRoadAnchor(road, q, samples),
+        p = evaluateAnchor(road, anchor);
+      if (containsRegion(free, p) && edgeGap(p) >= clearance) return anchor;
+    }
+    walked += l;
+  }
+  return end;
+}
 export function deriveVectorBlocks(doc: VectorCityDocument, extra: VectorPolygon[] = []): VectorBlock[] {
   const roads = Object.values(doc.paths).filter(p => p.role === "road"),
     land = splitOverlappingOutlines(
@@ -1201,8 +1238,9 @@ function skeleton(
     );
     const a = endpoints.find(a => containsRegion(free, evaluateAnchor(road, a)));
     if (a) {
-      ports.push(evaluateAnchor(road, a));
-      bindings.push([a]);
+      const port = portClearOfEdges(road, a, free, settings.roadWidthMeters / 2 + settings.clearanceMeters + 0.011);
+      ports.push(evaluateAnchor(road, port));
+      bindings.push([port]);
     }
   }
   const required = ports.length;

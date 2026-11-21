@@ -123,3 +123,7 @@ CE meshless の都市生成（Generate city）を、生成の流れ（ステー�
     - 演算の層で触れる頂点を穴の内側へ 1e-7 m ずらす案も試した。この案では、配置できなかった人口が5%増えたので採らなかった。
   - 結果（ブラウザ、人口5000、各3回の中央値、ms）: medieval / compact は川無し・straight・gentle の順に 554・722・942、medieval-facilities / burgage-dense は同じ順に 1124・968・1638（seed は毎回ランダム）。`page/adopt-and-draw` は medieval で 77〜98 → 55〜88、medieval-facilities で 212〜239 → 168〜211。18回とも成功。
   - 残り: 描画データの作成（`vectorRenderData`、medieval-facilities で約 180 ms。区画の庭の和 `burgagePlotSurfaces` 約 75 ms など）。生成ボタンを押した時の入力の作成（`vectorInputFromEditor`、約 40 ms、計測の対象外）。施設の配置。段階 B の前からある `fixed-port-unreachable`（fh19 gentle）。
+- 2026-11-21: 段階 B の前からある生成の失敗（`fixed-port-unreachable`、seed fh19・川 gentle）を直した。ブラウザで時々出る「A required input road or bridge landing cannot be reached at this width」と同じ失敗である。
+  - 原因: 街路の探索は、空き地の縁から道の半幅と離隔（3.011 m）以上離れた点だけを通る。fh19 では、南からの接近路（`auto-approach:2`）が橋の脇で川岸の 2.4 m 手前まで延びていた。その端が探索の起点（必須の港）だったので、起点が探索に入れず、街路を通せなかった。
+  - 修正: 道の端が空き地の縁に近すぎる時は、道に沿って 1 m ずつ戻り、離隔を保てる最初の点（40 m 以内）を起点にする（`portClearOfEdges`）。その先の短い区間は接近路のまま残る。端が離隔を保てる道は従来どおり端から始まるので、結果は変わらない。
+  - 結果: seed 180都市で生成の失敗は 2 → 0 件。結果が変わったのは fh19 gentle の2都市だけで、seed 固定48都市（hc0〜hc7）は全て同一。fh19 gentle では、接近路が橋の南端に短い街路でつながる。
