@@ -21,14 +21,26 @@ export function facadeDetails(
   polygon: Point[],
   massing: BuildingMassing,
   colors: FacadeDetailColors,
-  elevation = 0
+  elevation = 0,
+  /** The building's door, when known: the entrance goes on the usable wall nearest it. */
+  door?: Point
 ): FacadeDetailGeometry {
   const output: FacadeDetailGeometry = { positions: [], normals: [], colors: [] };
   const panels = buildingSurfaces(polygon, massing, { includeWallPanels: true })?.wallPanels ?? [];
-  // Choose one usable entrance wall; frontage is unavailable at this rendering layer.
+  // Choose one usable entrance wall: the one nearest the known door, else the shortest (frontage is unknown here).
+  const nearDoor = (p: WallPanel) => {
+    const dx = p.b[0] - p.a[0],
+      dy = p.b[1] - p.a[1],
+      t = Math.max(0, Math.min(1, ((door![0] - p.a[0]) * dx + (door![1] - p.a[1]) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(p.a[0] + dx * t - door![0], p.a[1] + dy * t - door![1]);
+  };
   const entrance = panels
     .filter(p => p.level === 0 && Math.hypot(p.b[0] - p.a[0], p.b[1] - p.a[1]) >= 2.8)
-    .sort((a, b) => Math.hypot(a.b[0] - a.a[0], a.b[1] - a.a[1]) - Math.hypot(b.b[0] - b.a[0], b.b[1] - b.a[1]))[0];
+    .sort((a, b) =>
+      door
+        ? nearDoor(a) - nearDoor(b)
+        : Math.hypot(a.b[0] - a.a[0], a.b[1] - a.a[1]) - Math.hypot(b.b[0] - b.a[0], b.b[1] - b.a[1])
+    )[0];
   for (const panel of panels) {
     const length = Math.hypot(panel.b[0] - panel.a[0], panel.b[1] - panel.a[1]);
     if (length < 1 || panel.height < 1.6) continue;

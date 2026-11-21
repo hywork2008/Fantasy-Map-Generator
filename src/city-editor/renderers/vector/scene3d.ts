@@ -32,6 +32,7 @@ import type { BuildingMassing } from "../../types/contracts/buildingMassing";
 import type { SimplificationPreferences } from "../../types/contracts/simplification";
 import type { CityDocument, CityElement } from "../../types/document";
 import type { Point } from "../../types/primitives";
+import { fabricDoorFrontage } from "./fabricDoors";
 import { createVectorLandscapeTrees } from "./landscapeTrees";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
 import { projectTerrainGeometry } from "./terrainGeometry";
@@ -529,7 +530,8 @@ export function createVectorScene(
     const houseBatches = new Map<string, HouseBatch>();
     const massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
       massingIds: string[] = [],
-      massingElevations: number[] = [];
+      massingElevations: number[] = [],
+      massingDoors: ([Point, Point] | undefined)[] = [];
     // Walls, towers, gates and bridges use the mesh editor's structure massing, one group per owner for picking.
     // The mesh editor's land lies at LAND_Y and its water at WATER_Y; here the land is at the datum.
     const level = { heightAt: () => LAND_Y, surfaceAt: () => LAND_Y };
@@ -596,7 +598,7 @@ export function createVectorScene(
       if (surface.pieceRole === "landscape-tree" || (surface.pieceRole === "bv-well" && data.wells?.length)) continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
       if (surface.houses?.massing && surface.houses.massing.length === surface.houses.ids.length) {
-        const { ids, elevationsMeters, massing, appearance } = surface.houses;
+        const { ids, elevationsMeters, massing, appearance, doors } = surface.houses;
         surface.polygons.forEach((polygon, i) => {
           if (Math.abs(polygonArea(polygon.outer)) < 1e-8) return;
           massingLots.push({
@@ -606,6 +608,7 @@ export function createVectorScene(
           });
           massingIds.push(ids[i]);
           massingElevations.push(elevationsMeters[i] - datum);
+          massingDoors.push(doors?.[i]);
         });
         continue;
       }
@@ -837,12 +840,16 @@ export function createVectorScene(
       // as the prism batches maps a hit back to its house id.
       // The mesh editor's housing LOD (P2d-7): every lot keeps its massing, and large visible houses take the
       // detailed regional BV house; façade details (doors, windows, timbering) follow the camera too.
-      layer("houses", [massingLots, massingIds, massingElevations, urbanLod], () => {
+      layer("houses", [massingLots, massingIds, massingElevations, massingDoors, urbanLod], () => {
         const elevation = new Map(massingLots.map((lot, i) => [lot.polygon, massingElevations[i]])),
           foundation = (ring: Point[]) => elevation.get(ring) ?? 0,
           lots = massingLots as unknown as BuildingLot[],
-          regional = createTownRegionalHouseLod(lots, harborCache, foundation, quality, undefined, urbanLod),
-          details = createTownBuildingDetails(lots, foundation, urbanLod),
+          // Each house turns its door to its fabric entrance (a rear house to its court), not to a fixed side,
+          // which faced the plot's wall as often as not.
+          doorOf = new Map(lots.map((lot, i) => [lot, massingDoors[i]] as const)),
+          frontage = fabricDoorFrontage(lot => doorOf.get(lot)),
+          regional = createTownRegionalHouseLod(lots, harborCache, foundation, quality, frontage, urbanLod),
+          details = createTownBuildingDetails(lots, foundation, urbanLod, lot => doorOf.get(lot)?.[0]),
           meshes = regional.massing,
           holder = new THREE.Group(),
           ids = [...massingIds];

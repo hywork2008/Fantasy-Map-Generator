@@ -679,6 +679,31 @@ B5 の「裏の棟」は、同じ区画の奥に建つ建物（Freiburg の Hint
 - イングランド: [Northumberland Archives「What is a burgage?」](https://northumberlandarchives.com/?p=21640)。
 - 南ドイツ・スイスの表の家と裏の家: [Basel の発掘調査年報](https://eterna.unibas.ch/bodenforschungjb/article/download/343/560/1060)、[Baden-Württemberg の建物調査（Haus zum langen Spieß）](https://www.bauforschung-bw.de/objekt/pdf/122846549821/haus-zum-langen-spiess-haus-a.pdf)。
 
+### 8.9 3D の家の戸口の向き（2026-11-22）
+
+ユーザーの指摘（2026-11-22）: 元からある不具合として、裏の家の庭の塀で戸口の前が塞がれている家が多い。
+
+原因:
+
+- メッシュなしの 3D は、生成した家の戸口の向きを決める手がかりを渡していなかった（[scene3d.ts](../../src/city-editor/renderers/vector/scene3d.ts) が `createTownRegionalHouseLod` に `frontage` を渡さない）。地域の家のモデルは、棟の向きから決まる最初の候補（片方の妻側）に戸口を付けた。道の側か、区画の奥（隣の区画との塀の側）かは偶然だった。
+- 簡易表示の外壁の細部（`facadeDetails`）も、地上階の一番短い壁に戸口を付けていた。
+
+変えたこと:
+
+- 描画データの生成した家に、記録した入口（家の壁の上の戸口と、道の上の行き先。§8.8）を渡す（`houses.doors`、[renderData.ts](../../src/city-editor/renderers/vector/renderData.ts)）。
+- 3D の地域の家は、モデルの戸口の候補（妻側・平側の表裏）のうち、行き先を向き、記録した戸口に一番近いものを選ぶ（[fabricDoors.ts](../../src/city-editor/renderers/vector/fabricDoors.ts)）。表の家は道に、奥の家は中庭（区画の前の方）に戸口を開く。
+- 簡易表示の外壁の細部も、記録した戸口に一番近い壁に戸口を付ける（[facadeDetails.ts](../../src/city3d/core/facadeDetails.ts)、引数は省略可能でメッシュありの CE は変わらない）。
+- 生成の結果は変わらないので、生成の版は上げていない。
+
+試験: [fabricDoors.test.ts](../../src/city-editor/renderers/vector/fabricDoors.test.ts)（記録した入口の向きの候補を選ぶこと、入口の無い家は今までの候補のままであること）。
+
+追記（同日、ユーザーの再指摘「直っていないように見える」、`district:dbc92332b16cec06:cell:b9ccb5a0b9f69e3c#18`）:
+
+- その家は区画の奥の端の棟で、区画の奥の辺に塀がある。区画の前は反対側（北）にある。保存した入口が区画の奥（塀の外の空き地の先の道）を向いていたため、上の変更はその向きのまま戸口を塀の前に置いた。入口を区画から決める §8.8 より前（v64・v65 より前）に生成した入口が、文書に保存されて残る。
+- 3D の戸口は、保存した入口ではなく区画から決めるようにした（[renderData.ts](../../src/city-editor/renderers/vector/renderData.ts) `plotDoorOf`）。家の、区画の前の辺に一番近い側に戸口を置き、区画の前の方へ開く。区画に無い家だけ、保存した入口を使う。
+- 計測（`burgage-dense`、施設モード、5,000 人、種 `d1`・`d2`）: 戸口の前 1 m 以内に区画の塀がある地域の家は、前 119 / 132 軒、後 0 / 0 軒。
+- 試験: [burgagePlots3d.test.ts](../../src/city-editor/renderers/vector/burgagePlots3d.test.ts)。保存した入口をすべて反対に向けた町でも、戸口の前 1 m 以内に塀のある家が 0 軒であること（区画から決めない場合は 26 軒）。
+
 ## 9. 受入の指標
 
 生成ごとに次の値を報告（`VectorUrbanReport`）に出し、`compact` と比べる。

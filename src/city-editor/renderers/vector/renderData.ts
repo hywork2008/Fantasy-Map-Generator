@@ -88,6 +88,9 @@ export interface VectorRenderSurface {
     massing?: BuildingMassing[];
     /** Regional roof and wall colours per house (P3b), parallel to `massing`. */
     appearance?: (BuildingAppearance | undefined)[];
+    /** Each house's door on its wall and the point it reaches on its street (the fabric entrance), parallel to `ids`:
+     * the 3D house turns its door there. */
+    doors?: [Point, Point][];
   };
 }
 /** Storey height of generated houses. */
@@ -309,6 +312,43 @@ function builtPlots(cell: VectorFabricCell, rings: Point[][]): boolean[] {
   for (let i = 0; i < cellHouseCount(cell); i++)
     if (!detached.has(i)) houses.push(polygonCentroid(cellHouseRing(cell, i)));
   return rings.map(ring => houses.some(h => pointInPolygon(h, ring)));
+}
+
+/**
+ * The door of a house on a burgage plot, from the plot itself (docs/plan/ce-burgage-plot-fabric.md §8.8): on the
+ * house's side nearest the plot's front, opening towards the front: a front house onto its street, a house behind it
+ * onto its court. Taken from the plot, not the saved entrance, so a city saved before the entrances followed the plots
+ * (v64/v65) shows its doors right too. Undefined for a house on no plot.
+ */
+function plotDoorOf(cell: VectorFabricCell): (ring: Point[]) => [Point, Point] | undefined {
+  const plots = cell.plots;
+  if (!plots || plots.venelles?.widths.length) return () => undefined;
+  const rings = plots.offsets.map((start, i) =>
+      unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
+    ),
+    fronts = rings.map((_, i) => unpackPoints(plots.fronts, cell.origin, i * 2, i * 2 + 2));
+  return ring => {
+    const centre = polygonCentroid(ring),
+      k = rings.findIndex(r => pointInPolygon(centre, r));
+    if (k < 0) return undefined;
+    const [a, b] = fronts[k],
+      mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+      length = Math.hypot(mid[0] - centre[0], mid[1] - centre[1]);
+    if (length < 1e-6) return undefined;
+    let door = ring[0],
+      gap = Infinity;
+    ring.forEach((p, i) => {
+      const q = ring[(i + 1) % ring.length],
+        m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2],
+        d = nearestOnPolyline(m, [a, b]).dist;
+      if (d < gap) {
+        gap = d;
+        door = m;
+      }
+    });
+    const out: Point = [(mid[0] - centre[0]) / length, (mid[1] - centre[1]) / length];
+    return [door, [door[0] + out[0] * 3, door[1] + out[1] * 3]];
+  };
 }
 
 /** Fruit trees of burgage yards (plan §5.4, B5): an apple or a pear in the back half of a deep plot, two in a vacant
@@ -765,9 +805,11 @@ export function vectorRenderData(
           heightsMeters: [],
           elevationsMeters: [],
           massing: [],
-          appearance: []
+          appearance: [],
+          doors: []
         },
         plain: { id: string; massing: BuildingMassing }[] = [];
+      const plotDoor = plotDoorOf(cell);
       for (let i = 0; i < cellHouseCount(cell); i++) {
         if (detached.has(i)) continue;
         const id = fabricHouseId(cell.id, i),
@@ -775,10 +817,12 @@ export function vectorRenderData(
           parts = withinFrame(ring)
             ? [{ outer: ring, holes: [] }]
             : regionBoolean([{ outer: ring, holes: [] }], [frame], "intersection"),
-          elevation = 0.1 + (terrain.hasRelief ? terrain.foundationAt(id, ring) : 0);
+          elevation = 0.1 + (terrain.hasRelief ? terrain.foundationAt(id, ring) : 0),
+          [door, access] = plotDoor(ring) ?? unpackPoints(cell.houses.entrances, cell.origin, 2 * i, 2 * i + 2);
         for (const part of parts) {
           polygons.push(part);
           houses.ids.push(id);
+          houses.doors!.push([door, access]);
           houses.heightsMeters.push(cell.houses.storeys[i] * FABRIC_STOREY_METERS);
           houses.elevationsMeters.push(elevation);
           const storeys = cell.houses.storeys[i];
