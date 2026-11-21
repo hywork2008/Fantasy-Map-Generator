@@ -145,3 +145,8 @@ CE meshless の都市生成（Generate city）を、生成の流れ（ステー�
   - 処刑台と風車: 候補の足元が到達可能な土地に収まるかを、毎回多角形の差で求めていた（`onReachableLand`）。外形の判定で確実に内側と分かる時は演算しない。結果は同一。12都市で `raiseVectorOpenLandmarks` は 324 ms → 200 ms。
   - 短冊を先に輪（凸）で切り、外形の内側に確実に収まるものは演算しない案も試した。収まるものが少なく、かえって遅くなったので採らなかった。
   - 結果（ブラウザ、18回の中央値）: この段階の合計は約 125 ms → 59 ms（`landmarks` 25 ms、`monasteries` 9 ms など）。生成の合計は medieval / compact が川無し・straight・gentle の順に 588・647・545 ms、medieval-facilities / burgage-dense が同じ順に 811・1040・1287 ms。18回とも成功。
+- 2026-11-21: 市街地の土地利用（`urban/land-use`）。
+  - Node の12都市（骨格の土地利用を省いた後）で、1都市あたり約 63 ms。農地の短冊（`vectorFurlongs`）31 ms、町の外の土地（`vectorCountryside`）17 ms、到達範囲・区分・検証が残り。
+  - 町の外の土地は、地図の枠から町の土地・水域・道の帯・予約地・全ての建物の敷地を一度に引く演算である。町の土地の内側にある敷地は町の土地と一緒に引かれるので、演算に渡さない。内側かどうかは、町の土地の各片を一度だけ索引に入れて（`regionProbe`）、敷地の頂点が全て片の内側にあり、片の辺が敷地の外接矩形に掛からないことで判定する。結果は同一（seed 固定48都市）。`vectorCountryside` は 12都市で 207 ms → 103 ms。最初に `regionSurelyWithin` で判定した時は、判定そのものに時間がかかり 141 ms だった。
+  - 短冊はこれまで通り（1都市で約570回の演算）。凸の輪で先に切る案は前の項のとおり効果が無かった。
+  - 結果（ブラウザ、各設定9回の中央値）: `urban/land-use` は medieval 67 → 48 ms、medieval-facilities 89 → 79 ms。生成の合計は medieval 628 → 523 ms、medieval-facilities 1040 → 1010 ms（seed は毎回ランダム）。

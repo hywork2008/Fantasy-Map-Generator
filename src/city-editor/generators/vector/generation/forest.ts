@@ -7,7 +7,7 @@ import { STANDARD_GLACIS_METERS } from "../../defenseClearance";
 import { treeBiomeForClimate } from "../../landscapeVegetation";
 import { featureReservations } from "../environmentState";
 import { validateVectorForest } from "../forest";
-import { regionArea, regionBoolean } from "../geometry/regions";
+import { regionArea, regionBoolean, regionProbe } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
@@ -70,6 +70,19 @@ export function vectorLandscapeClimate(doc: VectorCityDocument): LandscapeClimat
   };
 }
 
+const boxOf = (ring: Point[]) => {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const [x, y] of ring) {
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
+  }
+  return { minX, minY, maxX, maxY };
+};
 /**
  * The countryside: the frame without the town's land, its water, the roads (4 m beyond their width), the wall's
  * glacis on both sides, every reserved site and `townLand` (the urban domain once built), in pieces of woodland size. The mesh editor's forest plan keeps the
@@ -105,7 +118,25 @@ export function vectorCountryside(doc: VectorCityDocument, townLand: VectorPolyg
             : []
       )
     ];
-  const occupied = vectorOccupiedSites(doc, "reserved");
+  // Sites within the town's land are cut with it already: only the others go to the kernel (most are houses). A site
+  // lies within a piece of it when the piece holds its vertices and no edge of the piece reaches the site's box.
+  const town = [...doc.site.domain, ...townLand].map(polygon => ({
+      box: boxOf(polygon.outer),
+      probe: regionProbe(polygon)
+    })),
+    within = (site: VectorPolygon) => {
+      const b = boxOf(site.outer);
+      return town.some(
+        ({ box, probe }) =>
+          b.minX >= box.minX &&
+          b.maxX <= box.maxX &&
+          b.minY >= box.minY &&
+          b.maxY <= box.maxY &&
+          !probe.nearBox(b.minX, b.minY, b.maxX, b.maxY) &&
+          site.outer.every(probe.contains)
+      );
+    },
+    occupied = vectorOccupiedSites(doc, "reserved").filter(site => !within(site));
   const land = (cut: VectorPolygon[]) =>
     regionBoolean([frame], cut, "difference").filter(
       r => regionArea(r) >= MIN_REGION_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
