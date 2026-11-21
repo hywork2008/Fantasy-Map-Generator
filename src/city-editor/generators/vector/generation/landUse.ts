@@ -137,7 +137,12 @@ function townCentre(doc: VectorCityDocument): Point {
  * farms (`LAND_USE_REACH`), half as far with no pasture when the forest settings ask woodland round the town. Only land reached from the town centre through the gates and over the bridges (U5) is
  * farmed; ground cut off stays wild. A dry land farms only irrigated plots by its rivers and round the town.
  */
-export function raiseVectorLandUse(doc: VectorCityDocument, townLand: VectorPolygon[] = []): VectorCityDocument {
+export function raiseVectorLandUse(
+  doc: VectorCityDocument,
+  townLand: VectorPolygon[] = [],
+  /** `furlongs: false` leaves the arable unstripped. */
+  options: { furlongs?: boolean } = {}
+): VectorCityDocument {
   if (!doc.site?.domain.length) return doc;
   const landClass = vectorLandUseClass(doc),
     wooded = vectorForestSettings(doc)?.mode === "surroundings" && vectorTreesGrow(doc),
@@ -188,14 +193,17 @@ export function raiseVectorLandUse(doc: VectorCityDocument, townLand: VectorPoly
       areaM2: regions.reduce((n, x) => n + regionArea(x), 0)
     }))
   };
-  const furlongs = vectorFurlongs(
-    zones.get("arable") ?? [],
-    roads.map(r => r.points),
-    doc.recipe.seed,
-    townCentre(doc),
-    // The dry south kept the two-field course (corn and fallow); elsewhere three fields.
-    landClass === "steppe" || landClass === "desert" ? 2 : 3
-  );
+  const furlongs =
+    options.furlongs === false
+      ? []
+      : vectorFurlongs(
+          zones.get("arable") ?? [],
+          roads.map(r => r.points),
+          doc.recipe.seed,
+          townCentre(doc),
+          // The dry south kept the two-field course (corn and fallow); elsewhere three fields.
+          landClass === "steppe" || landClass === "desert" ? 2 : 3
+        );
   if (furlongs.length) landUse.furlongs = furlongs;
   const next: VectorCityDocument = {
     ...doc,

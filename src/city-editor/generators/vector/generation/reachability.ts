@@ -3,7 +3,7 @@ import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import { pointInPolygon } from "../../geom";
 import { evaluateAnchor } from "../geometry/curves";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, regionArea, regionBoolean, regionSurelyWithin } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 
@@ -73,7 +73,8 @@ export function vectorReachableLand(doc: VectorCityDocument, centre: Point): Vec
 /** Whether a footprint lies wholly on the reachable land (true when nothing cuts the frame). */
 export function onReachableLand(reach: VectorPolygon[] | undefined, footprint: Point[]): boolean {
   if (!reach) return true;
-  return (
-    regionBoolean([{ outer: footprint, holes: [] }], reach, "difference").reduce((n, r) => n + regionArea(r), 0) < 0.5
-  );
+  const piece = { outer: footprint, holes: [] };
+  // Most footprints tried lie well inside the reachable land: nothing of them lies outside it.
+  if (regionSurelyWithin(piece, reach)) return true;
+  return regionBoolean([piece], reach, "difference").reduce((n, r) => n + regionArea(r), 0) < 0.5;
 }

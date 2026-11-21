@@ -139,3 +139,9 @@ CE meshless の都市生成（Generate city）を、生成の流れ（ステー�
   - 区画への配置は、区画の列・道との交差の判定、敷地の演算などに分散しており、目立つ箇所は無かった。
   - 結果（ブラウザ、medieval-facilities / burgage-dense、各3回）: `urban/facilities` は約 220〜280 ms → 119〜224 ms。
   - 建物のテストのうち `workhomeTrades`・`glassGuildDetails`・`instrumentGuildDetails`・`marketGuildHall` の30件は、段階 B の前（f78d39bf3）から失敗している（模型のハッシュと変種の識別子の期待値）。今回の変更とは関係しない。
+- 2026-11-21: 骨格の `connections-and-validation`。
+  - この段階を常設の小段階（`connections-and-validation/road-joins`・`civic-centre`・`inner-wall`・`castle`・`ferries`・`harbor`・`monasteries`・`guilds`・`inns`・`shanty`・`ribbon`・`landmarks`・`land-use`・`forest`・`validation`）に分けた。ブラウザ（18回の中央値）では `land-use` 57 ms、`landmarks` 32 ms が大半で、ほかは 10 ms 以下だった。
+  - 土地利用: 都市全体の生成では、市街地の生成（urban）が始めに骨格の土地利用を消し、出来上がった町の周りで分け直す。骨格での土地利用は森（`surroundings`）が耕地を避けるためにしか使われず、短冊（`furlongs`）は使われない。そこで市街地の生成が続く時（`generateVectorSkeleton` の `urbanFollows`、生成ワーカーの都市と共有レシピの再生成で指定）は、森が要る時だけ短冊なしで土地利用を求め、それ以外は求めない。seed 固定48都市で生成結果は全て同一、時間は設定ごとに 1〜20% 短縮。
+  - 処刑台と風車: 候補の足元が到達可能な土地に収まるかを、毎回多角形の差で求めていた（`onReachableLand`）。外形の判定で確実に内側と分かる時は演算しない。結果は同一。12都市で `raiseVectorOpenLandmarks` は 324 ms → 200 ms。
+  - 短冊を先に輪（凸）で切り、外形の内側に確実に収まるものは演算しない案も試した。収まるものが少なく、かえって遅くなったので採らなかった。
+  - 結果（ブラウザ、18回の中央値）: この段階の合計は約 125 ms → 59 ms（`landmarks` 25 ms、`monasteries` 9 ms など）。生成の合計は medieval / compact が川無し・straight・gentle の順に 588・647・545 ms、medieval-facilities / burgage-dense が同じ順に 811・1040・1287 ms。18回とも成功。

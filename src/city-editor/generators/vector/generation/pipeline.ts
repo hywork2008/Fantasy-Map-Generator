@@ -37,7 +37,7 @@ import { CASTLE_FEATURE_ID, CASTLE_SITE_ID, raiseVectorCastle, reserveVectorCast
 import { connectVectorCivicCentre } from "./civic";
 import { raiseVectorPlazaFurniture } from "./civicFurniture";
 import { isFerryRiver, raiseVectorFerries } from "./ferries";
-import { raiseVectorForest } from "./forest";
+import { raiseVectorForest, vectorForestSettings } from "./forest";
 import { spreadApproaches, squareWallCrossings } from "./gateApproaches";
 import { raiseVectorGuilds } from "./guilds";
 import { vectorTownCulture, vectorTownProfile } from "./housingCulture";
@@ -674,20 +674,31 @@ export interface VectorGenerationResult {
   document: VectorCityDocument;
   stages: { id: "inputs" | "skeleton" | "regions"; document: VectorCityDocument }[];
 }
+export interface VectorSkeletonOptions {
+  /** An urban pass follows at once (a whole city): work it redoes or drops is skipped. */
+  urbanFollows?: boolean;
+}
 /** Adopted geometry is computed here, never while rendering or loading a document. */
 export function generateVectorSkeleton(
   input: VectorCityDocument,
   settings: VectorGenerationSettings = DEFAULT_VECTOR_GENERATION,
   timings?: GenerationTimingObserver,
-  routingTimings?: GenerationTimingObserver
+  routingTimings?: GenerationTimingObserver,
+  options: VectorSkeletonOptions = {}
 ): VectorGenerationResult {
   try {
-    return skeleton(input, settings, timings, routingTimings);
+    return skeleton(input, settings, timings, routingTimings, options);
   } catch (error) {
     // An old town walled before its streets can leave land between the walls that no approach reaches (a river
     // cutting the ring). The mesh editor then falls back too; here the old-town wall is cut into the laid streets.
     if (settings.innerWall?.order !== "inner-first" || String(error) !== "Error: fixed-port-unreachable") throw error;
-    const result = skeleton(input, { ...settings, innerWall: { ...settings.innerWall, order: "outer-first" } });
+    const result = skeleton(
+      input,
+      { ...settings, innerWall: { ...settings.innerWall, order: "outer-first" } },
+      undefined,
+      undefined,
+      options
+    );
     for (const doc of [result.document, ...result.stages.map(s => s.document)])
       doc.generation?.diagnostics.push({
         code: "inner-first-fallback",
@@ -701,7 +712,8 @@ function skeleton(
   input: VectorCityDocument,
   settings: VectorGenerationSettings,
   timings?: GenerationTimingObserver,
-  routingTimings?: GenerationTimingObserver
+  routingTimings?: GenerationTimingObserver,
+  options: VectorSkeletonOptions = {}
 ): VectorGenerationResult {
   const timed = generationTiming(timings);
   assertVectorDocument(input);
@@ -1345,6 +1357,7 @@ function skeleton(
       for (const hit of pathIntersections(roads[i], roads[j]))
         if (containsRegion(free, evaluateAnchor(roads[i], hit.a))) joinVectorGenerationAnchors(doc, [hit.a, hit.b]);
   rebuildRoadGraph(doc);
+  timed("connections-and-validation/road-joins");
   connectVectorCivicCentre(doc);
   // An English-style town's guildhall stands in its market place before the stalls set out round it (plan W5c). A
   // square too small for it keeps the hall among the town's facilities, as designed, so nothing is reported.
@@ -1356,6 +1369,7 @@ function skeleton(
   // The square's stocks or cross (B6b), after its stalls and aisles.
   if (doc.environment?.features[CIVIC_PLAZA_ID] && doc.placements["civic:church"] && !raiseVectorPlazaFurniture(doc))
     diagnostics.push({ code: "plaza-furniture-unplaced", entityId: CIVIC_PLAZA_ID, severity: "warning" });
+  timed("connections-and-validation/civic-centre");
   if (deferredInner) {
     // The line is eased in or out a little until every street crosses it steeply, clear of its corners, of the
     // next gate and of protected sites; the streets were laid without it.
@@ -1397,6 +1411,7 @@ function skeleton(
     if (!placed) diagnostics.push({ code: "inner-wall-unplaced", entityId: "auto-inner-wall", severity: "warning" });
   }
   if (deferredInner) rebuildRoadGraph(doc);
+  timed("connections-and-validation/inner-wall");
   if (doc.regions[CASTLE_SITE_ID]) {
     doc = raiseVectorCastle(doc, settings);
     if (!doc.environment?.features[CASTLE_FEATURE_ID])
@@ -1406,12 +1421,14 @@ function skeleton(
   // church without a cemetery, as the mesh editor's zoning does; it is said rather than moved into the town (P6a).
   if (doc.environment?.features["feature:civic-church"] && !doc.environment.features["feature:civic-cemetery"])
     diagnostics.push({ code: "cemetery-unplaced", entityId: "feature:civic-church", severity: "warning" });
+  timed("connections-and-validation/castle");
   // Ferries where the roads end on the bank of a river no bridge of the period spans (P5b-4); the harbour keeps off
   // their landings.
   const ferried = raiseVectorFerries(doc);
   doc = ferried.document;
   for (const road of ferried.failures)
     diagnostics.push({ code: "ferry-unplaced", entityId: road, severity: "warning" });
+  timed("connections-and-validation/ferries");
   // The harbour comes last: its quays link to the laid streets and keep off the walls and precincts (P5b).
   if (settings.port) {
     // The land blocks are cut round the harbour next. Where the polygon kernel cannot cut them round it, or a block's
@@ -1440,6 +1457,7 @@ function skeleton(
     }
     if (outcome) diagnostics.push({ code: "harbor-unplaced", entityId: outcome, severity: "warning" });
   }
+  timed("connections-and-validation/harbor");
   // Religious houses take whole land blocks between the streets (P6c), after the harbour has its
   // shore, as the mesh editor keeps harbour wards from them.
   const housed = raiseVectorMonasteries(doc, deriveVectorBlocks(doc));
@@ -1447,21 +1465,25 @@ function skeleton(
   const founded = Object.keys(doc.environment?.monasteries ?? {}).length;
   if (founded < housed.wanted)
     diagnostics.push({ code: "monastery-unplaced", entityId: String(housed.wanted - founded), severity: "warning" });
+  timed("connections-and-validation/monasteries");
   // The guilds of an FMG town's economy: halls in the core, yards outside the town (P6d).
   const guilds = raiseVectorGuilds(doc, deriveVectorBlocks(doc));
   doc = guilds.document;
   if (guilds.placed < guilds.wanted)
     diagnostics.push({ code: "guild-unplaced", entityId: String(guilds.wanted - guilds.placed), severity: "warning" });
+  timed("connections-and-validation/guilds");
   // Inns and caravanserais on the busiest approach, beyond the town (P6e).
   const lodged = raiseVectorInns(doc, deriveVectorBlocks(doc));
   doc = lodged.document;
   if (lodged.placed < lodged.wanted)
     diagnostics.push({ code: "inn-unplaced", entityId: String(lodged.wanted - lodged.placed), severity: "warning" });
+  timed("connections-and-validation/inns");
   // Land for the extramural shanty along the busiest approaches beyond the wall (P6h), before the open landmarks.
   const faubourg = raiseVectorShantyLand(doc);
   doc = faubourg.document;
   if (wantsShanty(doc) && !faubourg.grown && Object.values(doc.paths).some(p => p.role === "wall"))
     diagnostics.push({ code: "shanty-unplaced", entityId: "land", severity: "warning" });
+  timed("connections-and-validation/shanty");
   // Land for the roadside ribbon along each approach beyond the glacis (P7a).
   // Dwellings the interior cannot hold lengthen the ribbon, which keeps a barbican's reach in its era (W2).
   const period = doc.context.historicalPeriod ?? "ageOfExploration",
@@ -1491,6 +1513,7 @@ function skeleton(
       entityId: String(Math.round(ribbon.unplacedLength)),
       severity: "warning"
     });
+  timed("connections-and-validation/ribbon");
   // The gallows and the windmills on open ground beyond the town (P6f).
   const marks = raiseVectorOpenLandmarks(doc, deriveVectorBlocks(doc));
   doc = marks.document;
@@ -1498,11 +1521,17 @@ function skeleton(
     diagnostics.push({ code: "landmark-unplaced", entityId: String(marks.wanted - marks.placed), severity: "warning" });
   // The open land by use (U5b), then woodland over its wild ground by the forest settings, last: both keep clear of
   // everything raised before (P7b).
-  doc = raiseVectorLandUse(doc);
+  timed("connections-and-validation/landmarks");
+  // The urban pass splits the open land again round the finished town and drops this split: before it, the split is
+  // drawn only for the woodland, which keeps off the farmed land, and its furlongs not at all.
+  if (!options.urbanFollows) doc = raiseVectorLandUse(doc);
+  else if (vectorForestSettings(doc)?.mode === "surroundings") doc = raiseVectorLandUse(doc, [], { furlongs: false });
+  timed("connections-and-validation/land-use");
   doc = raiseVectorForest(doc);
+  timed("connections-and-validation/forest");
   doc.revision++;
   assertVectorDocument(doc);
-  timed("connections-and-validation");
+  timed("connections-and-validation/validation");
   stages.push({ id: "skeleton", document: structuredClone(doc) });
   const blocks = deriveVectorBlocks(doc);
   for (const b of blocks)

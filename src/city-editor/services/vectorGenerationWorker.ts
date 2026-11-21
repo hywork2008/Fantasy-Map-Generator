@@ -46,7 +46,8 @@ self.onmessage = async ({ data }: MessageEvent<VectorGenerationRequest>) => {
       task.kind === "city"
         ? {
             document: await generateVectorUrbanAsync(
-              generateVectorSkeleton(source, task.settings, observe("skeleton")).document,
+              generateVectorSkeleton(source, task.settings, observe("skeleton"), undefined, { urbanFollows: true })
+                .document,
               task.urban,
               plan,
               undefined,
