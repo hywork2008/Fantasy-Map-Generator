@@ -211,7 +211,21 @@ export function burgagePlotSurfaces(
   const seen = new Set<string>(),
     walls: VectorPolygon[] = [];
   const near = (r: Point[]) => r.some(p => Math.hypot(p[0] - cell.origin[0], p[1] - cell.origin[1]) < 400),
-    sites = facilitySites.filter(near);
+    // Each site with its box grown by the gap: a wall's midpoint outside it is neither in the site nor near its edge.
+    sites = facilitySites.filter(near).map(site => {
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity;
+      for (const [x, y] of site) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+      const g = FACILITY_WALL_GAP_METERS;
+      return { site, minX: minX - g, minY: minY - g, maxX: maxX + g, maxY: maxY + g };
+    });
   rings.forEach((ring, i) => {
     const [fa, fb] = fronts[i];
     ring.forEach((a, k) => {
@@ -222,11 +236,15 @@ export function burgagePlotSurfaces(
       if (onFront || seen.has(id) || Math.hypot(b[0] - a[0], b[1] - a[1]) < 0.3) return;
       if (
         sites.some(
-          site =>
-            pointInPolygon(mid, site) ||
-            site.some(
-              (p, j) => nearestOnPolyline(mid, [p, site[(j + 1) % site.length]]).dist < FACILITY_WALL_GAP_METERS
-            )
+          ({ site, minX, minY, maxX, maxY }) =>
+            mid[0] >= minX &&
+            mid[0] <= maxX &&
+            mid[1] >= minY &&
+            mid[1] <= maxY &&
+            (pointInPolygon(mid, site) ||
+              site.some(
+                (p, j) => nearestOnPolyline(mid, [p, site[(j + 1) % site.length]]).dist < FACILITY_WALL_GAP_METERS
+              ))
         )
       )
         return;
@@ -250,13 +268,15 @@ export function burgagePlotSurfaces(
       y0 = Math.min(...all.map(p => p[1])),
       x1 = Math.max(...all.map(p => p[0])),
       y1 = Math.max(...all.map(p => p[1])),
-      crossed = sites.filter(
-        site =>
-          site.some(p => p[0] >= x0) &&
-          site.some(p => p[0] <= x1) &&
-          site.some(p => p[1] >= y0) &&
-          site.some(p => p[1] <= y1)
-      );
+      crossed = sites
+        .map(s => s.site)
+        .filter(
+          site =>
+            site.some(p => p[0] >= x0) &&
+            site.some(p => p[0] <= x1) &&
+            site.some(p => p[1] >= y0) &&
+            site.some(p => p[1] <= y1)
+        );
     if (crossed.length)
       merged = regionBoolean(
         merged,
