@@ -320,6 +320,7 @@
         "plotFabric": "Plot pattern",
         "plotFabricOptions": {
           "compact": "Compact (dense houses)",
+          "compact-medium": "Compact, medium blocks (between compact and dense burgage)",
           "burgage": "Burgage plots with yards (village, small town)",
           "burgage-dense": "Dense burgage plots (walled town, yards built over)"
         },

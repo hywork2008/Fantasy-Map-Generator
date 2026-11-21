@@ -41,6 +41,8 @@ export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v58";
 export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v59";
 /** Dense burgage plots (plan §8.7). */
 export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v60";
+/** Compact lots in medium-sized blocks (`compactBlockScale`). */
+export const VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v61";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(
@@ -50,7 +52,9 @@ export function vectorUrbanAlgorithm(
     ? VECTOR_URBAN_BURGAGE_ALGORITHM
     : settings?.plotFabric === "burgage-dense"
       ? VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM
-      : VECTOR_URBAN_ALGORITHM;
+      : settings?.plotFabric === "compact-medium"
+        ? VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM
+        : VECTOR_URBAN_ALGORITHM;
 }
 
 /** The requested settings without the housing culture, which changes how houses look, not what was generated: it

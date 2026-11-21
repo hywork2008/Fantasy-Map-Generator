@@ -320,6 +320,7 @@
         "plotFabric": "区画の作り方",
         "plotFabricOptions": {
           "compact": "コンパクト（住宅が密集）",
+          "compact-medium": "コンパクト・中型街区（コンパクトと建て詰まった短冊形区画の中間）",
           "burgage": "裏庭つきの短冊形区画（村落〜小さな町）",
           "burgage-dense": "建て詰まった短冊形区画（市壁のある都市）"
         },

@@ -19,6 +19,7 @@ import {
   burgageStreetCellMeters
 } from "../../burgage/perimeterCell";
 import { burgageProfileFor, isBurgageFabric } from "../../burgage/profiles";
+import { compactBlockScale } from "../../compactBlocks";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
 import {
   buildOrganicStreetCell,
@@ -80,6 +81,8 @@ export interface VectorPerimeterPlan {
   laneWidthMeters: number;
   /** Street blocks laid out as burgage plots (v19). */
   plotFabric?: "burgage" | "burgage-dense";
+  /** Compact street blocks laid out with larger lane-bounded blocks (v61, `compactBlockScale`). */
+  compactFabric?: "compact-medium";
 }
 const lineLength = (points: Point[]) =>
   points.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0);
@@ -113,6 +116,8 @@ export interface PerimeterPlanContext {
   classic?: boolean;
   /** Street blocks of burgage plots instead of compact lots (docs/plan/ce-burgage-plot-fabric.md). */
   burgage?: BurgagePlanContext;
+  /** Edge-length multiplier of compact lane-bounded blocks (`compactBlockScale`); absent means 1. */
+  blockScale?: number;
 }
 /** One reachable skeleton block without holes, with its stable district id. */
 export interface PerimeterDistrictJob {
@@ -246,7 +251,9 @@ export function perimeterJobs(
         ? { classic: true }
         : isBurgageFabric(settings.plotFabric)
           ? { burgage: burgagePlanContext(doc, settings.plotFabric === "burgage-dense") }
-          : {})
+          : compactBlockScale(settings.plotFabric) !== 1
+            ? { blockScale: compactBlockScale(settings.plotFabric) }
+            : {})
     },
     jobs
   };
@@ -282,7 +289,8 @@ const ceContext = (context: PerimeterPlanContext) => ({
   walls: context.walls,
   // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
   streetCellMeters: COARSE_STREET_CELL_METERS,
-  streetWidthMeters: COARSE_STREET_WIDTH_METERS
+  streetWidthMeters: COARSE_STREET_WIDTH_METERS,
+  ...(context.blockScale ? { blockScale: context.blockScale } : {})
 });
 const districtFace = (id: string): Face => ({
   id,
@@ -302,7 +310,8 @@ function planKey(context: PerimeterPlanContext): string {
       context.extentMeters,
       context.walls,
       !!context.classic,
-      context.burgage ?? null
+      context.burgage ?? null,
+      context.blockScale ?? 1
     ]);
     planKeys.set(context, key);
   }
@@ -727,7 +736,8 @@ export function joinPerimeterPlan(
     houses: districts.flatMap(d => d.houses),
     blocks: districts.flatMap(d => d.blocks),
     laneWidthMeters: settings.laneWidthMeters,
-    ...(isBurgageFabric(settings.plotFabric) ? { plotFabric: settings.plotFabric } : {})
+    ...(isBurgageFabric(settings.plotFabric) ? { plotFabric: settings.plotFabric } : {}),
+    ...(settings.plotFabric === "compact-medium" ? { compactFabric: settings.plotFabric } : {})
   };
   // Street and lane ends on a main road join it through an explicit node. A short connector closes any gap.
   const joiner = createGenerationJoiner(doc);
@@ -1238,7 +1248,7 @@ export function placeVectorPerimeterHouses(
       count++;
     }
   }
-  const algorithm = vectorUrbanAlgorithm(plan),
+  const algorithm = vectorUrbanAlgorithm({ plotFabric: plan.plotFabric ?? plan.compactFabric }),
     districts: VectorFabric["districts"] = {},
     fabricCells: VectorFabric["cells"] = {};
   for (const district of plan.districts) {

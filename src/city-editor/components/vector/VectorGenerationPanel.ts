@@ -377,7 +377,7 @@ export function createVectorGenerationPanel(
   // they are developed, so Generate city shows their state.
   const plotFabric = document.createElement("select");
   plotFabric.dataset.generationField = "plotFabric";
-  for (const value of ["compact", "burgage", "burgage-dense"] as const) {
+  for (const value of ["compact", "compact-medium", "burgage", "burgage-dense"] as const) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = text(`plotFabricOptions.${value}`);

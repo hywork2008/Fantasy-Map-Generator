@@ -94,7 +94,8 @@ export interface VectorUrbanCheckpoint {
  * walls (P4b). v14: house storeys by the economic ward of the street block (P6g). v15: roadside ribbon beyond the wall (P7a). v16: park wards laid out as lawns (P7c); water points (P7d). v18: facility mode lays the CE street blocks round its facilities. v19: burgage plots (`plotFabric`; compact
  * street blocks stay v18). v20: dense burgage plots. v21–v23: compact, burgage and dense burgage with the Opus
  * shop-house workhomes, their street fronts saved and, on plots, fitted to one plot each
- * (docs/plan/bv-workhome-facade-variation.md W3, W4). Saved output of
+ * (docs/plan/bv-workhome-facade-variation.md W3, W4). v61: compact lots in medium-sized lane-bounded blocks
+ * (`compact-medium`, `compactBlockScale`). Saved output of
  * an older version stays as adopted. */
 export type VectorUrbanAlgorithm =
   | "vector-urban-v1"
@@ -156,7 +157,8 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v57"
   | "vector-urban-v58"
   | "vector-urban-v59"
-  | "vector-urban-v60";
+  | "vector-urban-v60"
+  | "vector-urban-v61";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

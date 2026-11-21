@@ -25,6 +25,8 @@ export interface OrganicBlockContext {
    * about this size with `streetWidthMeters` streets, as a finer mesh would. */
   streetCellMeters?: number;
   streetWidthMeters?: number;
+  /** Edge-length multiplier of the lane-bounded blocks of house-sized lots (`compactBlockScale`); absent means 1. */
+  blockScale?: number;
 }
 
 type Split = { parts: [Point[], Point[]]; path: Point[] };
@@ -211,6 +213,7 @@ function organicLayout(
   const micro = context?.extentMeters !== undefined && civicSizeForExtent(context.extentMeters) === "micro";
   const compact: CompactSplit | undefined = micro ? { laneWidth: width, houseDepth, lotArea } : undefined;
   const hub = context?.hub ?? fallbackHub;
+  const blockScale = context?.blockScale ?? 1;
   const preferredAxis: Point | undefined = parameters
     ? [Math.cos(parameters.orientation), Math.sin(parameters.orientation)]
     : undefined;
@@ -287,8 +290,9 @@ function organicLayout(
     // Keep real house depths and lane widths. A smaller town has shorter
     // frontages and smaller courts, not houses scaled down with the map.
     const shortLimit =
-      pairedSpan + (courtyard ? houseDepth * rng.range(micro ? 0.3 : 0.65, micro ? 0.8 : 1.4) : rng.range(0, 3));
-    const longLimit = pairedSpan * rng.range(micro ? 1.4 : 1.65, micro ? 2 : 2.6);
+      (pairedSpan + (courtyard ? houseDepth * rng.range(micro ? 0.3 : 0.65, micro ? 0.8 : 1.4) : rng.range(0, 3))) *
+      blockScale;
+    const longLimit = pairedSpan * rng.range(micro ? 1.4 : 1.65, micro ? 2 : 2.6) * blockScale;
     const kernel = insetConvexKernel(
       poly,
       poly.map(() => 0)

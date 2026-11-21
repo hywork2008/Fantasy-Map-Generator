@@ -5,8 +5,10 @@ import type { Point } from "../geometry";
  * house-sized block layout: a dense town of houses. `burgage` lays historical narrow-and-deep plots with yards behind
  * their houses: a village or a small town. `burgage-dense` lays the same plots, halved, and builds their yards over
  * inside the wall as far as the population needs, back to back with the next row: a walled town (plan §8.7).
+ * `compact-medium` is the compact layout with larger lane-bounded blocks, about halfway between compact and dense
+ * burgage (`compactBlockScale`).
  */
-export type PlotFabric = "compact" | "burgage" | "burgage-dense";
+export type PlotFabric = "compact" | "compact-medium" | "burgage" | "burgage-dense";
 
 /** Plot types of the burgage plot fabric (plan §2.3). */
 export type BurgageProfileId = "english-burgage" | "hofstatt" | "binaire";

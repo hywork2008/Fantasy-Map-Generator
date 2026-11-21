@@ -249,4 +249,17 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
         expect(Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1])).toBeGreaterThanOrEqual(60);
     }
   });
+
+  it("lays compact-medium towns on compact lots in larger blocks, housing everyone (compactBlockScale)", () => {
+    const lanes = (doc: VectorCityDocument) =>
+      Object.values(doc.fabric!.cells).reduce((n, c) => n + (c.inside ? c.lanes.offsets.length : 0), 0);
+    const compact = town("compact", 3000),
+      medium = town("compact-medium", 3000);
+    expect(medium.urban!.algorithm).toBe("vector-urban-v61");
+    expect(medium.urban!.report.unplacedDwellings).toBe(0);
+    expect(Object.values(medium.fabric!.cells).some(c => c.plots)).toBe(false);
+    // Fewer lanes cut the same street blocks: the blocks between them are larger.
+    expect(lanes(medium)).toBeLessThan(lanes(compact) * 0.7);
+    expect(parseVectorDocument(serializeVectorDocument(medium))?.fabric).toEqual(medium.fabric);
+  });
 });
