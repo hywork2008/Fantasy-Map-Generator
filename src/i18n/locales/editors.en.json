@@ -324,6 +324,7 @@
           "burgage": "Burgage plots with yards (village, small town)",
           "burgage-dense": "Dense burgage plots (walled town, yards built over)"
         },
+        "compactBlockScale": "Block edge multiplier (compact-medium, 1.1–2.2)",
         "develop": "Preview lanes, facilities and housing",
         "capacity": "Dwelling capacity / required",
         "unplaced": "Unplaced population",

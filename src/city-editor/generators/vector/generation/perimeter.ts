@@ -251,8 +251,8 @@ export function perimeterJobs(
         ? { classic: true }
         : isBurgageFabric(settings.plotFabric)
           ? { burgage: burgagePlanContext(doc, settings.plotFabric === "burgage-dense") }
-          : compactBlockScale(settings.plotFabric) !== 1
-            ? { blockScale: compactBlockScale(settings.plotFabric) }
+          : compactBlockScale(settings) !== 1
+            ? { blockScale: compactBlockScale(settings) }
             : {})
     },
     jobs

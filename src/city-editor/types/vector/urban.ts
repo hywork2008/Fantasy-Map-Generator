@@ -22,6 +22,9 @@ export interface VectorUrbanSettings {
   /** Street blocks of house-sized lots (`compact`, absent) or historical burgage plots
    * (docs/plan/ce-burgage-plot-fabric.md). */
   plotFabric?: import("../contracts/burgage").PlotFabric;
+  /** Edge-length multiplier of the lane-bounded blocks on `compact-medium` (1.1–2.2, `compactBlockScale`); absent
+   * means the default 1.5. Ignored on other plot fabrics. */
+  compactBlockScale?: number;
 }
 export type TanneryBends = "continuous" | "leat";
 export interface VectorBuilding {

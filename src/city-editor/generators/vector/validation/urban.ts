@@ -2,6 +2,7 @@ import RBush from "rbush";
 import { residentialStoreys } from "../../../../utils/urbanMorphology";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorStage } from "../../../types/vector/urban";
+import { validCompactBlockScale } from "../../compactBlocks";
 import { nearestOnPolyline, polygonArea } from "../../geom";
 import { FABRIC_ENTRANCE_TOLERANCE_METERS } from "../fabric/houses";
 import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
@@ -232,7 +233,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     !keys(
       u.settings,
       "mode,population,houseModelId,laneWidthMeters,laneSpacingMeters,maxLanes,clearanceMeters,allowExpansion",
-      "lotOccupancy,tanneryBends,plotFabric"
+      "lotOccupancy,tanneryBends,plotFabric,compactBlockScale"
     ) ||
     !["medieval", "medieval-facilities"].includes(u.settings.mode) ||
     !nonnegative(u.settings.population) ||
@@ -255,6 +256,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
     (u.settings.tanneryBends !== undefined && !["continuous", "leat"].includes(u.settings.tanneryBends)) ||
     (u.settings.plotFabric !== undefined &&
       !["compact", "compact-medium", "burgage", "burgage-dense"].includes(u.settings.plotFabric)) ||
+    (u.settings.compactBlockScale !== undefined && !validCompactBlockScale(u.settings.compactBlockScale)) ||
     !object(u.baseGeneration) ||
     !object(u.baseContext) ||
     !keys(u.baseConnections, "nodes,edges,gates,circuits,bridges,wallRoads") ||

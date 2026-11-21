@@ -1,5 +1,11 @@
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
 import { type FortressFailureReason, fortressFailureMessage } from "../../generators/bastionedTown/validate";
+import {
+  COMPACT_BLOCK_SCALE,
+  COMPACT_BLOCK_SCALE_MAX,
+  COMPACT_BLOCK_SCALE_MIN,
+  compactBlockScale
+} from "../../generators/compactBlocks";
 import { randomSeed } from "../../generators/generation/settings";
 import {
   type VectorEditorGenerationInput,
@@ -385,6 +391,30 @@ export function createVectorGenerationPanel(
   }
   plotFabric.value = editorInput ? (editorInput.settings.plotFabric ?? "compact") : "burgage-dense";
   field("plotFabric", plotFabric);
+  // Block edge multiplier of compact-medium (`compactBlockScale`): 1 would be plain compact, so the range starts above it.
+  const blockScale = document.createElement("input");
+  blockScale.type = "number";
+  blockScale.min = String(COMPACT_BLOCK_SCALE_MIN);
+  blockScale.max = String(COMPACT_BLOCK_SCALE_MAX);
+  blockScale.step = "0.1";
+  blockScale.value = String(COMPACT_BLOCK_SCALE["compact-medium"]);
+  blockScale.dataset.generationField = "compactBlockScale";
+  field("compactBlockScale", blockScale);
+  const showBlockScale = () => {
+    blockScale.disabled = plotFabric.value !== "compact-medium";
+  };
+  showBlockScale();
+  scope.listen(plotFabric, "change", showBlockScale);
+  /** The plot pattern with its block edge multiplier, which only compact-medium keeps. */
+  const plotSettings = (): { plotFabric: PlotFabric; compactBlockScale?: number } => {
+    const fabric = plotFabric.value as PlotFabric;
+    return fabric === "compact-medium"
+      ? {
+          plotFabric: fabric,
+          compactBlockScale: compactBlockScale({ plotFabric: fabric, compactBlockScale: Number(blockScale.value) })
+        }
+      : { plotFabric: fabric };
+  };
   const population = number(
       "population",
       editorInput?.settings.population?.targetPopulation ?? (read().context.targetPopulation || 1000)
@@ -477,7 +507,7 @@ export function createVectorGenerationPanel(
           allowExpansion: expansion.checked,
           lotOccupancy: lotOccupancy(),
           tanneryBends: tanneryBends.value as TanneryBends,
-          plotFabric: plotFabric.value as PlotFabric
+          ...plotSettings()
         }
       },
       "develop"
@@ -566,7 +596,7 @@ export function createVectorGenerationPanel(
             population: target,
             lotOccupancy: lotOccupancy(),
             tanneryBends: tanneryBends.value as TanneryBends,
-            plotFabric: plotFabric.value as PlotFabric
+            ...plotSettings()
           }
         },
         "develop",
@@ -662,6 +692,8 @@ export function createVectorGenerationPanel(
       expansion.checked = doc.urban?.settings.allowExpansion ?? true;
       occupancy.value = String(Math.round((doc.urban?.settings.lotOccupancy ?? 1) * 100));
       tanneryBends.value = doc.urban?.settings.tanneryBends ?? "continuous";
+      if (doc.urban?.settings.plotFabric === "compact-medium")
+        blockScale.value = String(compactBlockScale(doc.urban.settings));
       stage.disabled = !!doc.generation && doc.generation.inputRevision !== doc.revision;
       status.textContent = doc.generation
         ? doc.generation.inputRevision === doc.revision

@@ -1,4 +1,5 @@
 import { Gunzip, gzipSync, strFromU8, strToU8 } from "fflate";
+import { validCompactBlockScale } from "../../../generators/compactBlocks";
 import { isDetachedFabricHouse } from "../../../generators/vector/editing/fabricHouses";
 import { isDetachedFabricLinePath } from "../../../generators/vector/editing/fabricLines";
 import { removeVectorPath } from "../../../generators/vector/editing/paths";
@@ -138,6 +139,7 @@ function validateShare(value: unknown): VectorShare | null {
         (!Number.isFinite(u.lotOccupancy) || u.lotOccupancy < 0.1 || u.lotOccupancy > 1)) ||
       (u.plotFabric !== undefined &&
         !["compact", "compact-medium", "burgage", "burgage-dense"].includes(u.plotFabric)) ||
+      (u.compactBlockScale !== undefined && !validCompactBlockScale(u.compactBlockScale)) ||
       Object.keys(u).some(
         k =>
           ![
@@ -150,7 +152,8 @@ function validateShare(value: unknown): VectorShare | null {
             "clearanceMeters",
             "allowExpansion",
             "lotOccupancy",
-            "plotFabric"
+            "plotFabric",
+            "compactBlockScale"
           ].includes(k)
       ))
   )

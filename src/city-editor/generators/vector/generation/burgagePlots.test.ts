@@ -17,7 +17,12 @@ import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { vectorWallChoice } from "./wallShape";
 
 /** A walled town without a river, on compact lots or burgage plots. */
-function town(plotFabric: PlotFabric, population = 1000, facilities = false): VectorCityDocument {
+function town(
+  plotFabric: PlotFabric,
+  population = 1000,
+  facilities = false,
+  compactBlockScale?: number
+): VectorCityDocument {
   const seed = "burgage-plots",
     settings = {
       ...defaultGenerationSettings(),
@@ -43,7 +48,8 @@ function town(plotFabric: PlotFabric, population = 1000, facilities = false): Ve
     ...DEFAULT_VECTOR_URBAN,
     mode: facilities ? "medieval-facilities" : "medieval",
     population,
-    plotFabric
+    plotFabric,
+    ...(compactBlockScale ? { compactBlockScale } : {})
   });
 }
 
@@ -261,5 +267,10 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     // Fewer lanes cut the same street blocks: the blocks between them are larger.
     expect(lanes(medium)).toBeLessThan(lanes(compact) * 0.7);
     expect(parseVectorDocument(serializeVectorDocument(medium))?.fabric).toEqual(medium.fabric);
+    // The multiplier setting (1.1–2.2) grows the blocks further, and is kept with the settings.
+    const wide = town("compact-medium", 3000, false, 2.2);
+    expect(wide.urban!.settings.compactBlockScale).toBe(2.2);
+    expect(wide.urban!.report.unplacedDwellings).toBe(0);
+    expect(lanes(wide)).toBeLessThan(lanes(medium));
   });
 });
