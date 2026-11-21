@@ -133,3 +133,9 @@ CE meshless の都市生成（Generate city）を、生成の流れ（ステー�
   - 区画は格子上で辺を共有するので、庭の和を共有辺の相殺で求める案も試した。Node では演算と同じ速さ（242区画で 12.5 ms 対 12.0 ms）だったので採らなかった。
   - 結果（ブラウザ、medieval-facilities / burgage-dense、各3回）: `page/adopt-and-draw` は 168〜211 ms → 122〜153 ms。
   - 残り: 描画データの面を1つずつ枠で切る演算（`add` の `regionBoolean`、Node で1回約 10 ms）、文書の内容の鍵（描画のたびに文書全体を文字列にする）。
+- 2026-11-21: 施設の配置（`urban/facilities`）。
+  - 新しいプロセスでの1都市目の内訳: 区画への施設の配置（`placeFacilitiesOnPlots`）約 115 ms、街路に面した仕事場の外観（`dressWorkhomes`）約 150 ms。後者は高さを測るために、仕事場・裏の作業場・ギルドハウスの3Dモデルを間口と奥行ごとに作っていて、その半分以上は部品を1つの形にまとめる処理（`compactModel`）だった。
+  - 高さはまとめる前の部品から測る（`uncompactedModelHeight`、まとめた形と同じ部品の範囲）。描画用のモデル（`createOpus…`）は変わらない。保存される高さの差は単精度の丸め分（6都市1,109棟で最大 7e-7 m）。`dressWorkhomes` は約 150 ms → 約 96 ms。
+  - 区画への配置は、区画の列・道との交差の判定、敷地の演算などに分散しており、目立つ箇所は無かった。
+  - 結果（ブラウザ、medieval-facilities / burgage-dense、各3回）: `urban/facilities` は約 220〜280 ms → 119〜224 ms。
+  - 建物のテストのうち `workhomeTrades`・`glassGuildDetails`・`instrumentGuildDetails`・`marketGuildHall` の30件は、段階 B の前（f78d39bf3）から失敗している（模型のハッシュと変種の識別子の期待値）。今回の変更とは関係しない。

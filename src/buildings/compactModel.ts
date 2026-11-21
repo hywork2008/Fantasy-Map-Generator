@@ -3,6 +3,22 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import type { CityStructureMeshes } from "../city3d/three/structureMeshes";
 import type { ModelPartRange } from "./modelParts";
 
+/**
+ * The height of the model `compactModel` would bake from `source` (its pickable parts, from the lowest point to the
+ * highest), measured without baking it, and `source` disposed. Building a model only for its height spends most of
+ * its time in the baking.
+ */
+export function uncompactedModelHeight(source: CityStructureMeshes): number {
+  try {
+    source.group.updateMatrixWorld(true);
+    const box = new THREE.Box3();
+    for (const mesh of source.pickables) box.expandByObject(mesh, true);
+    return box.max.y - box.min.y;
+  } finally {
+    source.dispose();
+  }
+}
+
 /** Bake kit parts into material buckets; the returned model owns all of its resources. */
 export function compactModel(
   source: CityStructureMeshes,

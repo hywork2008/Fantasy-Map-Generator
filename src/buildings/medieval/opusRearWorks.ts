@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import type { CityStructureMeshes } from "../../city3d/three/structureMeshes";
 import { BUILDING_PALETTES, type BuildingPaletteId } from "../appearance/palette";
-import { compactModel } from "../compactModel";
+import { compactModel, uncompactedModelHeight } from "../compactModel";
 import { REGIONAL_HOUSE_STYLES } from "../houses/regionalHouseStyles";
 import type { Surface } from "./modelKit";
 import {
@@ -310,13 +310,17 @@ const FITTINGS = { baking, cutlery, metalwares, glazing, chandlery, fishmongery,
 
 /** The Opus rear works of a spec (docs/plan/ce-town-trade-rear-works.md §5.2): the trade's shed and yard only. */
 export function createOpusRearWorks(input: OpusRearWorksSpec, quality: TradeQuality): CityStructureMeshes {
+  return compactModel(buildOpusRearWorks(input, quality));
+}
+/** The model's kit parts before baking. */
+function buildOpusRearWorks(input: OpusRearWorksSpec, quality: TradeQuality): CityStructureMeshes {
   const l = opusRearWorksLayout(input),
     k = new TradeKit(`opus-rear-works-${l.spec.trade}-${quality}`, quality === "high", colors(l));
   // A bakehouse is closed against the weather and the fire risk; the other trades work in an open-fronted shed.
   const ridge = shed(k, l, shedSurface(l), l.spec.trade === "baking");
   k.box("yard-ground", [0, 0.02, (l.z1 + l.yard) / 2], [l.x1 - l.x0 + 0.5, 0.04, l.yard - l.z1], "earth");
   FITTINGS[l.spec.trade](k, l, ridge);
-  return compactModel(k.finish());
+  return k.finish();
 }
 
 const heights = new Map<string, number>();
@@ -325,13 +329,7 @@ export function opusRearWorksHeight(spec: OpusRearWorksSpec): number {
   const key = opusRearWorksSpecKey(spec);
   let result = heights.get(key);
   if (result === undefined) {
-    const model = createOpusRearWorks(spec, "low");
-    try {
-      const box = new THREE.Box3().setFromObject(model.group, true);
-      result = box.max.y - box.min.y;
-    } finally {
-      model.dispose();
-    }
+    result = uncompactedModelHeight(buildOpusRearWorks(spec, "low"));
     heights.set(key, result);
   }
   return result;
