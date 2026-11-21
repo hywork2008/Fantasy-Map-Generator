@@ -61,6 +61,8 @@ export function regionContains(polygon: VectorPolygon): (p: Point) => boolean {
 export function regionProbe(polygon: VectorPolygon): {
   contains: (p: Point) => boolean;
   near: (p: Point, d: number) => boolean;
+  /** Whether an edge's box meets the box. */
+  nearBox: (minX: number, minY: number, maxX: number, maxY: number) => boolean;
 } {
   type Edge = { minX: number; minY: number; maxX: number; maxY: number; i: number };
   const rings = [polygon.outer, ...polygon.holes].map(r => {
@@ -114,7 +116,8 @@ export function regionProbe(polygon: VectorPolygon): {
   return {
     contains: p => inside(rings[0], p) && !rings.slice(1).some(h => inside(h, p)),
     near: (p, d) =>
-      rings.some(({ box }) => box().collides({ minX: p[0] - d, maxX: p[0] + d, minY: p[1] - d, maxY: p[1] + d }))
+      rings.some(({ box }) => box().collides({ minX: p[0] - d, maxX: p[0] + d, minY: p[1] - d, maxY: p[1] + d })),
+    nearBox: (minX, minY, maxX, maxY) => rings.some(({ box }) => box().collides({ minX, minY, maxX, maxY }))
   };
 }
 const ringBox = (r: Point[]) => {
@@ -182,6 +185,8 @@ function lineCrossing(a: Point, b: Point, c: Point, d: Point): Point | undefined
   const t = ((c[0] - a[0]) * sy - (c[1] - a[1]) * sx) / det;
   return [a[0] + rx * t, a[1] + ry * t];
 }
+/** Crossing vertices of one result found by scanning the input edges before they are indexed. */
+const CROSSING_SCANS = 8;
 /**
  * The integer kernel (Clipper 1, clipper-lib) on a power-of-two lattice: below 2^25 its arithmetic stays in doubles
  * and is exact. Each operand is the union of its polygons (outlines one way, holes the other, non-zero fill), as in
@@ -231,15 +236,19 @@ function clipperBoolean(
   if (!clipper.Execute(type, tree, nonZero, nonZero)) throw new Error("clipper-failed");
   // A vertex the kernel made where input edges cross lies within a few lattice steps of their exact crossing; where
   // the edges near it run parallel, it is put on the nearest.
-  type Edge = { minX: number; minY: number; maxX: number; maxY: number; a: Point; b: Point };
-  let index: RBush<Edge> | undefined;
+  type Edge = { minX: number; minY: number; maxX: number; maxY: number; a: Point; b: Point; k: number };
+  // Most results have a few such vertices: the first are found by a scan of the rings, the rest through an index.
+  let index: RBush<Edge> | undefined,
+    queries = 0;
   const reach = 3 / scale;
-  const crossing = (q: Point): Point => {
-    index ??= new RBush<Edge>().load(
+  const indexed = () => {
+    let k = 0;
+    return new RBush<Edge>().load(
       rings.flatMap(ring =>
         ring.map((p, i) => {
           const q = ring[(i + 1) % ring.length];
           return {
+            k: k++,
             minX: Math.min(p[0], q[0]),
             minY: Math.min(p[1], q[1]),
             maxX: Math.max(p[0], q[0]),
@@ -250,9 +259,48 @@ function clipperBoolean(
         })
       )
     );
-    const near = index
-      .search({ minX: q[0] - reach, minY: q[1] - reach, maxX: q[0] + reach, maxY: q[1] + reach })
-      .filter(e => pointSegmentGap(q, e.a, e.b) < reach);
+  };
+  let boxes: { box: ReturnType<typeof ringBox>; first: number }[] | undefined;
+  const scanned = (q: Point) => {
+    const near: { a: Point; b: Point; k: number }[] = [];
+    if (!boxes) {
+      let first = 0;
+      boxes = rings.map(ring => {
+        const entry = { box: ringBox(ring), first };
+        first += ring.length;
+        return entry;
+      });
+    }
+    for (let r = 0; r < rings.length; r++) {
+      const ring = rings[r],
+        { box } = boxes[r];
+      if (box.minX > q[0] + reach || box.maxX < q[0] - reach || box.minY > q[1] + reach || box.maxY < q[1] - reach)
+        continue;
+      for (let i = 0, k = boxes[r].first; i < ring.length; i++, k++) {
+        const a = ring[i],
+          b = ring[(i + 1) % ring.length];
+        if (
+          (a[0] < q[0] - reach && b[0] < q[0] - reach) ||
+          (a[0] > q[0] + reach && b[0] > q[0] + reach) ||
+          (a[1] < q[1] - reach && b[1] < q[1] - reach) ||
+          (a[1] > q[1] + reach && b[1] > q[1] + reach)
+        )
+          continue;
+        near.push({ a, b, k });
+      }
+    }
+    return near;
+  };
+  const crossing = (q: Point): Point => {
+    if (++queries > CROSSING_SCANS) index ??= indexed();
+    const near = (
+      index
+        ? index.search({ minX: q[0] - reach, minY: q[1] - reach, maxX: q[0] + reach, maxY: q[1] + reach })
+        : scanned(q)
+    )
+      .filter(e => pointSegmentGap(q, e.a, e.b) < reach)
+      // In input order, whichever way they were found: the crossing computed depends on the order of its edges.
+      .sort((x, y) => x.k - y.k);
     let best: Point | undefined,
       gap = 2 * reach;
     for (let i = 0; i < near.length; i++)

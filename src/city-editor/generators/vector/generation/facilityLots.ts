@@ -665,10 +665,27 @@ function bankRuns(doc: VectorCityDocument, core: (p: Point) => boolean, maxMeter
   const water = allVectorWater(doc),
     center = doc.site!.center,
     half = doc.frame.extentMeters / 2,
-    wet = (p: Point) => water.some(w => containsRegion([w], p)),
+    // The bank walk tests tens of thousands of points against the same water: each polygon's outline is indexed once.
+    within = (polygons: VectorPolygon[]) => {
+      const probes = polygons.map(w => {
+        const box = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+        for (const [x, y] of w.outer) {
+          box.minX = Math.min(box.minX, x);
+          box.minY = Math.min(box.minY, y);
+          box.maxX = Math.max(box.maxX, x);
+          box.maxY = Math.max(box.maxY, y);
+        }
+        return { box, probe: regionProbe(w) };
+      });
+      return (p: Point) =>
+        probes.some(
+          ({ box, probe }) =>
+            p[0] >= box.minX && p[0] <= box.maxX && p[1] >= box.minY && p[1] <= box.maxY && probe.contains(p)
+        );
+    },
+    wet = within(water),
     // Standing water that is no river's (the sea, a lake): a river's course into it has left its banks.
-    sea = (doc.site?.water ?? []).filter(w => !w.riverPathId).flatMap(w => w.polygons),
-    atSea = (p: Point) => sea.some(w => containsRegion([w], p)),
+    atSea = within((doc.site?.water ?? []).filter(w => !w.riverPathId).flatMap(w => w.polygons)),
     runs: { bank: Point[]; landSide: 1 | -1; startMeters: number; upstream: boolean }[] = [];
   let framed = false;
   for (const raw of riverCourses(doc)) {
@@ -1283,6 +1300,9 @@ function layTannersLanes(
         test.contains([p[0], p[1] - c])
       );
     };
+  // Samples of the way between cells, cached on a half-metre lattice for every search of the pass: neighbouring moves
+  // and the searches from neighbouring yards share most of them, and only roads, which they ignore, are added meanwhile.
+  const blockedAt = new Map<number, boolean>();
   const routeAround = (head: Point) => {
     const g = LANE_GRID_METERS,
       r = Math.ceil(LANE_REACH_METERS / g),
@@ -1307,8 +1327,6 @@ function layTannersLanes(
       return v;
     };
     // A thin obstacle (a wall, a narrow creek) can lie between two cells: the way between them is sampled too.
-    // Cached on a half-metre lattice: neighbouring moves share most of their samples.
-    const blockedAt = new Map<number, boolean>();
     const pointBlocked = (p: Point) => {
       const k = Math.round(p[0] * 2) * 100003 + Math.round(p[1] * 2);
       let v = blockedAt.get(k);
@@ -1323,8 +1341,29 @@ function layTannersLanes(
       }
       return v;
     };
+    const frameOut = (p: Point) => Math.abs(p[0]) > ctx.half - clearance || Math.abs(p[1]) > ctx.half - clearance;
     const wayClear = (a: Point, b: Point) => {
       const n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])));
+      if (n === 1) return true;
+      // Most moves keep well off every obstacle: with no obstacle's edge within its clearance of the move's box and its
+      // start outside, no sample between can lie in it or near its edge, and none is tested.
+      if (!frameOut(a) && !frameOut(b)) {
+        const x0 = Math.min(a[0], b[0]),
+          y0 = Math.min(a[1], b[1]),
+          x1 = Math.max(a[0], b[0]),
+          y1 = Math.max(a[1], b[1]);
+        if (
+          obstacles
+            .search({ minX: x0 - clearance, minY: y0 - clearance, maxX: x1 + clearance, maxY: y1 + clearance })
+            .every(o => {
+              if (o.road) return true;
+              const c = o.yard ? YARD_CLEARANCE : clearance,
+                test = tested(o.polygon);
+              return !test.nearBox(x0 - c, y0 - c, x1 + c, y1 + c) && !test.contains(a);
+            })
+        )
+          return true;
+      }
       for (let t = 1; t < n; t++)
         if (pointBlocked([a[0] + ((b[0] - a[0]) * t) / n, a[1] + ((b[1] - a[1]) * t) / n])) return false;
       return true;
