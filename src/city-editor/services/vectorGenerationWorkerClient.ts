@@ -5,6 +5,7 @@ import {
 } from "../generators/vector/generation/perimeter";
 import type { VectorGenerationResult } from "../generators/vector/generation/pipeline";
 import type { VectorUrbanDistrictRequest } from "../generators/vector/generation/urban";
+import { acceptValidatedContent } from "../generators/vector/validation/document";
 import type { VectorCityDocument } from "../types/vector/document";
 import type { VectorGenerationSettings } from "../types/vector/generation";
 import type { VectorUrbanSettings } from "../types/vector/urban";
@@ -51,6 +52,8 @@ export type VectorGenerationReply = { id: number; inputRevision: number } & (
   | {
       result: VectorGenerationResult;
       planned?: VectorGenerationPlans;
+      /** The result document's content key, when the worker validated that very content. */
+      validatedKey?: string;
       timings?: VectorGenerationTimings & { postedAt: number };
       error?: never;
     }
@@ -60,11 +63,27 @@ export type VectorGenerationReply = { id: number; inputRevision: number } & (
 let nextId = 0;
 /** Upper bound of one generation, however often it reports progress. */
 export const GENERATION_TOTAL_LIMIT_MS = 300000;
+const newGenerationWorker = () =>
+  new Worker(new URL("./vectorGenerationWorker.ts", import.meta.url), { type: "module" });
+let spare: Worker | undefined;
+/**
+ * Starts the next generation's worker ahead, so loading its code (and its district workers) is not part of the next
+ * generation's time. Each generation still has a worker of its own.
+ */
+export function prepareVectorGenerationWorker(): void {
+  if (typeof Worker !== "undefined") spare ??= newGenerationWorker();
+}
+/** The worker started ahead, or a new one; the next is started once this generation ends. */
+export function takeVectorGenerationWorker(): Worker {
+  const worker = spare ?? newGenerationWorker();
+  spare = undefined;
+  return worker;
+}
 /** One worker per generation; termination cancels the geometry computation itself. */
 export function startVectorGeneration(
   source: VectorCityDocument,
   task: VectorGenerationTask,
-  createWorker = () => new Worker(new URL("./vectorGenerationWorker.ts", import.meta.url), { type: "module" }),
+  createWorker: () => Worker = takeVectorGenerationWorker,
   onProgress?: (progress: VectorGenerationProgress) => void,
   onTimings?: (timings: VectorGenerationTimings) => void
 ) {
@@ -84,6 +103,8 @@ export function startVectorGeneration(
       clearTimeout(deadline);
       worker.onmessage = worker.onerror = worker.onmessageerror = null;
       worker.terminate();
+      // After the page has taken the result: starting a worker competes with drawing it.
+      if (createWorker === takeVectorGenerationWorker) setTimeout(prepareVectorGenerationWorker, 0);
       if (error) reject(error);
       else resolve(value);
     };
@@ -100,6 +121,7 @@ export function startVectorGeneration(
       else if (data.result) {
         // Kept here, so the page need not plan the shown city again on the main thread before its first edit.
         for (const { request, results } of data.planned ?? []) rememberPerimeterResults(request, results);
+        if (data.validatedKey) acceptValidatedContent(data.validatedKey);
         if (data.timings) {
           const { postedAt, ...timings } = data.timings,
             now = performance.now();

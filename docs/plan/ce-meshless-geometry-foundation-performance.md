@@ -105,3 +105,11 @@ CE meshless の都市生成（Generate city）を、生成の流れ（ステー�
   - 時間（Node、同じ48都市、設定ごとの合計）: 段階 B の後から 8〜18% 短縮。CPU プロファイル（12都市）は 13.3 秒 → 11.0 秒。新しいプロセスでの1都市目（medieval-facilities / gentle）は 1.81 秒 → 1.60 秒。
   - ブラウザ（人口5000、各3回の中央値、ms）: medieval / compact は川無し・straight・gentle の順に 1566・1721・1495、medieval-facilities / burgage-dense は同じ順に 1819・2167・2319。18回とも成功。
   - 残り: `regionBoolean` 22%（形状の演算そのもの）、`planPerimeterRequest` 9%、文書の検証 8%（段階 D）、`reserveTanneryRow` 7%、街路に面した仕事場の3Dモデルの高さ（`opusWorkhomeHeight` など、間口・奥行ごとに模型を作る。新しいプロセスでの1都市目で約150 ms）。
+- 2026-11-21: 段階 D に着手。ブラウザのステージ別の所要時間を見ると、最大の固定費は演算ではなくワーカーの起動だった。
+  - 生成のワーカーは生成ごとに新しく起動する。起動の時にコードを読み込むので、`page/request-and-transfer` に約 270〜380 ms かかっていた。地区の計画用の入れ子のワーカー（最大4つ）もその後に起動するので、`ce-perimeter-plan-and-native-connections` の約 670 ms の大半はその読み込みを待つ時間だった。ワーカーを1つにすると、同じステージは 58〜108 ms で、Node の計画の時間（30〜80 ms）に近い。開発サーバーではモジュールを個別に読み込むので、この差が大きく出る。
+  - 次の生成のワーカーを前もって起動しておく（`prepareVectorGenerationWorker`）。生成パネルを作った時と、各生成が終わった後に起動する。生成ごとに専用のワーカーを使うのは変わらない（取り消しはワーカーの終了のまま）。地区の計画用のワーカーは、生成のワーカーの起動と同時に起動する。
+  - ワーカーは、検証を通った文書の内容の鍵（`validatedContentKey`）を結果と一緒に送る。ページはそれを受け入れ（`acceptValidatedContent`）、同じ内容の検証を繰り返さない。構造化複製では内容が変わらないためである。
+  - 生成途中の検証は残した。壁と門の追加、骨格の試行などで、検証の失敗が別の候補を試すきっかけになっているためである。
+  - ページの行を `page/request-and-start`（依頼の複製とワーカーの起動）と `page/result-transfer`（結果の複製）に分けた。前もって起動すると、前者は約 1 ms、後者は 9〜22 ms になる。
+  - 結果（ブラウザ、人口5000、各3回の中央値、ms）: medieval / compact は川無し・straight・gentle の順に 691・503・677、medieval-facilities / burgage-dense は同じ順に 1269・1235・1539。段階 C の後（1566・1721・1495、1819・2167・2319）から、medieval は約半分、medieval-facilities は約 30% 短縮。18回とも成功。生成結果は変わらない。
+  - 残り（ブラウザ、medieval-facilities）: `page/adopt-and-draw` 約 220 ms（描画データの作成で区画の庭を多角形の和にする `burgagePlotSurfaces` 約 80 ms、履歴の複製など）、`urban/facilities` 約 250 ms、`skeleton/connections-and-validation` 約 120〜250 ms。

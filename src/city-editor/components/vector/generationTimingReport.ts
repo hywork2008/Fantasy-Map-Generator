@@ -24,8 +24,15 @@ export function generationTimingReport(
   const rows = timings.stages.map(s => ({ stage: `${s.group}/${s.phase}`, ms: s.ms }));
   const measured = rows.reduce((sum, row) => sum + row.ms, 0);
   rows.push({ stage: "worker/other", ms: Math.max(0, timings.workerMs - measured) });
-  if (timings.roundTripMs !== undefined)
-    rows.push({ stage: "page/request-and-transfer", ms: Math.max(0, timings.roundTripMs - timings.workerMs) });
+  if (timings.roundTripMs !== undefined) {
+    const transfer = timings.transferMs ?? 0;
+    // The request's copy and the worker's start (its code loads unless it was started ahead), then the result's copy.
+    rows.push({
+      stage: "page/request-and-start",
+      ms: Math.max(0, timings.roundTripMs - timings.workerMs - transfer)
+    });
+    if (timings.transferMs !== undefined) rows.push({ stage: "page/result-transfer", ms: transfer });
+  }
   rows.push(...extra);
   const totalMs = rows.reduce((sum, row) => sum + row.ms, 0);
   return { label, totalMs: round(totalMs), rows: rows.map(row => ({ stage: row.stage, ms: round(row.ms) })) };
