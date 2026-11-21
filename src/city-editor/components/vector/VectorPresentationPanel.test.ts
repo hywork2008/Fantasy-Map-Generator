@@ -5,12 +5,12 @@ import { DEFAULT_VECTOR_GENERATION } from "../../generators/vector/generation/pi
 import { EditorLifetime } from "../../services/editorLifetime";
 import { createVectorPresentationPanel } from "./VectorPresentationPanel";
 
-const mounted = vi.hoisted(() => ({ dispose: vi.fn(), calls: vi.fn() }));
+const mounted = vi.hoisted(() => ({ dispose: vi.fn(), calls: vi.fn(), update: vi.fn() }));
 vi.mock("../../renderers/vector/view3d", () => ({
   mountVector3d: (host: HTMLElement, data: unknown) => {
     host.replaceChildren(document.createElement("canvas"));
     mounted.calls(data);
-    return { warnings: [], png: async () => new Blob(), dispose: mounted.dispose };
+    return { warnings: [], png: async () => new Blob(), dispose: mounted.dispose, update: mounted.update };
   }
 }));
 afterEach(() => {
@@ -43,10 +43,11 @@ const setup = () => {
   };
 };
 describe("vector presentation lifetime", () => {
-  it("builds 3D from the current stage and releases resources on view changes and disposal", async () => {
+  it("keeps the 3D view across 2D switches, redraws it in place when stale and releases it on disposal", async () => {
     const s = setup();
     try {
-      const view = s.panel.querySelector<HTMLSelectElement>('[data-presentation-field="view"]')!;
+      const view = s.panel.querySelector<HTMLSelectElement>('[data-presentation-field="view"]')!,
+        stage = s.panel.querySelector<HTMLSelectElement>('[data-presentation-field="stage"]')!;
       view.value = "3d";
       view.dispatchEvent(new Event("change"));
       await vi.waitFor(() => expect(mounted.calls).toHaveBeenCalledOnce());
@@ -54,13 +55,25 @@ describe("vector presentation lifetime", () => {
       expect(mounted.calls.mock.calls[0][0].revision).toBe(s.doc.revision);
       view.value = "2d";
       view.dispatchEvent(new Event("change"));
-      expect(mounted.dispose).toHaveBeenCalledOnce();
+      expect(mounted.dispose).not.toHaveBeenCalled();
       expect(s.map.hidden).toBe(false);
+      expect(s.host.hidden).toBe(true);
       view.value = "3d";
       view.dispatchEvent(new Event("change"));
-      await vi.waitFor(() => expect(mounted.calls).toHaveBeenCalledTimes(2));
+      expect(s.host.hidden).toBe(false);
+      expect(mounted.update).not.toHaveBeenCalled();
+      view.value = "2d";
+      view.dispatchEvent(new Event("change"));
+      stage.value = stage.options[0].value;
+      stage.dispatchEvent(new Event("change"));
+      expect(mounted.update).not.toHaveBeenCalled();
+      view.value = "3d";
+      view.dispatchEvent(new Event("change"));
+      expect(mounted.update).toHaveBeenCalledOnce();
+      expect(mounted.update.mock.calls[0][0].stage).toBe(stage.value);
+      expect(mounted.calls).toHaveBeenCalledOnce();
       s.scope.dispose();
-      expect(mounted.dispose).toHaveBeenCalledTimes(2);
+      expect(mounted.dispose).toHaveBeenCalledOnce();
     } finally {
       s.close();
     }

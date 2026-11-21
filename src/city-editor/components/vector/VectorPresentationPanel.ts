@@ -63,42 +63,69 @@ export function createVectorPresentationPanel(
     void draw3d();
   });
   scope.own(() => toggle.remove());
+  // The 3D view is kept while the 2D map is shown, as in the mesh editor: switching back shows it at once, and a
+  // document or stage changed meanwhile is redrawn in place, rebuilding only the layers whose inputs changed.
+  let sceneDoc: VectorCityDocument | undefined, sceneStage: VectorStage | undefined;
   const release = () => {
     scope.invalidate("vector-3d");
     scene?.dispose();
-    scene = undefined;
+    scene = sceneDoc = sceneStage = undefined;
   };
   scope.own(release);
+  const showStatus = () => {
+    status.textContent = scene?.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
+  };
   const draw3d = async () => {
-    release();
     syncToggle();
     if (view.value !== "3d") {
+      scope.invalidate("vector-3d");
       host.hidden = true;
       map.hidden = false;
       status.textContent = text("ready");
       return;
     }
-    const current = scope.ticket("vector-3d"),
-      doc = structuredClone(displayed),
-      at = selected;
-    status.textContent = text("loading");
+    const current = scope.ticket("vector-3d");
     map.hidden = true;
     host.hidden = false;
+    if (scene) {
+      if (sceneDoc !== displayed || sceneStage !== selected) {
+        sceneDoc = displayed;
+        sceneStage = selected;
+        scene.update(vectorRenderData(structuredClone(displayed), selected));
+      }
+      showStatus();
+      return;
+    }
+    const doc = displayed,
+      at = selected;
+    status.textContent = text("loading");
+    let mounted: ReturnType<typeof mountVector3d> | undefined;
     try {
       const { mountVector3d } = await import("../../renderers/vector/view3d");
       if (!current()) return;
       // Model quality, simplification and forest quality are the editor's shared preferences, set in the mesh
       // editor (High, automatic LOD and automatic forest unless changed there).
-      scene = mountVector3d(host, vectorRenderData(doc, at), onSelect, readModelQualityPreference(), {
-        simplification: readSimplificationPreferences(),
-        forestQuality: readForestViewPreferences().quality
-      });
-      await scene.ready;
+      mounted = scene = mountVector3d(
+        host,
+        vectorRenderData(structuredClone(doc), at),
+        onSelect,
+        readModelQualityPreference(),
+        {
+          simplification: readSimplificationPreferences(),
+          forestQuality: readForestViewPreferences().quality
+        }
+      );
+      sceneDoc = doc;
+      sceneStage = at;
+      await mounted.ready;
       if (!current()) return;
-      status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
+      showStatus();
     } catch {
-      if (!current()) return;
+      // A view that could not start is never kept, even when the request that mounted it was superseded.
+      if (mounted && scene !== mounted) return;
+      const latest = current();
       release();
+      if (!latest) return;
       view.value = "2d";
       syncToggle();
       host.hidden = true;
@@ -112,9 +139,9 @@ export function createVectorPresentationPanel(
     if (scene && view.value === "3d" && at === selected && doc !== displayed) {
       scope.invalidate("vector-export");
       stopReplay();
-      displayed = doc;
+      displayed = sceneDoc = doc;
       scene.update(vectorRenderData(structuredClone(doc), at));
-      status.textContent = scene.warnings.length ? `${text("massing")}: ${scene.warnings.length}` : text("ready");
+      showStatus();
       return;
     }
     if (scene && view.value === "3d" && at === selected) return;
