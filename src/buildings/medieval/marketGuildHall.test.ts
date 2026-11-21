@@ -114,7 +114,7 @@ it("excludes all pier pads from the conservative floor and provides exactly 36 s
 });
 
 it("preserves legacy geometry and materials when shared builders use their default High detail", () => {
-  const baseline = JSON.parse(readFileSync("docs/analytics/ce-market-guild-legacy-baseline-20261104.json", "utf8"));
+  const baseline = JSON.parse(readFileSync("docs/analytics/ce-market-guild-legacy-baseline-20261121.json", "utf8"));
   for (const variant of [...civic, ...cloth, ...guilds].flatMap(model => model.variants!)) {
     const output = variant.create(),
       hash = createHash("sha256");

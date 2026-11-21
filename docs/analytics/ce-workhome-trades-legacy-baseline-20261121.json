@@ -1,0 +1,47 @@
+{
+  "schema": 1,
+  "note": "Pre T1b-5 textile and woodworking workshop factory signatures, UUID excluded. Re-recorded 2026-11-21 under three 0.187 (the 20261104 file was recorded under three 0.185, whose Material.toJSON output differs); the factories' output was the same at the commit that added the 20261104 file.",
+  "gitHead": "1146c6b327ca69a4ab11a862b9ad155fcccd24e5",
+  "entries": [
+    {
+      "variant": "medieval.weavers-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "282aeada278c07fcaaa11306ea2ed5c4bf246ff630fc397b04cb89302f5330d2"
+    },
+    {
+      "variant": "medieval.weavers-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "1fe2294ef3eecdf85688dc30708444764d879470711b5fde1052c771bedbb15d"
+    },
+    {
+      "variant": "medieval.tailors-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "79b7b1598ef4c13276f7fb13b234bfe5da55d72749aa4a0ec2dd7cc368e0eaf0"
+    },
+    {
+      "variant": "medieval.tailors-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "e5e10f34296b7678e74d9bd2bfec42df1d4662b908ee1c1d5767b619f0160220"
+    },
+    {
+      "variant": "medieval.cobblers-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "903f27c2cc2e5329ca08782174fac38313c3405338edd9fba0ad7a0b885fe7cb"
+    },
+    {
+      "variant": "medieval.cobblers-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "6c080080c42f33d5877aab4139c2946b6e26afa70c73247ca7deeeb778972f01"
+    },
+    {
+      "variant": "medieval.coopers-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "a8ab7cd95e24a48a0e7824ab10e3eba30b68506dfe29486db372e0aa918806a4"
+    },
+    {
+      "variant": "medieval.coopers-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "4c2aa699439825908ce27eb5f9dd54fd70395ae179e4fc224475e0c98524a2ff"
+    },
+    {
+      "variant": "medieval.joiners-workshop@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "8e683ffff2501b6fc74a4a497db7404b3d4d7c8306b82e7550a79343c259149c"
+    },
+    {
+      "variant": "medieval.joiners-workshop@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "73ec8b97b47be8832d56f0ad8d713fb86b84396796bb89ff726a900d876510e4"
+    }
+  ]
+}

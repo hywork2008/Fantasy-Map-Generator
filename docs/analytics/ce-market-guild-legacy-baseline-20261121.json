@@ -1,0 +1,63 @@
+{
+  "schema": 1,
+  "note": "Re-recorded 2026-11-21 under three 0.187 (the 20261104 file was recorded under three 0.185, whose Material.toJSON output differs); the factories' output was the same at the commit after the 20261104 file.",
+  "gitHead": "1146c6b327ca69a4ab11a862b9ad155fcccd24e5",
+  "entries": [
+    {
+      "variant": "medieval.medieval-town-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "ecf17b22d09966463daffe9d03a17f3525b271428ddfd4d799273fd5265ac62c"
+    },
+    {
+      "variant": "medieval.medieval-town-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "178a41238bc15b245b192252404d51ba6a49de72ef1d644d90cd40cbe2539e40"
+    },
+    {
+      "variant": "medieval.covered-market-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "825fe44f8d59990bd97f81247792f1bc9914247b727987093509cc2c2dbbcab7"
+    },
+    {
+      "variant": "medieval.covered-market-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "bedb9a74f391dcc7827f989b4b9bc538a785fef17f67676ad7892a4f59a7b5be"
+    },
+    {
+      "variant": "medieval.cloth-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "2add7ee0b99f3020aafa17aa53adf7782509501b8b8c9b2fe2fe28df41a8f548"
+    },
+    {
+      "variant": "medieval.cloth-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "05cb61ad2cca2b7272589c8a4e3d71cfec1f3c72a8453aae102dd2b5bff27cb5"
+    },
+    {
+      "variant": "medieval.leather-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "4734779d2537fe358a67aa6a33bb04be5dac8ab010ba9d6f200d27092f0f0984"
+    },
+    {
+      "variant": "medieval.leather-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "8e20e0c753ceca4216ccb410bbd7f94dcb9eed540386b7576971ada55e02ac54"
+    },
+    {
+      "variant": "medieval.woodworking-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "c862d1c5289dcae3bb69561eef85dcee0820287af89527cfc09a2a8a2d5c4789"
+    },
+    {
+      "variant": "medieval.woodworking-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "57ab5a815dabf7134aaa29976dafdd0816fe9b83208092e6620a3cbb5fc9dac5"
+    },
+    {
+      "variant": "medieval.masonry-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "ec979d5776d5a1ff78bbedded9b889b60565434448479f18811a940e88173498"
+    },
+    {
+      "variant": "medieval.masonry-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "6e8cea3c7fe3b3651cc1c560c9f1f565d50eaec1a818fd0b57744389665e9d5e"
+    },
+    {
+      "variant": "medieval.metallurgy-guild-hall@low#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "ef0b6a53655f44ec250ce3f45b943562d2baf530c56b521eefd917f1053c8708"
+    },
+    {
+      "variant": "medieval.metallurgy-guild-hall@high#codex-gpt-6.1-sol",
+      "geometryAndMaterialSha256": "d59c423706a4970ba21b260dff0f3b3414994f2105eb82519c22b46a67709919"
+    }
+  ]
+}
