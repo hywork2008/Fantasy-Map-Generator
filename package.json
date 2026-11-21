@@ -88,6 +88,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.6.8",
     "@playwright/test": "^1.65.1",
+    "@types/clipper-lib": "6.4.0",
     "@types/d3": "^7.4.3",
     "@types/delaunator": "^5.1.0",
     "@types/jscodeshift": "^17.3.0",
@@ -144,6 +145,7 @@
     "@tanstack/react-virtual": "^3.14.26",
     "@tinymce/tinymce-react": "^6.3.1",
     "alea": "^1.0.1",
+    "clipper-lib": "6.4.2",
     "d3": "^7.9.2",
     "delaunator": "^5.1.0",
     "driver.js": "^1.14.0",

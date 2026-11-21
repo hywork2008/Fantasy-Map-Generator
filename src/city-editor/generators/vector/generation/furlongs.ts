@@ -2,9 +2,9 @@ import { Delaunay } from "d3";
 import type { Point } from "../../../types/primitives";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import type { VectorFurlong, VectorFurlongCourse } from "../../../types/vector/landUse";
-import { pointInPolygon } from "../../geom";
+import { pointInPolygon, polygonArea } from "../../geom";
 import { makeRng } from "../../prng";
-import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
+import { containsRegion, convexIntersection, regionArea, regionBoolean, regionSurelyWithin } from "../geometry/regions";
 import { simpleContour } from "../geometry/surfaces";
 
 /**
@@ -86,6 +86,20 @@ function nearestRoadAngle(p: Point, roads: Point[][]): number | undefined {
   return angle;
 }
 
+/** Whether the ring turns one way only (collinear runs allowed). */
+function isConvexRing(ring: Point[]): boolean {
+  let sign = 0;
+  for (let i = 0; i < ring.length; i++) {
+    const a = ring[i],
+      b = ring[(i + 1) % ring.length],
+      c = ring[(i + 2) % ring.length],
+      cross = (b[0] - a[0]) * (c[1] - b[1]) - (b[1] - a[1]) * (c[0] - b[0]);
+    if (Math.abs(cross) < 1e-9) continue;
+    if (sign && Math.sign(cross) !== sign) return false;
+    sign = Math.sign(cross);
+  }
+  return sign !== 0;
+}
 const ok = (r: VectorPolygon) =>
   r.outer.length >= 3 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true));
 
@@ -140,10 +154,20 @@ export function vectorFurlongs(
       HEADLAND_HALF_METERS
     );
     if (!ring) return;
-    const outline = regionBoolean([{ outer: ring, holes: [] }], arable, "intersection").filter(
-      r => ok(r) && regionArea(r) >= MIN_FURLONG_M2
-    );
+    // Most bundles lie wholly in the arable: their outline is the (convex) ring itself.
+    const whole = regionSurelyWithin({ outer: ring, holes: [] }, arable),
+      outline = (
+        whole
+          ? [{ outer: polygonArea(ring) > 0 ? [...ring].reverse() : ring, holes: [] }]
+          : regionBoolean([{ outer: ring, holes: [] }], arable, "intersection")
+      ).filter(r => ok(r) && regionArea(r) >= MIN_FURLONG_M2);
     if (!outline.length) return;
+    // A convex outline (the ring itself, or the ring cut by one straight edge of the arable) clips strips directly.
+    const convexClip = whole
+      ? ring
+      : outline.length === 1 && !outline[0].holes.length && isConvexRing(outline[0].outer)
+        ? outline[0].outer
+        : undefined;
     const road = nearestRoadAngle(s, roads),
       angle = (road ?? rng() * Math.PI) + (rng() < 0.5 ? 0 : Math.PI / 2),
       ux = Math.cos(angle),
@@ -173,11 +197,11 @@ export function vectorFurlongs(
         strip: Point[] = [...us.map(u => at(u, v + shift(u))), ...us.reverse().map(u => at(u, v + width + shift(u)))];
       // Skip strips wholly off the bundle before clipping.
       if (!strip.some(p => pointInPolygon(p, ring)) && !ring.some(p => pointInPolygon(p, strip))) continue;
-      strips.push(
-        ...regionBoolean([{ outer: strip, holes: [] }], outline, "intersection").filter(
-          r => ok(r) && regionArea(r) >= MIN_STRIP_M2
-        )
-      );
+      // Within a convex outline a strip is clipped edge by edge; elsewhere, or in pieces, by the kernel.
+      const pieces =
+        (convexClip ? convexIntersection(strip, convexClip) : undefined) ??
+        regionBoolean([{ outer: strip, holes: [] }], outline, "intersection");
+      strips.push(...pieces.filter(r => ok(r) && regionArea(r) >= MIN_STRIP_M2));
     }
     if (strips.length >= 2) {
       const field = fieldOf(s);
