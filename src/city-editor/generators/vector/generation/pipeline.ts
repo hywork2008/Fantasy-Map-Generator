@@ -277,7 +277,7 @@ function addTownMoat(doc: VectorCityDocument, wallId: string, settings: VectorGe
     for (const hit of pathIntersections(moat, road)) {
       const segment =
         road.source.kind === "curve" ? road.source.segments.find(s => s.id === hit.b.segmentId) : undefined;
-      if (!segment || segment.kind !== "line") throw new Error("moat-bridge");
+      if (segment?.kind !== "line") throw new Error("moat-bridge");
       const tangent = unit(evaluateAnchor(moat, hit.a, true)),
         axis = unit(evaluateAnchor(road, hit.b, true)),
         sine = Math.abs(tangent[0] * axis[1] - tangent[1] * axis[0]),
@@ -558,6 +558,14 @@ function despike(polygons: VectorPolygon[]): VectorPolygon[] {
  * road, say). A saved block needs every hole strictly inside, so such a hole is grown by 1 cm about its centre
  * and cut again: it becomes a notch in the outline. Seeds whose skeleton hit this failed to generate at all. */
 function openTouchingHoles(polygons: VectorPolygon[]): VectorPolygon[] {
+  // Opening one hole can leave another touching the new outline (a crossing restored a few ulps off a grid line):
+  // opened again, a few times at most.
+  for (let round = 0; round < 3 && polygons.some(touchingHoles); round++) polygons = openTouchingHolesOnce(polygons);
+  return polygons;
+}
+const touchingHoles = (polygon: VectorPolygon) =>
+  polygon.holes.some(h => h.some(p => !pointInPolygon(p, polygon.outer)));
+function openTouchingHolesOnce(polygons: VectorPolygon[]): VectorPolygon[] {
   return polygons.flatMap(polygon => {
     const touching = polygon.holes.filter(h => h.some(p => !pointInPolygon(p, polygon.outer)));
     if (!touching.length) return [polygon];

@@ -200,8 +200,19 @@ function clipperBoolean(
   operation: "union" | "difference" | "intersection"
 ): MultiPolygon {
   let extent = 1;
-  for (const p of [...a, ...b])
-    for (const r of [p.outer, ...p.holes]) for (const [x, y] of r) extent = Math.max(extent, Math.abs(x), Math.abs(y));
+  const extend = (ring: Point[]) => {
+    for (const q of ring) {
+      const x = Math.abs(q[0]),
+        y = Math.abs(q[1]);
+      if (x > extent) extent = x;
+      if (y > extent) extent = y;
+    }
+  };
+  for (const polygons of [a, b])
+    for (const p of polygons) {
+      extend(p.outer);
+      for (const h of p.holes) extend(h);
+    }
   const scale = 2 ** Math.floor(Math.log2(2 ** 25 / extent)),
     latticeKey = (x: number, y: number) => (x + 2 ** 25) * 2 ** 26 + (y + 2 ** 25),
     origin = new Map<number, Point>(),
@@ -325,8 +336,9 @@ function clipperBoolean(
   // The sweep kernel's form: rings closed, outlines counter-clockwise (negative here) and holes clockwise, each ring
   // starting at its lowest leftmost vertex, holes and polygons in the order of those vertices.
   const before = (p: Point, q: Point) => p[0] - q[0] || p[1] - q[1];
-  const ring = (points: Point[], outer: boolean): Point[] => {
-    if (polygonArea(points) < 0 !== outer) points.reverse();
+  const ring = (loop: Point[], outer: boolean): Point[] => {
+    // A copy: the loop's own order (and cached area) stays for the walk's other tests.
+    const points = area(loop) < 0 !== outer ? [...loop].reverse() : loop;
     let start = 0;
     points.forEach((p, i) => {
       if (before(p, points[start]) < 0) start = i;
@@ -339,34 +351,49 @@ function clipperBoolean(
   // edges), and a vertex it rounded off another's edge is given back onto that vertex; the sweep kernel returned
   // simple rings.
   const loops = (path: ClipperTypes.Path): Point[][] => {
-    const seen = new Map<string, number>(),
+    // Positions on the stack by exact coordinates, x then y (no string per vertex).
+    const seen = new Map<number, Map<number, number>>(),
+      at = (p: Point) => seen.get(p[0])?.get(p[1]),
+      forget = (p: Point) => seen.get(p[0])?.delete(p[1]),
       stack: Point[] = [],
       out: Point[][] = [];
     for (const q of path) {
       const p = origin.get(latticeKey(q.X, q.Y)) ?? crossing([q.X / scale, q.Y / scale]),
-        k = `${p[0]},${p[1]}`,
-        j = seen.get(k);
+        j = at(p);
       if (j === undefined) {
-        seen.set(k, stack.length);
+        let column = seen.get(p[0]);
+        if (!column) {
+          column = new Map();
+          seen.set(p[0], column);
+        }
+        column.set(p[1], stack.length);
         stack.push(p);
         continue;
       }
       const loop = [stack[j], ...stack.splice(j + 1)];
-      for (const v of loop.slice(1)) seen.delete(`${v[0]},${v[1]}`);
+      for (let i = 1; i < loop.length; i++) forget(loop[i]);
       if (loop.length >= 3) out.push(loop);
     }
     if (stack.length >= 3) out.push(stack);
-    return out.filter(loop => polygonArea(loop) !== 0);
+    return out.filter(loop => area(loop) !== 0);
   };
-  const turn = (points: Point[]) => Math.sign(polygonArea(points));
+  // Each loop's signed area, computed once: the walk below asks for it several times.
+  const areas = new WeakMap<Point[], number>(),
+    area = (points: Point[]) => {
+      let value = areas.get(points);
+      if (value === undefined) {
+        value = polygonArea(points);
+        areas.set(points, value);
+      }
+      return value;
+    };
+  const turn = (points: Point[]) => Math.sign(area(points));
   const result: MultiPolygon = [];
   const walk = (node: ClipperTypes.PolyNode) => {
     for (const contour of node.Childs()) {
       const parts = loops(contour.Contour()),
         // The contour's own way: that of its largest loop.
-        way = turn(
-          parts.reduce((m, p) => (Math.abs(polygonArea(p)) > Math.abs(polygonArea(m)) ? p : m), parts[0] ?? [])
-        ),
+        way = turn(parts.reduce((m, p) => (Math.abs(area(p)) > Math.abs(area(m)) ? p : m), parts[0] ?? [])),
         // A loop turning the contour's way is an outline of its own, one turning the other way a hole in it.
         outlines = parts.filter(p => turn(p) === way).map(p => ring(p, true)),
         holes = parts.filter(p => turn(p) !== way).map(p => ring(p, false));

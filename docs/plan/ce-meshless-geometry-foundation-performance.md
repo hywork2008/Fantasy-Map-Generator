@@ -113,3 +113,13 @@ CE meshless の都市生成（Generate city）を、生成の流れ（ステー�
   - ページの行を `page/request-and-start`（依頼の複製とワーカーの起動）と `page/result-transfer`（結果の複製）に分けた。前もって起動すると、前者は約 1 ms、後者は 9〜22 ms になる。
   - 結果（ブラウザ、人口5000、各3回の中央値、ms）: medieval / compact は川無し・straight・gentle の順に 691・503・677、medieval-facilities / burgage-dense は同じ順に 1269・1235・1539。段階 C の後（1566・1721・1495、1819・2167・2319）から、medieval は約半分、medieval-facilities は約 30% 短縮。18回とも成功。生成結果は変わらない。
   - 残り（ブラウザ、medieval-facilities）: `page/adopt-and-draw` 約 220 ms（描画データの作成で区画の庭を多角形の和にする `burgagePlotSurfaces` 約 80 ms、履歴の複製など）、`urban/facilities` 約 250 ms、`skeleton/connections-and-validation` 約 120〜250 ms。
+- 2026-11-21: 段階 D の続き。ページでの採用と描画、多角形の演算の後処理、生成の失敗。
+  - 履歴への登録（`VectorDocumentHistory.adopt`）: 生成パネルが登録するのはワーカーから受け取った結果だけなので、文書を複製せずにそのまま持つ。従来は登録の時に入れる複製と返す複製の2回、文書全体を複製していた。
+  - `clipperBoolean` の後処理: 同じ点を2度通るかの判定を、頂点ごとの文字列ではなく座標の2段の表で引く。各ループの面積は一度だけ計算する。座標の範囲を求める処理の中間配列もなくした。12都市の `regionBoolean` は 2.44 秒 → 2.14 秒、合計は 11.0 秒 → 10.7 秒。
+  - 不具合の修正: 外形と穴を分ける時に、外形の輪を向きを揃えるためにその場で逆順にしていた。最大のループが正の向きの輪郭では、逆にした外形がもう一度穴として数えられていた。輪を複製してから逆にするように改めた。seed 固定48都市のうち5都市で結果が変わり、配置できなかった人口の合計は 32,653 → 32,644 人。
+  - 不具合の修正: 街区を作る時に、外形に触れる穴を開く処理（`openTouchingHoles`）を1回しか行っていなかった。開いた後の外形に、別の穴が浮動小数点の誤差で触れることがある。例えば外形の辺が x = −30 にあるのに、交点を復元した頂点が x = −29.999999999999993 になる。この場合に文書の検証（`generation-data`）で生成が失敗していた。触れる穴が無くなるまで、最大3回開くようにした。1回で済む都市の結果は変わらない。
+    - seed 180都市（fh0〜fh29、2設定×川3種）で、段階 B の前（f78d39bf3）と比べた。生成の失敗は、段階 B の前が3件（fh19 gentle ×2 の `fixed-port-unreachable`、fh26 の施設の検証）、修正前が4件（fh19 ×2、fh5 none ×2 の上記の失敗）、修正後が2件（fh19 ×2、段階 B の前からある失敗）。
+    - 両方で成功した177都市で、配置できなかった人口は 133,703 → 133,384 人（−0.2%）。合計時間は 239.5 秒 → 151.4 秒（−37%）。
+    - 演算の層で触れる頂点を穴の内側へ 1e-7 m ずらす案も試した。この案では、配置できなかった人口が5%増えたので採らなかった。
+  - 結果（ブラウザ、人口5000、各3回の中央値、ms）: medieval / compact は川無し・straight・gentle の順に 554・722・942、medieval-facilities / burgage-dense は同じ順に 1124・968・1638（seed は毎回ランダム）。`page/adopt-and-draw` は medieval で 77〜98 → 55〜88、medieval-facilities で 212〜239 → 168〜211。18回とも成功。
+  - 残り: 描画データの作成（`vectorRenderData`、medieval-facilities で約 180 ms。区画の庭の和 `burgagePlotSurfaces` 約 75 ms など）。生成ボタンを押した時の入力の作成（`vectorInputFromEditor`、約 40 ms、計測の対象外）。施設の配置。段階 B の前からある `fixed-port-unreachable`（fh19 gentle）。

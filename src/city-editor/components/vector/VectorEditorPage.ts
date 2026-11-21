@@ -388,7 +388,8 @@ export function mountVectorCityEditor(
     () => session.history.document,
     (doc, label) => {
       scope.invalidate("import");
-      session.history.commit(doc, label);
+      // The panel commits only generation results, which the worker handed over: kept without a copy.
+      session.history.adopt(doc, label);
       refresh();
     },
     () => workbench?.refresh(),
