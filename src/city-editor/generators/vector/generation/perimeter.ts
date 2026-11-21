@@ -126,6 +126,8 @@ export interface PerimeterDistrictJob {
   /** Outline edges against another district's edge with nothing between them (a slit cut through a hole): one
    * street serves both, laid by the district that `keep`s it and fronted by the other. */
   neighbours?: { edge: number; keep: boolean }[];
+  /** Outline edges along a facility's ground: its door may open onto the street there, which is always laid. */
+  facilitySides?: number[];
 }
 export interface PerimeterDistrictResult {
   district: DistrictPlan;
@@ -274,6 +276,31 @@ function markNeighbourEdges(jobs: PerimeterDistrictJob[]) {
   });
 }
 
+/**
+ * Edges of districts along a facility already placed (the plan is laid again round the facilities): a facility's door
+ * opens onto the street along its ground, so that street is never left out as a strip's back. Mutates the jobs.
+ */
+function markFacilitySides(doc: VectorCityDocument, jobs: PerimeterDistrictJob[]) {
+  const rings = Object.values(doc.placements).flatMap(p =>
+    p.building?.kind === "facility" ? p.building.reserved.map(r => [...r.outer, r.outer[0]]) : []
+  );
+  if (!rings.length) return;
+  const index = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; ring: Point[] }>();
+  index.load(rings.map(ring => ({ ...boxOf(ring, NEIGHBOUR_GAP_METERS), ring })));
+  for (const job of jobs) {
+    const sides = job.outline.flatMap((a, k) => {
+      const b = job.outline[(k + 1) % job.outline.length],
+        mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      return index
+        .search({ minX: mid[0], minY: mid[1], maxX: mid[0], maxY: mid[1] })
+        .some(e => nearestOnPolyline(mid, e.ring).dist <= NEIGHBOUR_GAP_METERS)
+        ? [k]
+        : [];
+    });
+    if (sides.length) job.facilitySides = sides;
+  }
+}
+
 /** District jobs in block order and their shared context. District ids are assigned over every block, so the
  * ids never depend on how the jobs are split. */
 export function perimeterJobs(
@@ -312,6 +339,7 @@ export function perimeterJobs(
     if (outline) jobs.push({ districtId, outline });
   }
   markNeighbourEdges(jobs);
+  markFacilitySides(doc, jobs);
   const roads = [
     ...primary.map(path => ({
       points: samplePath(path).map(p => p.point),
@@ -425,7 +453,7 @@ const streetPlanKey = (
   job: PerimeterDistrictJob,
   boundaries: PerimeterStreetPlan["boundaries"]
 ) =>
-  `${planKey(context)}|${job.districtId}|${JSON.stringify(job.outline)}|${JSON.stringify(boundaries)}|${JSON.stringify(job.neighbours ?? [])}`;
+  `${planKey(context)}|${job.districtId}|${JSON.stringify(job.outline)}|${JSON.stringify(boundaries)}|${JSON.stringify(job.neighbours ?? [])}|${JSON.stringify(job.facilitySides ?? [])}`;
 /** Keeps plans computed elsewhere (a worker pool) so later dependency updates here can reuse them. */
 export function rememberPerimeterResults(
   request: PerimeterRequest,
@@ -531,7 +559,7 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
       feature: !!road,
       barrier: !road,
       setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3,
-      ...(neighbour ? { shared: true } : {})
+      ...(neighbour || (!road && job.facilitySides?.includes(i)) ? { shared: true } : {})
     };
   });
   const boundaries = fullBoundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback })),

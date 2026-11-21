@@ -39,13 +39,15 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // v59–v62: touching quays are one quayside with one cart path, and the streets' blocks front quays and paths; a strip
 // one row deep backs onto its wall, bank or precinct with no lane; a slit through a hole is one street; a cut from a
 // notch leaves no sliver beside a street (§8.32); a port's wall open to the shore bounds its burgage plots (§8.33).
-export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v59";
+// v60–v63: one lane between the church and the plaza and churchyard, laid with the centre; a street along a facility
+// is never a strip's back (§8.34).
+export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v60";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v60";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v61";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v61";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v62";
 /** Compact lots in medium-sized blocks (`compactBlockScale`). */
-export const VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v62";
+export const VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v63";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(

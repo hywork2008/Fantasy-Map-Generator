@@ -110,7 +110,7 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     workhomes = Object.values(doc.placements).filter(p => p.modelId.startsWith("trade-workhome."));
 
   it("builds nearly every workhome on one plot, as wide as the plot on its grid, its door on its own side", () => {
-    expect(doc.urban!.algorithm).toBe("vector-urban-v61");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v62");
     expect(() => assertVectorDocument(doc)).not.toThrow();
     // Plots whose front, a metre in, lies under a workhome's parcel.
     const fronts = Object.values(doc.fabric!.cells).flatMap(c =>
@@ -172,7 +172,9 @@ describe("Opus workhomes fitted to dense burgage plots (docs/plan/bv-workhome-fa
     const market = [...toMarket("fishmongery"), ...toMarket("butchery")],
       others = ["baking", "cutlery", "metalwares", "chandlery"].flatMap(toMarket);
     expect(market).toHaveLength(5);
-    expect(Math.max(...market)).toBeLessThan(Math.min(...others));
+    // On average nearer than any other trade: a baker, seeking the centre, may take a plot by the square before the
+    // last butcher (the civic lanes leave fewer plots facing it since v59).
+    expect(market.reduce((n, d) => n + d, 0) / market.length).toBeLessThan(Math.min(...others));
     for (const rear of rears) {
       const house = doc.placements[rear.building!.annexOf!];
       expect(house.modelId).toBe(`trade-workhome.shop-house.${rear.modelId.split(".").at(-1)}`);

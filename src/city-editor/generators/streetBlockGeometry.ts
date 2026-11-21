@@ -106,7 +106,7 @@ export interface BlockBoundary {
   barrier?: boolean;
   /** The back of a strip one row of houses deep, fronting a street on its other side: no street runs along it. */
   back?: boolean;
-  /** A street the district across fronts too: always laid, never a back. */
+  /** A street something across fronts too (the district across a slit, a facility's door): always laid, never a back. */
   shared?: boolean;
 }
 
