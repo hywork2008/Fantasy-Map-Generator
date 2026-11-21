@@ -70,7 +70,9 @@ const ALGORITHMS = [
   "vector-urban-v60",
   "vector-urban-v61",
   "vector-urban-v62",
-  "vector-urban-v63"
+  "vector-urban-v63",
+  "vector-urban-v64",
+  "vector-urban-v65"
 ];
 type RecordValue = Record<string, unknown>;
 const record = (v: unknown): v is RecordValue => !!v && typeof v === "object" && !Array.isArray(v);

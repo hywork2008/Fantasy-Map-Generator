@@ -41,11 +41,13 @@ import type { VectorUrbanAlgorithm, VectorUrbanSettings } from "../../../types/v
 // notch leaves no sliver beside a street (§8.32); a port's wall open to the shore bounds its burgage plots (§8.33).
 // v60–v63: one lane between the church and the plaza and churchyard, laid with the centre; a street along a facility
 // is never a strip's back (§8.34).
+// v64–v65 (burgage and dense burgage only): a house on a plot opens through its own plot, the front house onto its
+// street, a house behind it onto the court towards the front (ce-burgage-plot-fabric.md §8.8).
 export const VECTOR_URBAN_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v60";
 /** Burgage plots (docs/plan/ce-burgage-plot-fabric.md) are their own revision. */
-export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v61";
+export const VECTOR_URBAN_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v64";
 /** Dense burgage plots (plan §8.7). */
-export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v62";
+export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v65";
 /** Compact lots in medium-sized blocks (`compactBlockScale`). */
 export const VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v63";
 

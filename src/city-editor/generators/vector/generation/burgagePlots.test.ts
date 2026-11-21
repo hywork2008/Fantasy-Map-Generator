@@ -3,11 +3,11 @@ import { parseVectorDocument, serializeVectorDocument } from "../../../services/
 import type { PlotFabric } from "../../../types/contracts/burgage";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import { defaultGenerationSettings } from "../../generation/settings";
-import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid, segmentSegmentHit } from "../../geom";
 import { defaultPopulationSettings } from "../../populationPlan";
 import { prepareVectorEdit, reconcileVectorEdit } from "../editing/dependencies";
 import { replaceVectorPath } from "../editing/paths";
-import { unpackPoints } from "../fabric/pack";
+import { cellHouseCount, cellHouseRing, unpackPoints } from "../fabric/pack";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { pathSurface } from "../geometry/surfaces";
@@ -59,8 +59,8 @@ const rings = (coords: number[], offsets: number[], origin: [number, number]) =>
 describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md B2, B3, B5, §8.7)", () => {
   it("houses everyone on plots recorded with their street blocks, and keeps them through a save", () => {
     const doc = town("burgage");
-    expect(doc.urban!.algorithm).toBe("vector-urban-v61");
-    expect(doc.fabric!.algorithm).toBe("vector-urban-v61");
+    expect(doc.urban!.algorithm).toBe("vector-urban-v64");
+    expect(doc.fabric!.algorithm).toBe("vector-urban-v64");
     expect(doc.urban!.report.unplacedDwellings).toBe(0);
     const cells = Object.values(doc.fabric!.cells).filter(c => c.houses.offsets.length);
     expect(cells.length).toBeGreaterThan(5);
@@ -154,7 +154,7 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
     };
     const dense = town("burgage-dense", 5000),
       compact = town("compact", 5000);
-    expect(dense.fabric!.algorithm).toBe("vector-urban-v62");
+    expect(dense.fabric!.algorithm).toBe("vector-urban-v65");
     expect(dense.urban!.report.unplacedDwellings).toBe(0);
     expect(cover(dense)).toBeGreaterThan(cover(compact) * 0.8);
     // Inside the wall the plots are halved: most are narrower than the burgage option's narrowest (5 m).
@@ -254,6 +254,47 @@ describe("burgage plots in the meshless CE (docs/plan/ce-burgage-plot-fabric.md 
       for (const b of kilns.slice(i + 1))
         expect(Math.hypot(a.position[0] - b.position[0], a.position[1] - b.position[1])).toBeGreaterThanOrEqual(60);
     }
+  });
+
+  it("opens each house on a plot through its own plot: the front house onto the street, the ranges onto the court", () => {
+    // A house behind the front house has no street of its own; it is reached across its plot's court, through the
+    // front house or the side passage (Lübeck's Gänge, the Scottish closes), never across a neighbour's house.
+    const doc = town("burgage-dense", 3000);
+    let houses = 0,
+      across = 0;
+    for (const cell of Object.values(doc.fabric!.cells)) {
+      if (!cell.plots) continue;
+      const plots = cell.plots.offsets.map((start, k) =>
+          unpackPoints(
+            cell.plots!.coords,
+            cell.origin,
+            start,
+            k + 1 < cell.plots!.offsets.length ? cell.plots!.offsets[k + 1] : cell.plots!.coords.length / 2
+          )
+        ),
+        rings = Array.from({ length: cellHouseCount(cell) }, (_, i) => cellHouseRing(cell, i)),
+        plotOf = (ring: [number, number][]) => plots.findIndex(p => pointInPolygon(polygonCentroid(ring), p));
+      rings.forEach((ring, i) => {
+        const [from, to] = unpackPoints(cell.houses.entrances, cell.origin, 2 * i, 2 * i + 2),
+          mine = plotOf(ring);
+        if (mine < 0) return;
+        houses++;
+        if (
+          rings.some(
+            (other, j) =>
+              j !== i &&
+              plotOf(other) !== mine &&
+              other.some((p, k) => {
+                const hit = segmentSegmentHit(from, to, p, other[(k + 1) % other.length]);
+                return hit && hit.t > 0.02 && hit.t < 0.98;
+              })
+          )
+        )
+          across++;
+      });
+    }
+    expect(houses).toBeGreaterThan(100);
+    expect(across).toBe(0);
   });
 
   it("lays a coastal port town's plots inside its wall, open to the shore, as intramural plots", () => {

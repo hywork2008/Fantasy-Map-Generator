@@ -20,7 +20,14 @@ import {
 } from "../../burgage/perimeterCell";
 import { burgageProfileFor, isBurgageFabric } from "../../burgage/profiles";
 import { compactBlockScale } from "../../compactBlocks";
-import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
+import {
+  isSimplePolygon,
+  nearestOnPolyline,
+  pointInPolygon,
+  polygonArea,
+  polygonCentroid,
+  segmentSegmentHit
+} from "../../geom";
 import {
   buildOrganicStreetCell,
   COARSE_STREET_CELL_METERS,
@@ -1175,6 +1182,91 @@ const boxesMeet = (a: ReturnType<typeof boxOf>, b: ReturnType<typeof boxOf>) =>
 /** Share of a lot's place in the build order given by its distance from the town centre rather than its draw. */
 const CENTRE_WEIGHT = 0.6;
 
+/**
+ * The door of a house on a burgage plot (docs/plan/ce-burgage-plot-fabric.md §5.4): the front house opens onto the
+ * plot's street, from its side facing the plot's front. A house behind it (a rear house, a dense plot's range) has no
+ * street of its own: it opens onto the court towards the front, and its access is the plot's front on the street,
+ * reached through the front house or the side passage, as Lübeck's Buden through the Gänge broken through the front
+ * houses, or the Scottish backlands through their closes. Undefined off a plot, or when no street line lies along the
+ * plot's front.
+ */
+function plotEntrance(
+  polygon: Point[],
+  plots: NonNullable<CellPlan["plots"]> | undefined,
+  lines: RBush<{ minX: number; minY: number; maxX: number; maxY: number; points: Point[] }>
+): { from: Point; to: Point; distance: number } | undefined {
+  if (!plots) return;
+  const centre = polygonCentroid(polygon),
+    plot = plots.find(p => pointInPolygon(centre, p.ring));
+  if (!plot) return;
+  const [a, b] = plot.front,
+    mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+    // The street the plot fronts: the line nearest the middle of its front.
+    street = lines
+      .search(boxOf([mid], PLOT_STREET_REACH_METERS))
+      .map(item => ({ points: item.points, hit: nearestOnPolyline(mid, item.points) }))
+      .sort((x, y) => x.hit.dist - y.hit.dist)[0];
+  if (!street || street.hit.dist > PLOT_STREET_REACH_METERS) return openPlotEntrance(polygon, plot, plots, lines);
+  // The middle of the house side nearest the plot's front.
+  let door: Point | undefined,
+    gap = Infinity;
+  polygon.forEach((p, i) => {
+    const q = polygon[(i + 1) % polygon.length],
+      m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2],
+      d = nearestOnPolyline(m, [a, b]).dist;
+    if (d < gap) {
+      gap = d;
+      door = m;
+    }
+  });
+  if (!door) return;
+  // A front house (its side on the plot's front) steps straight out onto that street; a house behind it reaches
+  // the street at the middle of the plot's front.
+  const target = gap <= PLOT_FRONT_METERS ? nearestOnPolyline(door, street.points).point : street.hit.point;
+  return { from: door, to: target, distance: Math.hypot(target[0] - door[0], target[1] - door[1]) };
+}
+/** A house side this near its plot's front is the house's street front. */
+const PLOT_FRONT_METERS = 2;
+/** A plot's street runs at most this far from the middle of its front (the street's half width and the setback). */
+const PLOT_STREET_REACH_METERS = 6;
+/** A plot with no street along its front reaches a line at most this far. */
+const PLOT_OPEN_REACH_METERS = 30;
+
+/**
+ * A plot whose front has no street along it (a square, a quay, or a strip the burgage layout fronted onto open
+ * ground): the house opens from whichever side reaches a line soonest without crossing another plot.
+ */
+function openPlotEntrance(
+  polygon: Point[],
+  plot: NonNullable<CellPlan["plots"]>[number],
+  plots: NonNullable<CellPlan["plots"]>,
+  lines: RBush<{ minX: number; minY: number; maxX: number; maxY: number; points: Point[] }>
+): { from: Point; to: Point; distance: number } | undefined {
+  const others = plots.filter(p => p !== plot),
+    crosses = (from: Point, to: Point) =>
+      others.some(
+        p =>
+          pointInPolygon(to, p.ring) ||
+          p.ring.some((a, i) => {
+            const hit = segmentSegmentHit(from, to, a, p.ring[(i + 1) % p.ring.length]);
+            return !!hit && hit.t > 0.02 && hit.t < 0.98;
+          })
+      ),
+    near = lines.search(boxOf(polygon, PLOT_OPEN_REACH_METERS)).map(item => item.points);
+  let best: { from: Point; to: Point; distance: number } | undefined;
+  polygon.forEach((a, i) => {
+    const b = polygon[(i + 1) % polygon.length],
+      from: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    for (const points of near) {
+      const hit = nearestOnPolyline(from, points);
+      if (hit.dist > PLOT_OPEN_REACH_METERS || (best && hit.dist >= best.distance) || crosses(from, hit.point))
+        continue;
+      best = { from, to: hit.point, distance: hit.dist };
+    }
+  });
+  return best;
+}
+
 export function placeVectorPerimeterHouses(
   doc: VectorCityDocument,
   plan: VectorPerimeterPlan,
@@ -1271,6 +1363,9 @@ export function placeVectorPerimeterHouses(
         return { ...boxOf(points), points };
       })
   ]);
+  const plotsOf = new Map(
+    plan.districts.flatMap(d => d.cells.flatMap(c => (c.plots?.length ? [[c.id, c.plots] as const] : [])))
+  );
   const adopted = new Map<
     string,
     { ring: number[]; storeys: number; dwellings: number; entrance: number[]; draw: number }[]
@@ -1353,9 +1448,15 @@ export function placeVectorPerimeterHouses(
           site = squareSite;
         }
       }
-      // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
-      let best: { from: Point; to: Point; distance: number } | undefined;
-      const lines = lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
+      // On a burgage plot the door is the plot's: a front house opens onto its street, a house behind it onto the
+      // court towards the front, reached through the front house or the plot's side passage. Elsewhere the entrance
+      // faces the nearest lane, street or road.
+      let best: { from: Point; to: Point; distance: number } | undefined = plotEntrance(
+        polygon,
+        plotsOf.get(house.cellId),
+        lineIndex
+      );
+      const lines = best ? [] : lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
       for (let i = 0; i < polygon.length; i++) {
         const a = polygon[i],
           b = polygon[(i + 1) % polygon.length],
