@@ -27,7 +27,6 @@ import { reserveEdgeWorks } from "./edgeWorks";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
 import { placeFacilitiesOnPlots } from "./facilityPlots";
 import { vectorHousingCulture, vectorTownCulture, vectorTownProfile } from "./housingCulture";
-import { expectedVectorHouseStoreys } from "./housingHeights";
 import { raiseVectorLandUse } from "./landUse";
 import { layoutVectorParks } from "./parks";
 import {
@@ -59,7 +58,7 @@ import {
   waterDistance
 } from "./urbanPacking";
 import { matchesVectorUrbanFingerprint, vectorUrbanAlgorithm, vectorUrbanFingerprint } from "./urbanState";
-import { planVillagePerimeter, type VillagePerimeter } from "./villagePlan";
+import { planVillagePerimeter, VILLAGE_MAX_POPULATION, type VillagePerimeter } from "./villagePlan";
 import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
 import { layoutVectorWells } from "./wells";
 import { dressWorkhomes } from "./workhomeExteriors";
@@ -216,6 +215,9 @@ function* vectorUrbanSteps(
     (settings.tanneryBends !== undefined && !["continuous", "leat"].includes(settings.tanneryBends))
   )
     throw new Error("invalid-urban-settings");
+  // A roadside village is a village: a larger settlement is a town (ce-meshless-roadside-burgage-village.md §14.3).
+  if (settings.plotFabric === "burgage-village" && settings.population > VILLAGE_MAX_POPULATION)
+    throw new Error("urban-village-population");
   const doc = structuredClone(input);
   // The open land by use is split again round the finished town (U5b): suburbs and leats change it.
   if (doc.environment?.landUse) delete doc.environment.landUse;
@@ -595,16 +597,8 @@ function* vectorUrbanSteps(
   const facilityFabric = organicMode && settings.mode === "medieval-facilities";
   let organic: VectorPerimeterPlan | undefined, village: VillagePerimeter | undefined;
   if (organicMode && villageFabric) {
-    village = planVillagePerimeter(doc, required, {
-      storeys: expectedVectorHouseStoreys(
-        doc.context.historicalPeriod ?? "ageOfExploration",
-        doc.context.requestedSettings as GenerationSettings | undefined,
-        sourceSite.descriptor?.civilization?.tradition
-      ),
-      lotOccupancy: settings.lotOccupancy ?? 1,
-      protectedRegions
-    });
-    organic = { ...joinPerimeterPlan(doc, village.districts, settings), plotFabric: "burgage-village" };
+    village = planVillagePerimeter(doc, required, { lotOccupancy: settings.lotOccupancy ?? 1, protectedRegions });
+    organic = { ...joinPerimeterPlan(doc, village.districts, settings), plotFabric: "burgage-village", village: true };
   } else if (organicMode) {
     const { context, jobs } = perimeterJobs(doc, blocks, settings);
     const streets = (yield { kind: "streets", context, jobs }) as PerimeterStreetPlan[];

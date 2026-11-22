@@ -2,7 +2,7 @@
 
 作成: 2026-11-22
 更新: 2026-11-22（V0: 村の区画の間口・奥行き、裏小路、村の通りと広場、南欧の村の史料を調べ、§2.4 に採用値を確定した。§4.2・§5 をそれに合わせて改めた。V1: 区画の型 `village-toft` と純関数 `planRoadsideBlocks` を作った。§5.6 の費用を「重み × 距離 ＋ 基準」に改め、設定・UI・検証は V2 に回した（§12）。V2: `burgage-village` を生成に接続し、v66 とした（§13））
-状態: V0〜V2 完了。次は V3。
+状態: V0〜V3 完了。2026-11-22 に村の家と人口の上限を見直し（§14）、V3 以降の段階を組み直した。次は V4。
 対象: メッシュなし CE（skeleton-first）の、FMG と連携しない単独の都市生成（合成入力）。FMG から開いた都市、メッシュあり CE、廃止予定の CG は対象外。
 関連: [ce-burgage-plot-fabric.md](ce-burgage-plot-fabric.md)（区画の型と寸法）、[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md)（成長型の生成。未実装）、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)（市壁の外の街道沿いの帯）、[ce-rural-field-layout.md](ce-rural-field-layout.md)（郊外の耕地）、[bridge-skew-policy.md](bridge-skew-policy.md)
 
@@ -137,7 +137,7 @@
 ### 4.4 範囲
 
 - 対象は FMG と連携しない合成入力だけ。FMG から開いた都市（`settings.descriptor` がある）では、この値を選択肢に出さない。FMG の道路入口と固定交差を守る処理は、[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md) の GM3 と合わせて後で決める（§9）。
-- 人口の目安は 50〜3,000 人。村から小さな市場町までに当たる。3,000 人を超えると、1 段目と 2 段目の街区だけでは収まらない、または街道が長くなりすぎる。街道が村で終わる（中心から腕が 1 本だけの）村は、約 1,700 人で上限に当たる（§12）。足りないときの扱いは §5.6 に書く。
+- 人口は 50〜1,000 人に限る（§14.3。2026-11-22 に 3,000 人から改めた）。家は 1 階建てで 1 軒に 1 世帯とする（§14.2）。1,000 人を超える集落は村ではなく町として、`burgage`・`burgage-dense` で作る。
 - アルゴリズムの版は `burgage-village` のときだけ新しい版（`vector-urban-v66` を想定）にする。ほかの Plot pattern の出力は変えない。
 
 ## 5. 生成の流れ
@@ -247,9 +247,11 @@
 | V0 | 村の toft の間口、南欧の村の区画、細長い広場の寸法を調べ、§2 と §4.2 を確定する | **完了（2026-11-22）**。§2.4、§11 |
 | V1 | `village-toft` の型（§4.2）。純関数 `planRoadsideBlocks(roads, centre, need, profile, obstacles)` を作り、1 段目の街区・区画の分割・横の小路・裏小路・2 段目の街区を、§5.6 の順序で返す | 単体テスト: 直線と曲がる街道で、街区がすべて四角形であり、互いに重ならず、街道との距離が揃うこと。§5.6 の目安（交差点の村の 3,000 人が上限に収まり、腕 1 本の村は未収容を報告する）が成り立つこと。**完了（2026-11-22）**。§12 |
 | V2 | `PlotFabric` の `burgage-village`・UI・多言語化・検証（V1 から移した。§12.1）。生成に接続する。円形の敷地を作らない流れ、大きさの見積もり（§5.6）、描画範囲、2 段目の街区、v66、保存と読込 | 200・500・1,000・2,000 人（川なし・川 1 本）で未収容 0。斜めに切られた区画が 0。ほかの Plot pattern の固定入力で、直列化した文書の SHA-256 が変わらない。**完了（2026-11-22）**。§13 |
-| V3 | 村の中心（交差点の角、教会、広場、細長い広場）、施設（`placeFacilitiesOnPlots`）、tanners' row の判定の置き換え | 施設のある 1,000 人の村で、施設の 8 割以上が置ける。中心の角に三角の街区がない |
-| V4 | 土地利用と耕区。村の土地の外を耕地にし、裏小路に接する耕区の向きを判断する | 村の土地と耕地の間に 400 m² を超える空き地が残らない |
-| V5 | ブラウザで 2D・3D を確かめ、見た目の不自然さを直す | 画面での確認の記録を本書に書く |
+| V3 | 村の家（§14.2）: 1 階建て・1 軒 1 世帯、屋敷地の型ごとの家（長い家・小屋）と離れの納屋。人口の上限（§14.3）: 生成の検証、UI、未収容の理由。戸数の見込みを 1 軒 1 世帯に改める | 50・200・500・1,000 人で未収容 0、家はすべて 1 階・1 世帯。1,001 人以上は生成せず理由を返す。ほかの Plot pattern の出力が変わらない。**完了（2026-11-22）**。§15 |
+| V4 | MV に村の家のモデルを作る（§14.4）: 長い家（住まいと牛舎）、小屋、納屋。地域の型ごとの壁と屋根。CE の 3D で村の家をそのモデルで描く | MV で一覧に出て、寸法が §14.2 の範囲にある。CE の 3D で村の家が 1 階・草葺き（地域による）で、区画の通り側に建つ |
+| V5 | 村の中心（交差点の角、教会、広場、細長い広場）、施設（`placeFacilitiesOnPlots`）、tanners' row の判定の置き換え（旧 V3） | 施設のある 1,000 人の村で、施設の 8 割以上が置ける。中心の角に三角の街区がない |
+| V6 | 土地利用と耕区。村の土地の外を耕地にし、裏小路に接する耕区の向きを判断する（旧 V4） | 村の土地と耕地の間に 400 m² を超える空き地が残らない |
+| V7 | ブラウザで 2D・3D を確かめ、見た目の不自然さを直す。市の設定パネルの Walls などの入力を、村では無効にする（旧 V5） | 画面での確認の記録を本書に書く |
 
 ## 8. 検証
 
@@ -257,7 +259,7 @@
 
 | 指標 | 目標 |
 | --- | --- |
-| 未収容の戸数 | 腕が 2 本以上の村で、3,000 人まで 0。腕 1 本の村は、上限に当たったときに理由 `village-capacity` を報告すること |
+| 未収容の戸数 | 1,000 人まで 0（§14.3。2026-11-22 に 3,000 人から改めた）。1,000 人を超える人口は生成せず、理由 `village-population` を返すこと |
 | 斜めに切られた区画（四隅の角が 90° ± 5° を外れる区画） | 0。曲がる街道の弦の継ぎ目は横の小路にするので、区画は斜めにならない |
 | 1 つの街区の中の奥行きの差 | ±10% 以内 |
 | 道へつながらない街区・行き止まりの裏小路 | 0 |
@@ -270,12 +272,12 @@
 
 1. FMG から開いた都市に `burgage-village` を出すか。出す場合、FMG の道路入口と固定交差を動かさずに街区を張り付ける方法は、成長型の生成の GM3 と合わせて決める。
 2. §5.6 の費用の重みと基準、腕の長さの区切り（175 m・750 m）。V0・V1 で仮の値を決めた。V2 で町並みを見て調整する。特に、200 人の村でも腕 1 本では区画の半分以上が割られる（§12.2）のを、そのままにするか。
-3. 3,000 人を超えたときに、未収容とするか、3 段目または平行な裏通り（村から町への成長）を作るか。
+3. ~~3,000 人を超えたときの扱い~~ → 1,000 人を上限とし、超える集落は町として作る（§14.3）。村から町への成長（同じ集落が人口とともに村の形から町の形へ変わる）は、成長型の生成（[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md)）で扱う。
 4. 成長型の生成（`growth`）が実装されたら、本書の 1 段目・2 段目をその成長の段階として扱うか。
 
 ## 10. 次に進める作業
 
-V3 に進む。村の中心（交差点の角、教会、広場、細長い広場）を整え、施設のある村（`medieval-facilities`）で `placeFacilitiesOnPlots` が区画に施設を置けることを確かめる。`urban.ts` の `core`（円の 0.65 倍）を村の土地に置き換え、tanners' row の判定を直す。あわせて、§13.4 の「1 戸の家に 2〜3 世帯」をどう扱うかを決める。
+V4 に進む。始めに、MV のモデルの作り手と、既存の `RegionalHouseSpec` に 1 階・草葺きの型を足すだけで足りるかを決める（§14.4）。そのうえで、長い家・小屋・離れの納屋のモデルを MV に作り、CE の 3D で村の家（戸数 1）と離れ（戸数 0）をそれぞれのモデルで描く。
 
 ## 11. V0 の記録（2026-11-22）
 
@@ -415,4 +417,124 @@ FMG と連携しない合成入力、シード `probe`（500 人は `roadside-vi
 - `npx vitest run src/city-editor/components/vector/VectorGenerationPanel.test.ts src/city-editor/generators/vector/validation`: 37 件成功。
 - `npx tsc --noEmit`: 誤りなし。
 - 新しいテスト [villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) 2 件: 1,000 人・川ありの村が v66・壁なし・未収容 0 で、円形の敷地の 2 倍より遠くまで街区が並び、cell と区画がすべて直角の四角形、家はどれも区画の中、全 district の小路が道につながり、保存して読み直しても fabric が同じ。200 人の村は 2 段目を作らず、街区が描画範囲の内に収まる。
+
+## 14. 村の家と人口の上限の見直し（2026-11-22）
+
+### 14.1 きっかけ
+
+V2 の村は、CE の戸数の式（床面積 × 階数）で 2 階余りの家に 2〜3 世帯を入れていた（§13.4）。ユーザーが想定する村は、参考画像（`temp/1118-ce-workhome/` の 3 枚: 中世の村の説明図、Manor Lords、Banished）のような、**1 階建ての草葺きの家が屋敷地ごとに建ち、裏に柵で囲んだ菜園や畑が続く村**である。また、1 階建てのまま数千〜数万人の都市を作ると土地が際限なく要る。そのような都市は無く、町は建物の階数が上がり、裏庭や畑のない密集した町並みになる。
+
+このため、"medieval village"・"peasant house" などの語で史料を調べ直し、村の家の形と、村として作る人口の上限を決める。
+
+参考画像から読み取れること（史料ではない。形の目標として使う）:
+
+- 家は 1 階建てで、壁が低く、屋根（草葺き）が大きい。
+- 家は 1 軒ずつ離れて建ち、屋敷地ごとに柵・生垣で囲まれる。家の後ろに菜園・小屋・畑がある。
+- 家は通りに妻（切妻の三角の側）を向けるもの（Manor Lords）と、軒を向けるもの（説明図）がある。
+- 教会・領主の館・水車・鍛冶屋などが、家の並びとは別に建つ。
+
+### 14.2 村の家（史料）
+
+本書のほかの節と同じく、本文を読んだものを「確認済み」、検索結果の要約だけで見たものを「確認済み（要約）」とする。
+
+| 史料 | 内容 | 状態 |
+| --- | --- | --- |
+| Weald & Downland Living Museum, "Hangleton cottage"（[Web](https://www.wealddown.co.uk/?p=16403)） | Sussex の廃村 Hangleton（13〜14 世紀）。長い家（longhouse）2 棟は約 40 × 20 ft（約 12 × 6 m）で、中を 3 部屋に分ける。ほかの建物はどれも長さ 30 ft（約 9 m）未満で、2 部屋か 1 部屋。屋根は軒より上が分からず、復元は麦わら葺きだが、板葺き・芝・ほかの葺き方もありうる。村の典型は、通りの両側に屋敷地（toft）が並ぶ形で、屋敷地には住まい・家畜の小屋・納屋や穀倉が別に建つ。14 世紀初めの人口は約 200 人、1 世帯は約 5 人、1 世帯の耕地は約 11〜12 エーカー | 確認済み |
+| Herefordshire Through Time, "How were village houses constructed?"（[Web](https://htt.herefordshire.gov.uk/herefordshires-past/the-medieval-period/villages/how-were-village-houses-constructed/)） | 13 世紀より前の村の小屋（cot）は 1 部屋で約 5 × 3.5 m。隷農（villein）は 3 部屋の家に住むことが多く、長い家の形で、一方の端に住まい 2 部屋、他方に家畜と農具の部屋がある。13 世紀以後、豊かな者は家畜の建物を別に建て、長い家に直角に置くことが多い。壁は木の骨組みに編み枝と土（wattle and daub）、屋根は麦わら葺きが好まれた。煙突はまれで、煙出しの穴があった。床は土 | 確認済み |
+| Wikipedia, "Peasant homes in medieval England"（[Web](https://en.wikipedia.org/wiki/Peasant_homes_in_medieval_England)） | 南イングランドの家は、吹き抜けの広間（open hall）で、煙突も上の階も無く、中央の炉の煤が残る。ミッドランドの家は、対の曲がった柱（cruck blade）で屋根と壁を支える cruck の家が多い | 確認済み |
+| English Heritage, "Hound Tor Deserted Medieval Village"（[Web](https://www.english-heritage.org.uk/visit/places/hound-tor-deserted-medieval-village/history)） | Dartmoor の廃村（13 世紀）。4 つの農家にそれぞれ長い家があり、最大は長さ約 19 m。石造で、壁の高さは約 2 m、草葺きの屋根を木の梁で支えた | 確認済み（要約） |
+| Buckinghamshire の Steeple Claydon の家（ADS の調査報告。検索結果の要約） | 草葺きの家が通りと平行に建つ（長い側を通りに向ける）例 | 確認済み（要約） |
+| Hochschule Neubrandenburg, "Siedlungsgrundrisse"（§2.1） | Angerdorf の家は軒を広場に向け、厩と納屋は敷地の奥 | 確認済み |
+| ドイツ南西部のWüstung（Ulm-Eggingen）の発掘（Heidelberg の公開論文。検索結果の要約） | 木造の 3 廊の大きな家（Hallenhaus）が約 20 × 12 m。中欧の農家は住まいと家畜小屋を 1 棟にした Wohnstallhaus が多い | 確認済み（要約） |
+| J.G. Hurst による Wharram Percy の家の調査の紹介（[medievalists.net](https://www.medievalists.net/2008/10/the-medieval-peasant-house/)） | 1200〜1500 年の農民の家 9 棟が重なって見つかった。13 世紀には石造、14 世紀には低い石の土台の上の木骨造。家はほぼ一世代ごとに建て直された | 確認済み |
+
+取り決め:
+
+- **V-R12 1 階建て**: 中世の村の家は 1 階建てである。吹き抜けの広間で、上の階は無い（Wikipedia、Herefordshire）。壁は低く（約 2 m、Hound Tor）、屋根は草葺きが普通である。
+- **V-R13 1 軒 1 世帯**: 屋敷地 1 つに 1 世帯（約 5 人）が住む（Hangleton）。1 世帯の人数は 4.7〜5.8 人の推計がある（§14.3）。CE の 1 戸 4.5 人（`URBAN_DWELLING_SIZE`）は変えず、1 軒を 1 戸とする。
+- **V-R14 家の型**:
+
+  | 型 | 寸法 | 史料 | 置く区画 |
+  | --- | --- | --- | --- |
+  | 長い家（住まい＋家畜） | 長さ 12〜19 m、幅 5〜6 m | Hangleton 12 × 6 m、Hound Tor 最大 19 m、Herefordshire の隷農の家 | 割っていない屋敷地（間口 16.5 m 以上） |
+  | 小屋（1〜2 部屋） | 長さ 5〜9 m、幅 3.5〜5 m | Herefordshire 5 × 3.5 m、Hangleton 9 m 未満 | 割った区画、2 段目の区画 |
+  | 離れの納屋・家畜小屋 | 長さ 6〜10 m、幅 4〜5 m（寸法は史料にない。ゲーム側の調整） | Hangleton（住まい・家畜小屋・納屋を別に建てる）、Herefordshire（長い家に直角に置く） | 割っていない屋敷地の中庭。家が長い家でないとき |
+
+- **V-R15 家の向き**: 長い側を通りに向ける例（Steeple Claydon、Angerdorf）が史料にあり、これを既定にする。妻を通りに向ける家は参考画像（Manor Lords）にあるが史料では確かめていないので、選択肢として後で加える。
+
+### 14.3 人口の上限
+
+| 史料 | 内容 | 状態 |
+| --- | --- | --- |
+| Hangleton（§14.2） | 14 世紀初めの村が約 200 人、1428 年には 2 世帯 | 確認済み |
+| C. Dyer による Caldecote（Hertfordshire）の発掘の書評（*Medieval Settlement Research* 24、[ADS](https://archaeologydataservice.ac.uk/catalogue/adsdata/arch-1164-1/dissemination/pdf/MSRG_Vol_24/01-05_Dyer.pdf)） | Domesday で 13 人の借地人と司祭、1321 年に約 16 の借地人。家のある囲い地は 13 世紀末に約 15 | 確認済み（要約） |
+| 1300 年頃の世帯の大きさ（*Social Science History* の論文、[Cambridge](https://www.cambridge.org/core/journals/social-science-history/article/english-familial-demography-c-1300-a-reconstruction/42D2F954F759E4BD06CF2354FED6B5A1)。Hallam の推計） | 平均 5.8 人。Hallam は 4.7 人と仮定した | 確認済み（要約） |
+| A. Dyer による 1377 年の地方都市の推計（[History Today](https://www.historytoday.com/archive/how-urban-was-medieval-england) などの紹介） | 地方の大きい町 57 のうち、550 人が 1、1,000〜2,000 人が 25、2,000〜5,000 人が 21 | 確認済み（要約） |
+| Loughborough の小都市の研究（*Urban History*、[Cambridge](https://www.cambridge.org/core/journals/urban-history/article/an-english-small-town-in-the-later-middle-ages-loughborough/6219ADA7EC5D39568AE15E275231CA90)） | 都市の人口の絶対的な下限は決められない（市場や交易の働きで決まる） | 確認済み（要約） |
+
+- 村はおおむね十数〜数十世帯（数十〜 300 人）である。1,000〜2,000 人は、すでに小さな町（市場町）の大きさである。町と村の境は人口だけでは決まらないが、1,000 人を超える集落を、1 階建て・裏庭付きの村の形で作る理由は無い。
+- **上限**: `burgage-village` は 1,000 人までとする（約 223 戸）。推奨は 500 人まで。1,000 人を超える人口では生成せず、理由 `village-population` を返す。UI は Plot pattern の選択肢に人口の範囲を書き、超えたときは `burgage`（壁なしの小さな町）か `burgage-dense`（市壁のある町）を案内する。
+- **1,000 人の村が収まること**: 1 軒 1 世帯で 223 戸、余裕を見て約 241 区画になる。V1 の計測（§12.2）では、腕 1 本の村でも 223 区画が上限の 750 m 以内に収まったので、どの形の村でも収まる見込みである。V3 で計測して確かめる。
+- **ほかの Plot pattern**: 町の家の階数は、今の階数の決め方（時代・高さの方針。`expectedVectorHouseStoreys`）に任せ、本書では変えない。人口が多いほど建て詰まる町は `burgage-dense` が受け持つ。
+
+### 14.4 MV のモデル
+
+今の MV には、村の家として使えるモデルが少ない。`stone-cottage`（1 階の石の小屋、草葺き、6.5 × 5 m）はあるが、長い家・木骨と土壁の小屋・離れの納屋は無い。CE の家は `RegionalHouseSpec`（[regionalHouses.ts](../../src/buildings/houses/regionalHouses.ts)）で、地域の型ごとの外観・階数・屋根の葺き方・入口の面（`entranceFace`）を持つ。
+
+V4 で次を作る（MV の新しい task。番号は作るときに決める）:
+
+| モデル | 中身 | 地域の型ごとの違い |
+| --- | --- | --- |
+| 長い家（`village-longhouse`） | 1 階、壁の高さ約 2 m、中央の通り抜けの土間（cross-passage）で住まいと家畜の部屋に分ける。家畜側の端に大きな扉。煙突なし、屋根に煙出し | `atlantic`: 木骨と土壁・草葺き。`stone-upland`: 石積み・草葺き（Hound Tor）。`northern-wooded`: 丸太・板・こけら葺き。`northern-urban`: 木骨の Wohnstallhaus・草葺き。`mediterranean`: 石積み・瓦（寸法の史料なし） |
+| 小屋（`village-cottage`） | 1 階、1〜2 部屋、5〜9 × 3.5〜5 m | 同上 |
+| 離れの納屋（`village-barn`） | 1 階、大きな両開きの扉、6〜10 × 4〜5 m | 同上 |
+
+CE の 3D では、村の家の外形（区画の通り側に建てた長方形）に合わせてこれらのモデルを描く。MV のモデルを作る前に、モデルの作り手（Codex か Opus か）と、既存の `RegionalHouseSpec` に 1 階・草葺きの型を足すだけで足りるかを、V4 の始めに決める。
+
+## 15. V3 の記録（2026-11-22）
+
+### 15.1 作ったもの
+
+| ファイル | 内容 |
+| --- | --- |
+| [villagePlan.ts](../../src/city-editor/generators/vector/generation/villagePlan.ts) | `villageFarmstead`: 屋敷地ごとの建物（§14.2）。間口 15 m 以上の屋敷地は、65% が長い家（12〜19 × 5〜6 m、片側に 3 m の通路）、35% が小屋（5〜9 × 3.5〜5 m）と離れの納屋（6〜10 × 4〜5 m、小屋と反対の側に、通りに妻を向けて直角に置く）。間口 15 m 未満の区画（割った区画、2 段目）は小屋。どれも長い側を通りに向け、通りから 0.5〜2.5 m 下げる。`VILLAGE_MAX_POPULATION`（1,000）。区画の必要数は 1 区画 1 戸で数え、余裕を 1.05 倍に下げた |
+| [perimeter.ts](../../src/city-editor/generators/vector/generation/perimeter.ts) | `VectorPerimeterPlan` に `village`（1 階・1 軒 1 戸）と、家の `farmstead`（同じ屋敷地の建物の印）・`outbuilding`（離れ）を加えた。`placeVectorPerimeterHouses` の採用の処理を `adoptHouse` にまとめ、離れは、同じ屋敷地の家が建ったときだけ、戸数 0・1 階で後から建てる。`village` も離れも無い計画では、処理は前と同じ |
+| [urban.ts](../../src/city-editor/generators/vector/generation/urban.ts) | 村の計画に `village: true` を付ける。`burgage-village` で 1,000 人を超えると `urban-village-population` で止める |
+| [editorInput.ts](../../src/city-editor/generators/vector/generation/editorInput.ts) | 村の敷地を、家の土地を見積もる 1 回目の組み立てなしに、中心の施設の半径から直接決める（§15.3） |
+| [VectorGenerationPanel.ts](../../src/city-editor/components/vector/VectorGenerationPanel.ts)、[editors.en.json](../../src/i18n/locales/editors.en.json)、[editors.ja.json](../../src/i18n/locales/editors.ja.json) | Generate city は、村で 1,000 人を超えると生成の前に止め、町の Plot pattern を案内する。選択肢の名前に「1,000 人まで」「1 階建て」を入れた |
+
+### 15.2 計測
+
+合成入力、シード `roadside-village`、`medieval`、`lotOccupancy` 1。「家」は戸数 1 の建物、「納屋」は戸数 0 の離れ、「長い家」は長い辺が 12 m 以上の家。「奥」は中心から街区の角までの最大の距離。
+
+| 人口 | 川 | 時間（ms） | 必要戸数 | 未収容 | 街区（うち 2 段目） | 区画 | 家 | 納屋 | 長い家 | 奥（m） | 描画範囲（m） | 文書（KB） |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 50 | なし | 174 | 12 | 0 | 6（0） | 13 | 12 | 3 | 8 | 128 | 800 | 466 |
+| 50 | あり | 218 | 12 | 0 | 6（0） | 13 | 12 | 1 | 9 | 135 | 800 | 423 |
+| 200 | なし | 102 | 45 | 0 | 14（0） | 48 | 45 | 15 | 21 | 197 | 804 | 488 |
+| 200 | あり | 196 | 45 | 0 | 12（0） | 48 | 45 | 12 | 23 | 220 | 804 | 459 |
+| 500 | なし | 144 | 112 | 0 | 22（0） | 118 | 112 | 21 | 35 | 294 | 1,019 | 832 |
+| 500 | あり | 230 | 112 | 0 | 20（0） | 118 | 112 | 15 | 28 | 347 | 1,019 | 799 |
+| 1,000 | なし | 237 | 223 | 0 | 36（3） | 235 | 223 | 24 | 36 | 438 | 1,374 | 1,480 |
+| 1,000 | あり | 312 | 223 | 0 | 35（5） | 235 | 223 | 19 | 29 | 516 | 1,374 | 1,316 |
+
+- どの人口でも未収容 0。家はすべて 1 階・1 戸で、家の数は必要戸数と同じになった。
+- 1,000 人の村も、中心から約 0.5 km の内に収まった（§14.3 の見込みのとおり）。
+- 人口が増えるほど長い家の割合が下がる（200 人で約半分、1,000 人で 1〜2 割）。§5.6 の費用では、腕の 175 m を超えた後は、腕を伸ばすより中心の近くの屋敷地を割る方が先になり、割った区画には小屋が建つためである。小屋住み（cottar）の多い大きな村と見ることもできるが、長い家を多く残したいなら、分割の基準（175）を上げる。§9 の 2 として残す。
+
+### 15.3 見つかったこと
+
+- **小さな敷地と川**: 合成入力で川があり人口が少ない（`burgage` で 50〜60 人、`compact` で 50〜100 人）と、`vectorInputFromEditor` の 1 回目の組み立て（家の土地だけで決めた小さい円の敷地）で、川の面が作れず `width-fold` で止まる。村では 1 回目の組み立てをやめたので起きない（4 シード × 50〜1,000 人で確かめた）。`burgage`・`compact` では今も起きるが、本書の範囲の外なので直していない。
+- **離れの描画**: 離れは fabric の家として、戸数 0・1 階で保存される。2D・3D では、まだ家と同じ見た目で描かれる。V4 でモデルを分ける。
+- **画面での確認**: ブラウザで町並みを画像にして確かめることは、この作業ではできなかった（一時的なローカルの配信が許可されなかった）。数値とテストで確かめた。V7 でまとめて確かめる。
+
+### 15.4 ほかの Plot pattern が変わらないこと
+
+§13.3 と同じ 16 通り（`compact`・`compact-medium`・`burgage`・`burgage-dense`、壁のあり・なし、施設のあり・なし、1,500 人）で、V3 の変更の前後の直列化した文書の SHA-256 は 16 件とも一致した。`placeVectorPerimeterHouses` の書き直しで、ほかの町の家の建て方は変わっていない。
+
+### 15.5 テスト
+
+- `npx vitest run src/city-editor/generators/burgage src/city-editor/generators/vector/generation/{villagePlan,burgagePlots,perimeter,urban}.test.ts src/city-editor/components/vector/VectorGenerationPanel.test.ts src/city-editor/generators/vector/validation`: 79 件成功。
+- `npx tsc --noEmit`: 誤りなし。
+- [villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) に加えたこと: 1,000 人の村で、家がすべて 1 階、戸数は 0 か 1、戸数 1 の家の数が必要戸数と同じ、離れがある。1,001 人の村は `urban-village-population` で止まる。
 

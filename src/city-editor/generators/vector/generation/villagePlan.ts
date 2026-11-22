@@ -13,7 +13,6 @@ import { samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import type { PerimeterDistrictResult } from "./perimeter";
-import { perimeterHouseDwellings } from "./urbanCapacity";
 
 /**
  * The village of `burgage-village` (docs/plan/ce-meshless-roadside-burgage-village.md V2): no round site is cut into
@@ -98,45 +97,68 @@ export function villageArms(doc: VectorCityDocument): RoadsideArm[] {
   return arms;
 }
 
-/** House on a toft (plan §4.2, V-R9): a wide toft takes a longhouse along its front, eaves to the road, beside a
- * passage to the yard; a split plot takes a house across its frontage, as a town burgage does. */
-const LONGHOUSE_MIN_FRONTAGE_METERS = 12;
-const LONGHOUSE_LENGTH_METERS: readonly [number, number] = [10, 16];
-const LONGHOUSE_DEPTH_METERS: readonly [number, number] = [5.5, 7];
+/**
+ * The buildings of a toft (plan §14.2): single storey, long side to the road (V-R15), a little back from it. A toft
+ * of full width takes a longhouse, home and byre under one roof (Hangleton 12 × 6 m, Hound Tor up to 19 m), or a
+ * cottage with a barn standing apart at right angles to it (Herefordshire). A split or second-row plot takes a
+ * cottage of one or two rooms (Herefordshire 5 × 3.5 m, Hangleton under 9 m).
+ */
+const TOFT_MIN_FRONTAGE_METERS = 15;
+const LONGHOUSE_SHARE = 0.65;
+const LONGHOUSE_LENGTH_METERS: readonly [number, number] = [12, 19];
+const LONGHOUSE_WIDTH_METERS: readonly [number, number] = [5, 6];
+const COTTAGE_LENGTH_METERS: readonly [number, number] = [5, 9];
+const COTTAGE_WIDTH_METERS: readonly [number, number] = [3.5, 5];
+/** No source gives a barn's size: a game adjustment between the cottage and the longhouse. */
+const BARN_LENGTH_METERS: readonly [number, number] = [6, 10];
+const BARN_WIDTH_METERS: readonly [number, number] = [4, 5];
+/** Back from the road, and the gap the buildings keep to the toft's sides (the passage to the yard is wider). */
+const SETBACK_METERS: readonly [number, number] = [0.5, 2.5];
+const SIDE_GAP_METERS = 0.8;
 const PASSAGE_METERS = 3;
-const SIDE_GAP_METERS = 1.5;
-const NARROW_HOUSE_DEPTH_METERS: readonly [number, number] = [8, 12];
 
-const mean = ([a, b]: readonly [number, number]) => (a + b) / 2;
-
-/** Expected footprint of a plot's house by its frontage, for the plan's dwelling count. */
-export function villageHouseArea(frontage: number): number {
-  return frontage >= LONGHOUSE_MIN_FRONTAGE_METERS
-    ? Math.min(frontage - PASSAGE_METERS, mean(LONGHOUSE_LENGTH_METERS)) * mean(LONGHOUSE_DEPTH_METERS)
-    : frontage * mean(NARROW_HOUSE_DEPTH_METERS);
+export interface VillageBuilding {
+  polygon: Point[];
+  outbuilding?: true;
 }
 
-function villageHouse(plot: BurgagePlot, seed: string): Point[] {
-  const rng = makeRng(`${seed}:village-house:${plot.id}`),
+export function villageFarmstead(plot: BurgagePlot, seed: string): VillageBuilding[] {
+  const rng = makeRng(`${seed}:village-farmstead:${plot.id}`),
     [a, b] = plot.front,
     f = plot.frontageMeters,
     u: Point = [(b[0] - a[0]) / f, (b[1] - a[1]) / f],
     c = polygonCentroid(plot.ring);
   let v: Point = [-u[1], u[0]];
   if ((c[0] - a[0]) * v[0] + (c[1] - a[1]) * v[1] < 0) v = [-v[0], -v[1]];
-  const at = (s: number, t: number): Point => [a[0] + u[0] * s + v[0] * t, a[1] + u[1] * s + v[1] * t];
-  let s0 = 0,
-    s1 = f,
-    depth: number;
-  if (f >= LONGHOUSE_MIN_FRONTAGE_METERS) {
-    const length = Math.min(f - PASSAGE_METERS, rng.range(...LONGHOUSE_LENGTH_METERS));
-    depth = rng.range(...LONGHOUSE_DEPTH_METERS);
-    // The passage to the yard on one side, a narrow gap on the other.
-    s0 = rng() < 0.5 ? SIDE_GAP_METERS : f - SIDE_GAP_METERS - length;
-    s0 = Math.max(0, Math.min(f - length, s0));
-    s1 = s0 + length;
-  } else depth = Math.min(rng.range(...NARROW_HOUSE_DEPTH_METERS), plot.depthMeters / 2);
-  return [at(s0, 0), at(s1, 0), at(s1, depth), at(s0, depth)];
+  const at = (s: number, t: number): Point => [a[0] + u[0] * s + v[0] * t, a[1] + u[1] * s + v[1] * t],
+    box = (s0: number, s1: number, t0: number, t1: number) => [at(s0, t0), at(s1, t0), at(s1, t1), at(s0, t1)],
+    setback = rng.range(...SETBACK_METERS),
+    left = rng() < 0.5;
+  if (f < TOFT_MIN_FRONTAGE_METERS) {
+    const length = Math.max(3, Math.min(f - 2 * SIDE_GAP_METERS, rng.range(...COTTAGE_LENGTH_METERS))),
+      width = Math.min(rng.range(...COTTAGE_WIDTH_METERS), plot.depthMeters / 3),
+      s0 = SIDE_GAP_METERS + rng() * Math.max(0, f - 2 * SIDE_GAP_METERS - length);
+    return [{ polygon: box(s0, s0 + length, setback, setback + width) }];
+  }
+  if (rng() < LONGHOUSE_SHARE) {
+    const length = Math.min(f - PASSAGE_METERS - SIDE_GAP_METERS, rng.range(...LONGHOUSE_LENGTH_METERS)),
+      width = rng.range(...LONGHOUSE_WIDTH_METERS),
+      // The passage to the yard on one side.
+      s0 = left ? SIDE_GAP_METERS : f - SIDE_GAP_METERS - length;
+    return [{ polygon: box(s0, s0 + length, setback, setback + width) }];
+  }
+  const length = rng.range(...COTTAGE_LENGTH_METERS),
+    width = rng.range(...COTTAGE_WIDTH_METERS),
+    barnLength = Math.min(rng.range(...BARN_LENGTH_METERS), plot.depthMeters / 2),
+    barnWidth = rng.range(...BARN_WIDTH_METERS),
+    s0 = left ? SIDE_GAP_METERS : f - SIDE_GAP_METERS - length,
+    // The barn on the other side, end on to the road, its front behind the cottage's.
+    b0 = left ? f - SIDE_GAP_METERS - barnWidth : SIDE_GAP_METERS,
+    t0 = setback + rng.range(1, 4);
+  return [
+    { polygon: box(s0, s0 + length, setback, setback + width) },
+    { polygon: box(b0, b0 + barnWidth, t0, t0 + barnLength), outbuilding: true }
+  ];
 }
 
 export interface VillagePerimeter {
@@ -151,7 +173,6 @@ export function planVillagePerimeter(
   doc: VectorCityDocument,
   required: number,
   options: {
-    storeys: number;
     lotOccupancy: number;
     /** Ground the plan keeps off besides the document's own (the tanners' row). */
     protectedRegions?: VectorPolygon[];
@@ -178,7 +199,6 @@ export function planVillagePerimeter(
     seed: doc.recipe.seed,
     arms,
     need,
-    dwellingsOf: frontage => perimeterHouseDwellings(villageHouseArea(frontage), options.storeys),
     obstacles,
     halfExtentMeters: doc.frame.extentMeters / 2 - FRAME_MARGIN_METERS
   });
@@ -218,9 +238,18 @@ export function planVillagePerimeter(
       blocks: b.plots
         .map((p, i) => parcel(p.ring, `${b.id}:parcel:${i}`))
         .filter(x => simpleContour(x.outer, true) && x.areaMeters2 > 1e-6),
-      houses: b.plots.map(p => {
-        const polygon = villageHouse(p, doc.recipe.seed);
-        return { cellId: b.id, districtId: id, polygon, draw: growthRandom(JSON.stringify(polygon)) };
+      // A toft's buildings share their house's draw, so an outbuilding stands where its house does.
+      houses: b.plots.flatMap(p => {
+        const buildings = villageFarmstead(p, doc.recipe.seed),
+          draw = growthRandom(JSON.stringify(buildings[0].polygon));
+        return buildings.map(x => ({
+          cellId: b.id,
+          districtId: id,
+          polygon: x.polygon,
+          draw,
+          farmstead: p.id,
+          ...(x.outbuilding ? { outbuilding: true as const } : {})
+        }));
       })
     }));
     districts.push({
@@ -251,8 +280,10 @@ function villageOutline(points: Point[]): Point[] {
   );
 }
 
-/** Houses vary from the plan's mean footprint and storeys: a little more is laid than the estimate needs. */
-const VILLAGE_NEED_MARGIN = 1.08;
+/** Every toft houses one household (plan §14.2); a few more are laid for the lots a fit refuses. */
+const VILLAGE_NEED_MARGIN = 1.05;
+/** A settlement larger than this is a town, not a village (plan §14.3). */
+export const VILLAGE_MAX_POPULATION = 1000;
 /** Blocks keep this far inside the map's edge. */
 const FRAME_MARGIN_METERS = 10;
 

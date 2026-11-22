@@ -48,7 +48,7 @@ const corner = (a: Point, b: Point, c: Point) => {
 const rectangular = (ring: Point[]) =>
   ring.length === 4 && ring.every((p, i) => Math.abs(corner(ring[(i + 3) % 4], p, ring[(i + 1) % 4]) - 90) < 1);
 
-describe("roadside village (docs/plan/ce-meshless-roadside-burgage-village.md V2)", () => {
+describe("roadside village (docs/plan/ce-meshless-roadside-burgage-village.md V2, V3)", () => {
   it("houses a village of 1,000 on square tofts along its roads, unwalled, and keeps it through a save", () => {
     const doc = village(1000, true);
     expect(doc.urban!.algorithm).toBe("vector-urban-v66");
@@ -65,7 +65,13 @@ describe("roadside village (docs/plan/ce-meshless-roadside-burgage-village.md V2
       expect(plots.every(rectangular)).toBe(true);
       for (const house of rings(cell.houses.coords, cell.houses.offsets, cell.origin))
         expect(plots.some(plot => pointInPolygon(polygonCentroid(house), plot))).toBe(true);
+      // Single-storey homes of one household each, and barns that house no one (plan §14.2).
+      expect(cell.houses.storeys.every(n => n === 1)).toBe(true);
+      expect(cell.houses.dwellings.every(n => n === 0 || n === 1)).toBe(true);
     }
+    const dwellings = cells.flatMap(c => c.houses.dwellings);
+    expect(dwellings.filter(n => n === 1).length).toBe(doc.urban!.report.requiredDwellings);
+    expect(dwellings.some(n => n === 0)).toBe(true);
     // Every district's lanes join a road.
     for (const district of Object.values(doc.fabric!.districts)) expect(district.mouths.length).toBeGreaterThan(0);
     expect(parseVectorDocument(serializeVectorDocument(doc))?.fabric).toEqual(doc.fabric);
@@ -81,5 +87,9 @@ describe("roadside village (docs/plan/ce-meshless-roadside-burgage-village.md V2
       expect(unpackPoints(cell.ring, cell.origin).every(p => Math.abs(p[0]) < half && Math.abs(p[1]) < half)).toBe(
         true
       );
+  });
+
+  it("refuses a village of more than 1,000 people: it is a town", () => {
+    expect(() => village(1001, false)).toThrow("urban-village-population");
   });
 });

@@ -16,6 +16,7 @@ import { DEFAULT_VECTOR_GENERATION, type VectorGenerationResult } from "../../ge
 import { meshlessSettingGaps } from "../../generators/vector/generation/settingSupport";
 import { DEFAULT_VECTOR_URBAN, vectorUrbanMode } from "../../generators/vector/generation/urban";
 import { vectorWallShares } from "../../generators/vector/generation/urbanCapacity";
+import { VILLAGE_MAX_POPULATION } from "../../generators/vector/generation/villagePlan";
 import { VECTOR_WALL_SHAPES, vectorWallChoice } from "../../generators/vector/generation/wallShape";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../../generators/vector/validation/document";
 import { vectorUrbanStages } from "../../generators/vector/validation/urban";
@@ -539,8 +540,11 @@ export function createVectorGenerationPanel(
     if (!seedTyped) seed.value = randomSeed();
     seedTyped = false;
     try {
-      const target = Number(population.value),
-        // The building generation chosen in this panel, not the one the editor opened with: it sizes the site for the
+      const target = Number(population.value);
+      // A roadside village is a village; a larger settlement is a town (plan §14.3).
+      if (plotFabric.value === "burgage-village" && target > VILLAGE_MAX_POPULATION)
+        throw new Error("urban-village-population");
+      const // The building generation chosen in this panel, not the one the editor opened with: it sizes the site for the
         // facilities' land and lays them out.
         urbanMode = mode.value as "medieval" | "medieval-facilities",
         facilityLayout = urbanMode === "medieval-facilities" ? ("population" as const) : undefined;

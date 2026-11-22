@@ -305,6 +305,15 @@ export function vectorInputFromEditor(request: VectorEditorGenerationInput) {
       Math.sqrt(radius ** 2 + (facilityLandM2 * shape * burgageLandFactor(settings, "facility")) / Math.PI)
     );
   };
+  // The village's site is its centre: the church, the plaza and the junction of its roads. It is sized for them
+  // alone, with no first pass for the houses' land.
+  if (village)
+    return build(
+      Math.max(
+        40,
+        vectorCivicLayout(settings.population.targetPopulation, civicOptions).radiusMeters + MESHLESS_SITE_RIM_METERS
+      )
+    );
   // The first pass leaves the civic centre out: on a site sized for houses alone it may not fit yet.
   const first = build(
     fitBastions(() => size(0)),
@@ -333,8 +342,6 @@ export function vectorInputFromEditor(request: VectorEditorGenerationInput) {
     houses = monasteryKindsFor(settings.descriptor?.civilization?.faith, period, walled)
       .slice(0, monasteryCountFor(getUrbanDwellings(settings.population.targetPopulation), period))
       .filter(kind => !(kind === "abbey" && walled)).length;
-  // The village's site is its centre: the church, the plaza and the junction of its roads.
-  if (village) return build(Math.max(40, civic.radiusMeters + MESHLESS_SITE_RIM_METERS));
   if (!reserved && !civic.specs.length && !houses) return build(fitBastions(() => size(0, facilityM2)));
   // The civic centre takes its area from the houses' land, and more: lots stop short of its setbacks and the
   // streets that front it. Its farthest corner must stay inside the rim.
