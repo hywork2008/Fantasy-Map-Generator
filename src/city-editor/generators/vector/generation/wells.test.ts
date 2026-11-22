@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import goth from "../../../data/fixtures/gothengsfeld-20261012.json";
 import type { BurgSiteDescriptor } from "../../../types/contracts/burgSiteDescriptor";
 import { defaultGenerationSettings } from "../../generation/settings";
+import { pointInPolygon, polygonCentroid } from "../../geom";
 import { defaultPopulationSettings } from "../../populationPlan";
+import { cellHouseCount, cellHouseRing, unpackPoints } from "../fabric/pack";
+import { regionsOverlap } from "../geometry/regions";
 import { overlapsOccupiedSites } from "../occupancy";
 import { validateVectorUrban } from "../validation/urban";
 import { vectorInputFromEditor } from "./editorInput";
@@ -58,5 +61,41 @@ describe("water points by the mesh editor's rules (feature parity P7d)", () => {
       basins ? "pillory-and-stocks" : "market-cross-canopied"
     );
     expect(validateVectorUrban(doc)).toEqual([]);
+  });
+
+  it("keeps a roadside village's wells and their paths off the built burgage yards", () => {
+    const seed = "roadside-village",
+      settings = { ...defaultGenerationSettings(), plotFabric: "burgage-village" as const };
+    settings.population = defaultPopulationSettings(1000);
+    const input = vectorInputFromEditor({
+        settings,
+        seed,
+        frame: { extentMeters: 800, cityRadiusMeters: 200, blockSizeMeters: 50 },
+        lotOccupancy: 1
+      }),
+      doc = generateVectorUrban(generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed }).document, {
+        ...DEFAULT_VECTOR_URBAN,
+        mode: "medieval",
+        population: 1000,
+        plotFabric: "burgage-village"
+      }),
+      wells = doc.urban!.wells ?? [];
+    const yards = Object.values(doc.fabric!.cells).flatMap(cell => {
+      const plots = cell.plots!,
+        houses = Array.from({ length: cellHouseCount(cell) }, (_, i) => i)
+          .filter(i => !cell.detached.includes(i))
+          .map(i => polygonCentroid(cellHouseRing(cell, i)));
+      return plots.offsets
+        .map((start, i) =>
+          unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
+        )
+        .filter(ring => houses.some(h => pointInPolygon(h, ring)))
+        .map(outer => ({ outer, holes: [] }));
+    });
+    expect(wells.length).toBeGreaterThan(0);
+    for (const w of wells) {
+      expect(regionsOverlap([{ outer: w.footprint, holes: [] }], yards, 1e-3)).toBe(false);
+      expect(yards.some(y => pointInPolygon(w.access.at(-1)!, y.outer))).toBe(false);
+    }
   });
 });

@@ -7,7 +7,7 @@ import { type DomesticWaterSite, layoutDomesticWater } from "../../domesticWater
 import { pointInPolygon, polygonCentroid } from "../../geom";
 import { featureReservations } from "../environmentState";
 import { fabricLinesNear } from "../fabric/lines";
-import { unpackPoints } from "../fabric/pack";
+import { cellHouseCount, cellHouseRing, unpackPoints } from "../fabric/pack";
 import { regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { allVectorWater } from "../geometry/water";
@@ -35,12 +35,32 @@ function nearLine(polygon: Point[], line: Point[], reach: number): boolean {
   return false;
 }
 
+/** The burgage plots a house stands on: private yards behind their walls, which no community well may take. */
+function builtYards(doc: VectorCityDocument): VectorPolygon[] {
+  const yards: VectorPolygon[] = [];
+  for (const cell of Object.values(doc.fabric?.cells ?? {})) {
+    const plots = cell.plots;
+    if (!plots || plots.venelles?.widths.length) continue;
+    const detached = new Set(cell.detached),
+      houses: Point[] = [];
+    for (let i = 0; i < cellHouseCount(cell); i++)
+      if (!detached.has(i)) houses.push(polygonCentroid(cellHouseRing(cell, i)));
+    if (!houses.length) continue;
+    plots.offsets.forEach((start, i) => {
+      const ring = unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2);
+      if (houses.some(h => pointInPolygon(h, ring))) yards.push({ outer: ring, holes: [] });
+    });
+  }
+  return yards;
+}
+
 /**
  * The town's water points by the mesh editor's rules (P7d, `placeDomesticWater` through the cell-free
  * `layoutDomesticWater`): a public basin on the civic plaza, a community well (every fourth a rainwater cistern) per
  * 80 buildings at least 55 m apart on vacant ground of the market, merchant, craftsman, patrician and unassigned
  * street blocks with a walk of at most 12 m to a street, and a service pond on the outskirts of a town of 80
- * buildings or more. They stand after the houses: no water point takes a dwelling, a street or a lane.
+ * buildings or more. They stand after the houses: no water point takes a dwelling, a street, a lane or a built
+ * burgage plot's yard, nor reaches its street across one.
  */
 export function layoutVectorWells(
   doc: VectorCityDocument,
@@ -79,7 +99,7 @@ export function layoutVectorWells(
   });
   const houses = vectorOccupiedSites(doc, "reserved");
   solids.load(
-    [...featureReservations(doc).filter(r => r !== plaza?.boundary), ...houses].map(polygon => ({
+    [...featureReservations(doc).filter(r => r !== plaza?.boundary), ...houses, ...builtYards(doc)].map(polygon => ({
       ...boxOf(polygon.outer),
       polygon
     }))

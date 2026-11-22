@@ -155,6 +155,8 @@ export interface VectorRenderData {
 }
 /** A plot wall this close to a facility's site belongs to the facility's own enclosure, and is left out. */
 const FACILITY_WALL_GAP_METERS = 0.3;
+/** A rainwater cistern's stone curb is this tall above the ground. */
+const CISTERN_CURB_METERS = 0.6;
 /** Yard ground and boundary walls of a burgage street block are this tall; walls this wide. */
 const PLOT_WALL_METERS = { height: 1.1, width: 0.25 };
 
@@ -1046,10 +1048,13 @@ export function vectorRenderData(
         kind: "feature",
         featureKind: "well",
         pieceRole: w.kind === "well" || w.kind === "publicBasin" ? "bv-well" : w.kind,
-        polygons: [disc(w.radius)],
+        // A cistern has no BV model: its stone curb stands round the water as a low ring.
+        polygons: [
+          w.kind === "cistern" ? { outer: disc(w.radius).outer, holes: [disc(w.radius * 0.65).outer] } : disc(w.radius)
+        ],
         color: w.kind === "pond" ? "#88a5a0" : "#d0c8b7",
         elevationMeters: 0.05,
-        heightMeters: 0
+        heightMeters: w.kind === "cistern" ? CISTERN_CURB_METERS : 0
       }
     );
     if (w.kind !== "pond")
@@ -1060,7 +1065,8 @@ export function vectorRenderData(
         pieceRole: w.kind === "well" || w.kind === "publicBasin" ? "bv-well" : "water",
         polygons: [disc(w.radius * 0.65)],
         color: "#719ca8",
-        elevationMeters: 0.06,
+        // A cistern's water stands just below its curb's top.
+        elevationMeters: w.kind === "cistern" ? CISTERN_CURB_METERS - 0.15 : 0.06,
         heightMeters: 0
       });
   }
@@ -1245,7 +1251,8 @@ export function vectorRenderData(
       ...tree,
       elevationMeters: terrain.heightAt(tree.point)
     })),
-    // Wells and the plaza basin as the mesh editor's BV waterworks (P2d-1); cisterns and ponds stay surfaces.
+    // Wells and the plaza basin as the mesh editor's BV waterworks (P2d-1); cisterns (a curbed ring) and ponds stay
+    // surfaces.
     wells: (doc.urban?.wells ?? []).flatMap(w =>
       w.kind === "well" || w.kind === "publicBasin"
         ? [{ id: `urban:water:${w.id}`, point: w.center, kind: w.kind, elevationMeters: terrain.heightAt(w.center) }]
