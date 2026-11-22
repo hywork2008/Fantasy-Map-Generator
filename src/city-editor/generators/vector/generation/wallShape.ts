@@ -45,6 +45,7 @@ export function vectorWallChoice(
     | "moats"
     | "layout"
     | "castle"
+    | "plotFabric"
   >,
   seed: string,
   period: HistoricalPeriod,
@@ -61,6 +62,8 @@ export function vectorWallChoice(
       ...(castle ? { castle } : {}),
       ...(settings.config.features.port ? { port: true } : {})
     };
+  // A roadside village is unwalled whatever the wall settings say (ce-meshless-roadside-burgage-village.md §4.3).
+  if (settings.plotFabric === "burgage-village") return { wall: "none", ...layout };
   // A bastioned town brings its own trace as input geometry (P4c); the skeleton keeps it.
   if (settings.townFortification?.kind === "bastioned")
     return { wall: "none", ...(settings.config.features.port ? { port: true } : {}) };

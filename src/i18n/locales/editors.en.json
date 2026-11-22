@@ -283,6 +283,7 @@
           "edited-urban": "Regeneration stopped to preserve edits. Undo to the adopted urban result first.",
           "invalid-urban-settings": "Use population 0–220000, lane width 1.4–6m, spacing 15–100m and 0–64 lanes.",
           "urban-document-budget": "The result exceeds the save budget. Reduce population or lanes.",
+          "urban-village-population": "A roadside village holds at most 1,000 people. For a larger settlement choose burgage plots (an unwalled small town) or dense burgage plots with walls.",
           "generation-timeout": "Generation reached the time limit. Reduce the city size or detail.",
           "generation-worker": "Could not run generation."
         },
@@ -322,7 +323,8 @@
           "compact": "Compact (dense houses)",
           "compact-medium": "Compact, medium blocks (between compact and dense burgage)",
           "burgage": "Burgage plots with yards (village, small town)",
-          "burgage-dense": "Dense burgage plots (walled town, yards built over)"
+          "burgage-dense": "Dense burgage plots (walled town, yards built over)",
+          "burgage-village": "Roadside village, up to 1,000 people (single-storey tofts, unwalled)"
         },
         "compactBlockScale": "Block edge multiplier (compact-medium, 1.1–2.2)",
         "develop": "Preview lanes, facilities and housing",
@@ -553,6 +555,7 @@
       },
       "settings": {
         "title": "City settings",
+        "villageUnwalled": "A roadside village has no town wall: these settings are not used.",
         "auto": "Automatic",
         "noRiver": "No river",
         "historicalPeriod": "Historical period",

@@ -412,6 +412,10 @@ export function mountVectorCityEditor(
     },
     () => scope.invalidate("vector-generation-input")
   );
+  // The plot pattern chosen in the generation panel turns the city settings' wall settings on or off.
+  scope.listen(controls, "change", event => {
+    if ((event.target as HTMLElement).dataset?.generationField === "plotFabric") citySettingsPanel?.refresh();
+  });
   editPanel = createVectorEditPanel(
     scope,
     controls,

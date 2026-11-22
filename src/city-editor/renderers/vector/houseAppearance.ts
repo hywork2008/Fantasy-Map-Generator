@@ -16,17 +16,28 @@ import { automaticHousingProfile } from "../standaloneHousingAppearance";
  * automatic culture at high quality: an FMG city takes the culture of its tradition, or one from its climate;
  * a standalone city draws one from its seed. Roof colours are limited per street block as in the mesh editor.
  */
+function appearanceContext(doc: Pick<VectorCityDocument, "context" | "site">) {
+  const descriptor = doc.site?.descriptor;
+  return normalizeBuildingAppearanceContext({
+    period: doc.context.historicalPeriod,
+    tradition: descriptor?.civilization?.tradition,
+    temperatureC: descriptor?.climate?.temperatureC,
+    biome: descriptor?.biome ?? (descriptor?.climate?.biomeKey ? { key: descriptor.climate.biomeKey } : undefined)
+  });
+}
+
+/** The houses' housing culture: the one chosen in the meshless city settings, else the automatic one. */
+export function vectorHouseProfile(doc: Pick<VectorCityDocument, "context" | "recipe" | "site">) {
+  return (
+    vectorHousingCulture(doc) ??
+    automaticHousingProfile(appearanceContext(doc), !!doc.site?.descriptor, doc.recipe.seed)
+  );
+}
+
 export function vectorHouseAppearance(doc: Pick<VectorCityDocument, "context" | "recipe" | "site">) {
-  const descriptor = doc.site?.descriptor,
-    seed = doc.recipe.seed,
-    context = normalizeBuildingAppearanceContext({
-      period: doc.context.historicalPeriod,
-      tradition: descriptor?.civilization?.tradition,
-      temperatureC: descriptor?.climate?.temperatureC,
-      biome: descriptor?.biome ?? (descriptor?.climate?.biomeKey ? { key: descriptor.climate.biomeKey } : undefined)
-    }),
-    // The culture chosen in the meshless city settings, else the automatic one.
-    profile = vectorHousingCulture(doc) ?? automaticHousingProfile(context, !!descriptor, seed);
+  const seed = doc.recipe.seed,
+    context = appearanceContext(doc),
+    profile = vectorHouseProfile(doc);
   /** Houses of one street block; `rural` marks a block outside the town wall. */
   return (
     blockId: string,

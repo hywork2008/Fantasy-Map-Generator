@@ -6,6 +6,7 @@ import { validateVectorForest } from "../forest";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { pathSurface } from "../geometry/surfaces";
 import { windmillSweep } from "../landmark";
+import { unpinched } from "./forest";
 import { vectorInputFromDescriptor } from "./input";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
@@ -52,5 +53,37 @@ describe("woodland by the forest settings (feature parity P7b)", () => {
     const city = generateVectorUrban(doc, { ...DEFAULT_VECTOR_URBAN, population: d0.burg.population, lotOccupancy: 1 });
     expect(city.environment?.forest).toEqual(forest);
     expect(city.urban!.report.unplacedPopulation).toBe(0);
+  });
+});
+
+// Clipping leaves a piece of countryside pinched where two pieces of town meet at a corner; it is split there, not
+// dropped (docs/plan/ce-meshless-roadside-burgage-village.md V6).
+describe("unpinched", () => {
+  it("splits a ring touching itself at a vertex or on an edge into simple rings", () => {
+    const pinched = unpinched({
+      outer: [
+        [0, 0],
+        [10, 0],
+        [5, 5],
+        [10, 10],
+        [0, 10],
+        [5, 5]
+      ],
+      holes: []
+    });
+    expect(pinched).toHaveLength(2);
+    expect(pinched.reduce((n, r) => n + regionArea(r), 0)).toBeCloseTo(50, 6);
+    const touching = unpinched({
+      outer: [
+        [0, 0],
+        [20, 0],
+        [20, 10],
+        [10, 0],
+        [0, 10]
+      ],
+      holes: []
+    });
+    expect(touching).toHaveLength(2);
+    expect(touching.reduce((n, r) => n + regionArea(r), 0)).toBeCloseTo(100, 6);
   });
 });

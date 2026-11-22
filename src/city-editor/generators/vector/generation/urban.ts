@@ -24,7 +24,7 @@ import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
 import { reserveEdgeWorks } from "./edgeWorks";
-import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
+import { isWetTannery, placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
 import { placeFacilitiesOnPlots } from "./facilityPlots";
 import { vectorHousingCulture, vectorTownCulture, vectorTownProfile } from "./housingCulture";
 import { raiseVectorLandUse } from "./landUse";
@@ -58,6 +58,14 @@ import {
   waterDistance
 } from "./urbanPacking";
 import { matchesVectorUrbanFingerprint, vectorUrbanAlgorithm, vectorUrbanFingerprint } from "./urbanState";
+import {
+  planVillagePerimeter,
+  VILLAGE_CORE_SHARE,
+  VILLAGE_FACILITY_ROOM,
+  VILLAGE_MAX_POPULATION,
+  type VillagePerimeter,
+  villageReachMeters
+} from "./villagePlan";
 import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
 import { layoutVectorWells } from "./wells";
 import { dressWorkhomes } from "./workhomeExteriors";
@@ -214,6 +222,9 @@ function* vectorUrbanSteps(
     (settings.tanneryBends !== undefined && !["continuous", "leat"].includes(settings.tanneryBends))
   )
     throw new Error("invalid-urban-settings");
+  // A roadside village is a village: a larger settlement is a town (ce-meshless-roadside-burgage-village.md §14.3).
+  if (settings.plotFabric === "burgage-village" && settings.population > VILLAGE_MAX_POPULATION)
+    throw new Error("urban-village-population");
   const doc = structuredClone(input);
   // The open land by use is split again round the finished town (U5b): suburbs and leats change it.
   if (doc.environment?.landUse) delete doc.environment.landUse;
@@ -278,7 +289,7 @@ function* vectorUrbanSteps(
             period: doc.context.historicalPeriod,
             port: !!doc.site.descriptor?.burg.port,
             culture: vectorTownCulture(vectorTownProfile(doc)),
-            plots: isBurgageFabric(settings.plotFabric)
+            plots: isBurgageFabric(settings.plotFabric) || settings.plotFabric === "burgage-village"
           })
             // The town's guildhall raised in its market place with the civic centre (plan W5c) is not placed again.
             .requests.filter(r => !(doc.placements[TOWN_GUILDHALL_ID] && r.id.endsWith(":guild:town")))
@@ -288,8 +299,11 @@ function* vectorUrbanSteps(
   timed("programme-and-domain/facility-programme");
   const domain = structuredClone(continuation?.domain ?? sourceSite.domain);
   // Expansion is a suburb within the synthetic input's known frame; source geometry is never stretched.
+  // A roadside village grows along its roads, not by widening a round site (ce-meshless-roadside-burgage-village.md).
+  const villageFabric = settings.plotFabric === "burgage-village";
   if (
     !continuation &&
+    !villageFabric &&
     settings.allowExpansion &&
     sourceSite.kind === "synthetic" &&
     sourceSite.id === "synthetic-site" &&
@@ -378,8 +392,14 @@ function* vectorUrbanSteps(
       .flatMap(p => p.outer)
       .map(p => Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]))
   );
+  // A roadside village has no round site: its core reaches part way out along its roads, first as the plan expects
+  // them to run, then as they were laid (ce-meshless-roadside-burgage-village.md V5).
+  let villageCore = villageFabric ? VILLAGE_CORE_SHARE * villageReachMeters(required) : 0;
   const core = (p: Point) =>
-    walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
+    walls.length
+      ? inside(p)
+      : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) <
+        (villageFabric ? villageCore : radius * 0.65);
   timed("programme-and-domain/domain-and-walls");
   // The tanners' row is reserved on the bank below the town before the street plan, so streets and lots keep off it.
   const tanneryRow =
@@ -588,8 +608,30 @@ function* vectorUrbanSteps(
     if (run?.profile) run.profile.facilityMs = performance.now() - facilityStarted;
   };
   const facilityFabric = organicMode && settings.mode === "medieval-facilities";
-  let organic: VectorPerimeterPlan | undefined;
-  if (organicMode) {
+  let organic: VectorPerimeterPlan | undefined, village: VillagePerimeter | undefined;
+  if (organicMode && villageFabric) {
+    village = planVillagePerimeter(doc, required, {
+      lotOccupancy: settings.lotOccupancy ?? 1,
+      protectedRegions,
+      // Workshops take tofts of their own: one each, two for a large hall or inn (plan §5.5). No row gives them more
+      // than half its tofts, so half as many again are laid for the rows to hold them.
+      facilityPlots:
+        requests
+          .filter(
+            r =>
+              !isWetTannery(r) &&
+              !tanneryRow.unplaced.some(u => u.id === r.id) &&
+              !ropewalks.placed.includes(`urban:${r.id}`) &&
+              !edgeWorks.placed.includes(`urban:${r.id}`)
+          )
+          .reduce((n, r) => n + (/:(guild|inn|hall)/.test(r.id) ? 2 : 1), 0) * VILLAGE_FACILITY_ROOM
+    });
+    villageCore = VILLAGE_CORE_SHARE * village.reach;
+    // The town's land is the village's own: its workshops stand on its tofts, beyond the centre's small site.
+    // Kept as separate pieces: their union may touch itself where two blocks meet at a corner.
+    domain.push(...structuredClone(village.land));
+    organic = { ...joinPerimeterPlan(doc, village.districts, settings), plotFabric: "burgage-village", village: true };
+  } else if (organicMode) {
     const { context, jobs } = perimeterJobs(doc, blocks, settings);
     const streets = (yield { kind: "streets", context, jobs }) as PerimeterStreetPlan[];
     const cells = (yield {
@@ -740,7 +782,7 @@ function* vectorUrbanSteps(
       core,
       tanneryRow.placed,
       // A park ward stays a lawn (P7c); its lots never take a facility.
-      id => wards.get(id)?.ward === "park"
+      id => !villageFabric && wards.get(id)?.ward === "park"
     );
     unplacedFacilities.push(...tanneryRow.unplaced, ...ropewalks.unplaced, ...edgeWorks.offMap);
     ownedPlacements.push(...lots.placed);
@@ -798,7 +840,8 @@ function* vectorUrbanSteps(
       // A park ward holds no house while the rest of the town houses the demand; its block becomes the park's
       // lawn (P7c). A town short of room builds on it in the second pass instead.
       (id, polygon, residential) =>
-        (residential || wards.get(id)?.ward !== "park") && suburbanLots(id, polygon, residential),
+        // A village's tofts are all homes; its green is its open space (ce-meshless-roadside-burgage-village.md V5).
+        (residential || villageFabric || wards.get(id)?.ward !== "park") && suburbanLots(id, polygon, residential),
       facilityCells
     );
     reattachFabricEntrances(doc);
@@ -840,10 +883,14 @@ function* vectorUrbanSteps(
   );
   checkpoint("housing", all);
   const parks = organic
-    ? layoutVectorParks(doc, districts, id => {
-        const c = doc.fabric?.cells[id];
-        return !facilityCells.has(id) && (!c || c.houses.offsets.length === c.detached.length);
-      })
+    ? village
+      ? village.green
+        ? [village.green]
+        : []
+      : layoutVectorParks(doc, districts, id => {
+          const c = doc.fabric?.cells[id];
+          return !facilityCells.has(id) && (!c || c.houses.offsets.length === c.detached.length);
+        })
     : [];
   timed("parks");
   // Water points stand after the houses, the market and the parks: none takes a dwelling or a street (P7d).

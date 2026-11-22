@@ -93,7 +93,8 @@ const MEDIEVAL_TASKS: Record<number, ModelFacets> = {
   50: s(HIGH_ON, EU, "dwelling"),
   51: s(HIGH_ON, EU, "crafts", "dwelling"),
   59: prop(HIGH_ON, EU, "market"),
-  60: prop(MEDIEVAL_ON, EU, "burial", "worship")
+  60: prop(MEDIEVAL_ON, EU, "burial", "worship"),
+  62: s(MEDIEVAL_ON, EU, "dwelling", "agriculture")
 };
 
 /** Dedicated trade workshops share task numbers with other studies, so they are keyed by trade. */

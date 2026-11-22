@@ -1,7 +1,11 @@
 import * as THREE from "three";
 import type { BuildingAppearance } from "../../../buildings/appearance/types";
 import { opusWorkhomeModel } from "../../../buildings/medieval/opusWorkhomeProfiles";
-import { type StreetHouseExterior, streetHouseEnvelope } from "../../../buildings/medieval/streetHouses";
+import {
+  type StreetHouseExterior,
+  streetHouseEnvelope,
+  streetHouseKind
+} from "../../../buildings/medieval/streetHouses";
 import type { ModelQuality } from "../../../buildings/modelQuality";
 import { placeableObject } from "../../../buildings/placeableObjects";
 import { placementDefinition, placementFootprint } from "../../../buildings/placementModels";
@@ -21,11 +25,12 @@ import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { createStructureMassing } from "../../../city3d/three/structureMeshes";
 import { createTownWallParts } from "../../../city3d/three/townWallMeshes";
+import { createTownVillageHouses, type VillageHouseSite } from "../../../city3d/three/villageHouseMeshes";
 import { createTownWaterParts } from "../../../city3d/three/waterMeshes";
 import { createTownWells } from "../../../city3d/three/wellMeshes";
 import { treeSeason } from "../../../city3d/treeSeason";
 import type { BuildingLot } from "../../generators/buildingLots.types";
-import { polygonArea } from "../../generators/geom";
+import { polygonArea, polygonCentroid } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import type { BuildingMassing } from "../../types/contracts/buildingMassing";
@@ -36,6 +41,7 @@ import { fabricDoorFrontage } from "./fabricDoors";
 import { createVectorLandscapeTrees } from "./landscapeTrees";
 import type { VectorRenderData, VectorRenderSurface } from "./renderData";
 import { projectTerrainGeometry } from "./terrainGeometry";
+import { villageWorkshop3d } from "./villageHouses";
 
 function shape(p: VectorRenderSurface["polygons"][number], origin: readonly [number, number]) {
   const local = (p: readonly number[]) => new THREE.Vector2(p[0] - origin[0], p[1] - origin[1]);
@@ -176,6 +182,9 @@ function workhomeFootprint(modelId: string, exterior: StreetHouseExterior) {
   const [width, depth] = streetHouseEnvelope(modelId, exterior);
   return { halfX: Math.fround(width / 2), halfZ: Math.fround(depth / 2), centerX: 0, centerZ: 0, groundY: 0 };
 }
+
+/** The pick envelope's height over a village workshop: its single storey and roof. */
+const VILLAGE_WORKSHOP_MARKER_METERS = 6;
 
 export class VectorSceneLayers {
   readonly cache = createBvPrototypeCache();
@@ -528,7 +537,9 @@ export function createVectorScene(
       }[] = [];
     // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
     const houseBatches = new Map<string, HouseBatch>();
-    const massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
+    const villageHouses: VillageHouseSite[] = [],
+      villageWorkshops: VillageHouseSite[] = [],
+      massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
       massingIds: string[] = [],
       massingElevations: number[] = [],
       massingDoors: ([Point, Point] | undefined)[] = [];
@@ -597,6 +608,20 @@ export function createVectorScene(
       if (surface.pieceRole === "pier" && data.piers?.some(p => p.id === surface.id) && !data.terrain) continue;
       if (surface.pieceRole === "landscape-tree" || (surface.pieceRole === "bv-well" && data.wells?.length)) continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
+      // A roadside village's buildings take the Opus village models (ce-meshless-roadside-burgage-village.md V4).
+      if (surface.houses?.village) {
+        const { ids, elevationsMeters, village } = surface.houses;
+        village.forEach((house, i) => {
+          villageHouses.push({
+            id: ids[i],
+            spec: house.spec,
+            center: house.center,
+            angle: house.angle,
+            elevation: elevationsMeters[i] - datum
+          });
+        });
+        continue;
+      }
       if (surface.houses?.massing && surface.houses.massing.length === surface.houses.ids.length) {
         const { ids, elevationsMeters, massing, appearance, doors } = surface.houses;
         surface.polygons.forEach((polygon, i) => {
@@ -655,6 +680,31 @@ export function createVectorScene(
         continue;
       }
       const p = surface.placement;
+      // A village's workshops are its own single-storey buildings, not the town's two-storey street houses (V7).
+      const street = p && data.villageProfile && surface.kind === "building" ? streetHouseKind(p.modelId) : undefined;
+      if (p && street && surface.polygons.length) {
+        const ring = surface.polygons[0].outer.map(q => [q[0], q[1]] as Point),
+          house = villageWorkshop3d(
+            ring,
+            polygonCentroid(ring),
+            p.facingDegrees,
+            street === "rear-works",
+            data.villageProfile!
+          ),
+          elevation = surface.elevationMeters - datum;
+        villageWorkshops.push({ id: p.id, spec: house.spec, center: house.center, angle: house.angle, elevation });
+        objectMarkers.push({
+          id: p.id,
+          modelId: p.modelId,
+          position: house.center,
+          angle: house.angle,
+          elevation,
+          width: house.spec.length,
+          depth: house.spec.width,
+          height: VILLAGE_WORKSHOP_MARKER_METERS
+        });
+        continue;
+      }
       let placed = false;
       if (p && surface.kind === "building" && !surface.provisional) {
         // Pieces laid by the generator draw at the viewer's quality; a hand-set placement keeps its own.
@@ -835,6 +885,36 @@ export function createVectorScene(
         group.add(owner);
       }
     }
+    if (villageWorkshops.length)
+      layer("village-workshops", [villageWorkshops], () => {
+        const houses = createTownVillageHouses(villageWorkshops, harborCache, placementQuality),
+          holder = new THREE.Group();
+        holder.position.set(-data.center[0], 0, data.center[1]);
+        holder.add(houses.group);
+        for (const mesh of houses.pickables)
+          mesh.userData = {
+            ...mesh.userData,
+            kind: "building",
+            buildingKind: "facility",
+            representation: "village-houses"
+          };
+        return { object: holder, dispose: () => houses.dispose() };
+      });
+    if (villageHouses.length)
+      layer("village-houses", [villageHouses], () => {
+        const houses = createTownVillageHouses(villageHouses, harborCache, placementQuality),
+          holder = new THREE.Group();
+        holder.position.set(-data.center[0], 0, data.center[1]);
+        holder.add(houses.group);
+        for (const mesh of houses.pickables)
+          mesh.userData = {
+            ...mesh.userData,
+            kind: "building",
+            buildingKind: "housing",
+            representation: "village-houses"
+          };
+        return { object: holder, dispose: () => houses.dispose(), resolve: hit => houses.resolve(hit)?.id };
+      });
     if (massingLots.length) {
       // Houses use the mesh editor's walls and roofs. Each lot's triangles are contiguous, so the same house table
       // as the prism batches maps a hit back to its house id.

@@ -16,6 +16,7 @@ import { DEFAULT_VECTOR_GENERATION, type VectorGenerationResult } from "../../ge
 import { meshlessSettingGaps } from "../../generators/vector/generation/settingSupport";
 import { DEFAULT_VECTOR_URBAN, vectorUrbanMode } from "../../generators/vector/generation/urban";
 import { vectorWallShares } from "../../generators/vector/generation/urbanCapacity";
+import { VILLAGE_MAX_POPULATION } from "../../generators/vector/generation/villagePlan";
 import { VECTOR_WALL_SHAPES, vectorWallChoice } from "../../generators/vector/generation/wallShape";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../../generators/vector/validation/document";
 import { vectorUrbanStages } from "../../generators/vector/validation/urban";
@@ -383,7 +384,7 @@ export function createVectorGenerationPanel(
   // they are developed, so Generate city shows their state.
   const plotFabric = document.createElement("select");
   plotFabric.dataset.generationField = "plotFabric";
-  for (const value of ["compact", "compact-medium", "burgage", "burgage-dense"] as const) {
+  for (const value of ["compact", "compact-medium", "burgage", "burgage-dense", "burgage-village"] as const) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = text(`plotFabricOptions.${value}`);
@@ -405,6 +406,16 @@ export function createVectorGenerationPanel(
   };
   showBlockScale();
   scope.listen(plotFabric, "change", showBlockScale);
+  // A roadside village is unwalled (plan §4.3): its wall choice is off, and the city settings learn the pattern, so
+  // they turn their wall settings off too.
+  const showVillage = () => {
+    const village = plotFabric.value === "burgage-village";
+    wall.disabled = village;
+    wall.title = village ? editorText("cityEditor.vector.settings.villageUnwalled" as EditorMessageKey) : "";
+    if (editorInput) editorInput.settings.plotFabric = plotFabric.value as PlotFabric;
+  };
+  showVillage();
+  scope.listen(plotFabric, "change", showVillage);
   /** The plot pattern with its block edge multiplier, which only compact-medium keeps. */
   const plotSettings = (): { plotFabric: PlotFabric; compactBlockScale?: number } => {
     const fabric = plotFabric.value as PlotFabric;
@@ -539,8 +550,11 @@ export function createVectorGenerationPanel(
     if (!seedTyped) seed.value = randomSeed();
     seedTyped = false;
     try {
-      const target = Number(population.value),
-        // The building generation chosen in this panel, not the one the editor opened with: it sizes the site for the
+      const target = Number(population.value);
+      // A roadside village is a village; a larger settlement is a town (plan §14.3).
+      if (plotFabric.value === "burgage-village" && target > VILLAGE_MAX_POPULATION)
+        throw new Error("urban-village-population");
+      const // The building generation chosen in this panel, not the one the editor opened with: it sizes the site for the
         // facilities' land and lays them out.
         urbanMode = mode.value as "medieval" | "medieval-facilities",
         facilityLayout = urbanMode === "medieval-facilities" ? ("population" as const) : undefined;
@@ -572,10 +586,12 @@ export function createVectorGenerationPanel(
           : syntheticVectorInput(seed.value, Number(radius.value), river.checked, true);
       source.context.targetPopulation = target;
       // The editor's wall settings decide the wall, resolved on this seed (P4a).
+      // A roadside village is unwalled, whatever wall was picked (ce-meshless-roadside-burgage-village.md §4.3).
+      const villagePlots = plotFabric.value === "burgage-village";
       const editorWall =
-        editorInput && !wallPicked
+        editorInput && (!wallPicked || villagePlots)
           ? vectorWallChoice(
-              editorInput.settings,
+              { ...editorInput.settings, plotFabric: plotFabric.value as PlotFabric },
               seed.value,
               source.context.historicalPeriod,
               editorInput.frame.extentMeters
@@ -588,7 +604,7 @@ export function createVectorGenerationPanel(
           settings: {
             ...DEFAULT_VECTOR_GENERATION,
             seed: seed.value,
-            ...(editorWall ?? { wall: wall.value as VectorGenerationSettings["wall"] })
+            ...(editorWall ?? { wall: villagePlots ? "none" : (wall.value as VectorGenerationSettings["wall"]) })
           },
           urban: {
             ...DEFAULT_VECTOR_URBAN,

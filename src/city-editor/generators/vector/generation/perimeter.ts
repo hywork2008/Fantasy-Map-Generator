@@ -81,15 +81,27 @@ interface DistrictPlan {
 }
 export interface VectorPerimeterPlan {
   districts: DistrictPlan[];
-  /** `rear`: a burgage rear house (B5), built only once the town's front houses fall short. */
-  houses: { cellId: string; districtId: string; polygon: Point[]; draw: number; rear?: true }[];
+  /** `rear`: a burgage rear house (B5), built only once the town's front houses fall short. `farmstead`: a village
+   * toft's buildings share it; its `outbuilding`s (a barn, a byre) house no one and stand only with the toft's house
+   * (docs/plan/ce-meshless-roadside-burgage-village.md §14.2). */
+  houses: {
+    cellId: string;
+    districtId: string;
+    polygon: Point[];
+    draw: number;
+    rear?: true;
+    farmstead?: string;
+    outbuilding?: true;
+  }[];
   /** Parcels of every street block, for district classification and residual land. */
   blocks: VectorBlock[];
   laneWidthMeters: number;
   /** Street blocks laid out as burgage plots (v19). */
-  plotFabric?: "burgage" | "burgage-dense";
+  plotFabric?: "burgage" | "burgage-dense" | "burgage-village";
   /** Compact street blocks laid out with larger lane-bounded blocks (v61, `compactBlockScale`). */
   compactFabric?: "compact-medium";
+  /** A village of single-storey houses, one household each (roadside village plan §14.2). */
+  village?: true;
 }
 const lineLength = (points: Point[]) =>
   points.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - points[i][0], p[1] - points[i][1]), 0);
@@ -1401,8 +1413,96 @@ export function placeVectorPerimeterHouses(
     // the fronts are built (the burgage cycle). Compact lots have none, so their order is as it was.
     rear = (h: (typeof plan.houses)[number]) => (h.rear ? 1 : 0),
     order = plan.houses
-      .slice()
+      .filter(h => !h.outbuilding)
       .sort((a, b) => beyond(a) - beyond(b) || rear(a) - rear(b) || rank.get(a)! - rank.get(b)! || a.draw - b.draw);
+  /** Farmsteads whose house stands: their outbuildings follow it. */
+  const farmsteads = new Set<string>();
+  /** Adopts one house if its lot fits; `held` when it waits for the second pass. */
+  const adoptHouse = (house: (typeof plan.houses)[number], pass: number): void => {
+    const origin = origins.get(house.cellId);
+    // An outbuilding comes with its farmstead's house, drawn or not.
+    if (
+      !origin ||
+      (!house.outbuilding && house.draw >= lotOccupancy) ||
+      cleared[house.cellId]?.includes(rank.get(house)!)
+    )
+      return;
+    const fit = fittedLot(house, origin, occupied, cutters);
+    if (!fit) return;
+    const lot = { outer: fit.polygon, holes: [] };
+    if (protectedIndex.search(boxOf(fit.polygon)).some(o => surfacesOverlap(lot, o.polygon))) return;
+    let { ring, polygon } = fit,
+      site = { outer: polygon, holes: [] };
+    if (!keepsLot(house.cellId, polygon, pass === 1)) {
+      if (!pass) held.push(house);
+      return;
+    }
+    // A village house is a single-storey home of one household; its barn houses no one (plan §14.2).
+    const storeys = plan.village
+        ? 1
+        : heights.storeys(
+            vectorHouseHeightKey(house.cellId, rank.get(house)!),
+            house.cellId,
+            cellInside(house.cellId),
+            heightKind(house.cellId)
+          ),
+      dwellingsOf = (area: number) =>
+        house.outbuilding ? 0 : plan.village ? 1 : perimeterHouseDwellings(area, storeys),
+      dwellings = dwellingsOf(regionArea(site));
+    // A near-rectangular lot is squared (v17) when that costs it no dwelling and touches nothing it did not.
+    const square = squaredLot(polygon);
+    if (square !== polygon) {
+      const squareRing = packedRing(square, origin),
+        squarePolygon = squareRing && unpackPoints(squareRing, origin),
+        squareSite = squarePolygon && { outer: squarePolygon, holes: [] };
+      if (
+        squareRing &&
+        squarePolygon &&
+        squareSite &&
+        dwellingsOf(regionArea(squareSite)) === dwellings &&
+        !occupied.search(boxOf(squarePolygon)).some(o => regionsOverlap([squareSite], [o.polygon], 1e-5)) &&
+        !protectedIndex.search(boxOf(squarePolygon)).some(o => surfacesOverlap(squareSite, o.polygon))
+      ) {
+        ring = squareRing;
+        polygon = squarePolygon;
+        site = squareSite;
+      }
+    }
+    // On a burgage plot the door is the plot's: a front house opens onto its street, a house behind it onto the
+    // court towards the front, reached through the front house or the plot's side passage. Elsewhere the entrance
+    // faces the nearest lane, street or road.
+    let best: { from: Point; to: Point; distance: number } | undefined = plotEntrance(
+      polygon,
+      plotsOf.get(house.cellId),
+      lineIndex
+    );
+    const lines = best ? [] : lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
+    for (let i = 0; i < polygon.length; i++) {
+      const a = polygon[i],
+        b = polygon[(i + 1) % polygon.length],
+        mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      for (const points of lines) {
+        const hit = nearestOnPolyline(mid, points);
+        if (!best || hit.dist < best.distance) best = { from: mid, to: hit.point, distance: hit.dist };
+      }
+    }
+    if (!best) return;
+    const list = adopted.get(house.cellId) ?? [];
+    list.push({
+      ring,
+      storeys,
+      dwellings,
+      entrance: packPoints([best.from, best.to], origin),
+      draw: rank.get(house)!
+    });
+    // CE lots may overlap their neighbours by a few square centimetres; an adopted house is occupancy too, so
+    // a later lot never shares land with it and any house can become a placement (S2.1e2).
+    occupied.insert({ ...boxOf(polygon), polygon: site });
+    adopted.set(house.cellId, list);
+    capacity += dwellings;
+    count++;
+    if (house.farmstead && !house.outbuilding) farmsteads.add(house.farmstead);
+  };
   for (let pass = 0; pass < 2; pass++) {
     if (pass && capacity >= required) break;
     for (const house of pass ? held.splice(0) : order) {
@@ -1410,79 +1510,11 @@ export function placeVectorPerimeterHouses(
         if (!shanty) break;
         continue;
       }
-      const origin = origins.get(house.cellId);
-      if (!origin || house.draw >= lotOccupancy || cleared[house.cellId]?.includes(rank.get(house)!)) continue;
-      const fit = fittedLot(house, origin, occupied, cutters);
-      if (!fit) continue;
-      const lot = { outer: fit.polygon, holes: [] };
-      if (protectedIndex.search(boxOf(fit.polygon)).some(o => surfacesOverlap(lot, o.polygon))) continue;
-      let { ring, polygon } = fit,
-        site = { outer: polygon, holes: [] };
-      if (!keepsLot(house.cellId, polygon, pass === 1)) {
-        if (!pass) held.push(house);
-        continue;
-      }
-      const storeys = heights.storeys(
-          vectorHouseHeightKey(house.cellId, rank.get(house)!),
-          house.cellId,
-          cellInside(house.cellId),
-          heightKind(house.cellId)
-        ),
-        dwellings = perimeterHouseDwellings(regionArea(site), storeys);
-      // A near-rectangular lot is squared (v17) when that costs it no dwelling and touches nothing it did not.
-      const square = squaredLot(polygon);
-      if (square !== polygon) {
-        const squareRing = packedRing(square, origin),
-          squarePolygon = squareRing && unpackPoints(squareRing, origin),
-          squareSite = squarePolygon && { outer: squarePolygon, holes: [] };
-        if (
-          squareRing &&
-          squarePolygon &&
-          squareSite &&
-          perimeterHouseDwellings(regionArea(squareSite), storeys) === dwellings &&
-          !occupied.search(boxOf(squarePolygon)).some(o => regionsOverlap([squareSite], [o.polygon], 1e-5)) &&
-          !protectedIndex.search(boxOf(squarePolygon)).some(o => surfacesOverlap(squareSite, o.polygon))
-        ) {
-          ring = squareRing;
-          polygon = squarePolygon;
-          site = squareSite;
-        }
-      }
-      // On a burgage plot the door is the plot's: a front house opens onto its street, a house behind it onto the
-      // court towards the front, reached through the front house or the plot's side passage. Elsewhere the entrance
-      // faces the nearest lane, street or road.
-      let best: { from: Point; to: Point; distance: number } | undefined = plotEntrance(
-        polygon,
-        plotsOf.get(house.cellId),
-        lineIndex
-      );
-      const lines = best ? [] : lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
-      for (let i = 0; i < polygon.length; i++) {
-        const a = polygon[i],
-          b = polygon[(i + 1) % polygon.length],
-          mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
-        for (const points of lines) {
-          const hit = nearestOnPolyline(mid, points);
-          if (!best || hit.dist < best.distance) best = { from: mid, to: hit.point, distance: hit.dist };
-        }
-      }
-      if (!best) continue;
-      const list = adopted.get(house.cellId) ?? [];
-      list.push({
-        ring,
-        storeys,
-        dwellings,
-        entrance: packPoints([best.from, best.to], origin),
-        draw: rank.get(house)!
-      });
-      // CE lots may overlap their neighbours by a few square centimetres; an adopted house is occupancy too, so
-      // a later lot never shares land with it and any house can become a placement (S2.1e2).
-      occupied.insert({ ...boxOf(polygon), polygon: site });
-      adopted.set(house.cellId, list);
-      capacity += dwellings;
-      count++;
+      adoptHouse(house, pass);
     }
   }
+  for (const house of plan.houses)
+    if (house.outbuilding && house.farmstead && farmsteads.has(house.farmstead)) adoptHouse(house, 1);
   const algorithm = vectorUrbanAlgorithm({ plotFabric: plan.plotFabric ?? plan.compactFabric }),
     districts: VectorFabric["districts"] = {},
     fabricCells: VectorFabric["cells"] = {};

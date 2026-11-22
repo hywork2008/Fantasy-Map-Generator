@@ -2,6 +2,7 @@ import { normalizeBuildingAppearanceContext } from "../../../buildings/appearanc
 import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { TREE_SPECIES, type TreeSpecies, treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
+import type { VillageHouseProfile, VillageHouseSpec } from "../../../buildings/medieval/opusVillageHouses";
 import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
 import { growthRandom } from "../../../utils/urbanMorphology";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
@@ -51,6 +52,7 @@ import { vectorLandscapeSurfaces } from "./landscape";
 import { vectorMonasterySurfaces } from "./monastery";
 import { vectorRoadRibbons } from "./roadRibbons";
 import { vectorStructures } from "./structureMassing";
+import { vectorVillageProfile, villageHouse3d } from "./villageHouses";
 export type VectorSurfaceKind =
   | "region"
   | "block"
@@ -91,7 +93,18 @@ export interface VectorRenderSurface {
     /** Each house's door on its wall and the point it reaches on its street (the fabric entrance), parallel to `ids`:
      * the 3D house turns its door there. */
     doors?: [Point, Point][];
+    /** A roadside village's buildings, parallel to `ids` in place of `massing`: the Opus village model each one takes
+     * (docs/plan/ce-meshless-roadside-burgage-village.md V4). */
+    village?: VillageHouse3d[];
   };
+}
+/** A village building drawn by its Opus model, fitted to its footprint: its centre, and the turn that brings the
+ * model's long side along the footprint's and its front to the road (a barn's to its yard). */
+export interface VillageHouse3d {
+  spec: VillageHouseSpec;
+  center: Point;
+  /** Radians, CE frame: the model's +x along the footprint's long side. */
+  angle: number;
 }
 /** Storey height of generated houses. */
 export const FABRIC_STOREY_METERS = 3.2;
@@ -115,6 +128,9 @@ export interface VectorRenderData {
   structures?: ReturnType<typeof vectorStructures>;
   /** The culture profile of the mesh editor's BV town towers and gates (P2d-2). */
   wallProfile?: BuildingAppearanceProfile;
+  /** A roadside village's region for its Opus village models: its houses, and the 3D shape of its workshops' street
+   * houses (docs/plan/ce-meshless-roadside-burgage-village.md V7). */
+  villageProfile?: VillageHouseProfile;
   /** Facility plans and religious houses drawn as the mesh editor's BV facilities in 3D (P2d-4). */
   facilities?: FacilityPlans;
   monasteries?: Monastery[];
@@ -139,6 +155,8 @@ export interface VectorRenderData {
 }
 /** A plot wall this close to a facility's site belongs to the facility's own enclosure, and is left out. */
 const FACILITY_WALL_GAP_METERS = 0.3;
+/** A rainwater cistern's stone curb is this tall above the ground. */
+const CISTERN_CURB_METERS = 0.6;
 /** Yard ground and boundary walls of a burgage street block are this tall; walls this wide. */
 const PLOT_WALL_METERS = { height: 1.1, width: 0.25 };
 
@@ -779,7 +797,9 @@ export function vectorRenderData(
         seed: doc.recipe.seed
       }),
       heights = vectorHousingHeights(doc),
-      appearance = vectorHouseAppearance(doc);
+      appearance = vectorHouseAppearance(doc),
+      // A roadside village draws its single-storey buildings with the Opus village models (plan V4).
+      villageProfile = doc.urban?.settings.plotFabric === "burgage-village" ? vectorVillageProfile(doc) : undefined;
     for (const district of Object.values(doc.fabric.districts))
       lines(district.id, "s", district.streets, district.origin, district.detachedLines);
     const facilitySites = Object.values(doc.placements).flatMap(p =>
@@ -810,6 +830,7 @@ export function vectorRenderData(
         },
         plain: { id: string; massing: BuildingMassing }[] = [];
       const plotDoor = plotDoorOf(cell);
+      if (villageProfile) houses.village = [];
       for (let i = 0; i < cellHouseCount(cell); i++) {
         if (detached.has(i)) continue;
         const id = fabricHouseId(cell.id, i),
@@ -825,6 +846,10 @@ export function vectorRenderData(
           houses.doors!.push([door, access]);
           houses.heightsMeters.push(cell.houses.storeys[i] * FABRIC_STOREY_METERS);
           houses.elevationsMeters.push(elevation);
+          if (houses.village) {
+            houses.village.push(villageHouse3d(cell, i, villageProfile!, id));
+            continue;
+          }
           const storeys = cell.houses.storeys[i];
           plain.push({
             id,
@@ -1023,10 +1048,13 @@ export function vectorRenderData(
         kind: "feature",
         featureKind: "well",
         pieceRole: w.kind === "well" || w.kind === "publicBasin" ? "bv-well" : w.kind,
-        polygons: [disc(w.radius)],
+        // A cistern has no BV model: its stone curb stands round the water as a low ring.
+        polygons: [
+          w.kind === "cistern" ? { outer: disc(w.radius).outer, holes: [disc(w.radius * 0.65).outer] } : disc(w.radius)
+        ],
         color: w.kind === "pond" ? "#88a5a0" : "#d0c8b7",
         elevationMeters: 0.05,
-        heightMeters: 0
+        heightMeters: w.kind === "cistern" ? CISTERN_CURB_METERS : 0
       }
     );
     if (w.kind !== "pond")
@@ -1037,7 +1065,8 @@ export function vectorRenderData(
         pieceRole: w.kind === "well" || w.kind === "publicBasin" ? "bv-well" : "water",
         polygons: [disc(w.radius * 0.65)],
         color: "#719ca8",
-        elevationMeters: 0.06,
+        // A cistern's water stands just below its curb's top.
+        elevationMeters: w.kind === "cistern" ? CISTERN_CURB_METERS - 0.15 : 0.06,
         heightMeters: 0
       });
   }
@@ -1169,6 +1198,7 @@ export function vectorRenderData(
     water,
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
     wallProfile: vectorWallProfile(doc),
+    ...(doc.urban?.settings.plotFabric === "burgage-village" ? { villageProfile: vectorVillageProfile(doc) } : {}),
     facilities: {
       aerial: {
         windmills: doc.environment?.landmarks?.windmills ?? [],
@@ -1221,7 +1251,8 @@ export function vectorRenderData(
       ...tree,
       elevationMeters: terrain.heightAt(tree.point)
     })),
-    // Wells and the plaza basin as the mesh editor's BV waterworks (P2d-1); cisterns and ponds stay surfaces.
+    // Wells and the plaza basin as the mesh editor's BV waterworks (P2d-1); cisterns (a curbed ring) and ponds stay
+    // surfaces.
     wells: (doc.urban?.wells ?? []).flatMap(w =>
       w.kind === "well" || w.kind === "publicBasin"
         ? [{ id: `urban:water:${w.id}`, point: w.center, kind: w.kind, elevationMeters: terrain.heightAt(w.center) }]

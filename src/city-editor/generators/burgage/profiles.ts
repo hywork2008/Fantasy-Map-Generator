@@ -94,6 +94,66 @@ export const BURGAGE_PROFILES: {
   }
 };
 
+/** The 18 ft perch of the planned villages of northern England (Sheppard 1974). */
+export const VILLAGE_PERCH_METERS = 5.4864;
+
+/**
+ * Tofts of a roadside village (docs/plan/ce-meshless-roadside-burgage-village.md §2.4): wider than town burgages,
+ * laid out in perches, split nearest the centre when the roads cannot take the village (§5.6).
+ */
+export interface VillageToftProfile {
+  id: "village-toft";
+  /** Frontages of an undivided toft, in perches. */
+  toftPerches: readonly number[];
+  /** No split leaves a plot narrower than this (`english-burgage` frontage). */
+  minFrontageMeters: number;
+  /** Tier-2 plots start at a split toft's frontage. */
+  tier2FrontageMeters: Range;
+  depthMeters: { tier1: Range; tier2: Range };
+  /** Neighbouring rows on one side of an arm differ by at most this share in depth. */
+  rowDepthStep: number;
+  /** Between the plot fronts on either side of the road. */
+  streetMeters: Range;
+  backLaneMeters: Range;
+  crossLane: { spacingMeters: Range; widthMeters: Range };
+  /** Reach of an arm laid first, and the most it reaches (§5.6). */
+  armMeters: { first: number; max: number };
+  /** A candidate costs `weight` × its road distance from the centre + `base` (§5.6, game adjustments). The bases put
+   * every plot of the first reach before any split or second-row plot, and a toft is split only once the roads
+   * reach about 230 m (V7: tofts left whole keep their longhouses). */
+  cost: Record<"first" | "beyond" | "split" | "secondSplit" | "tier2", { weight: number; base: number }>;
+  /** A road straying further than this from its eased line breaks the blocks along it. */
+  easeToleranceMeters: number;
+  sources: readonly string[];
+}
+
+export const VILLAGE_TOFT_PROFILE: VillageToftProfile = {
+  id: "village-toft",
+  toftPerches: [3, 3.5, 4],
+  minFrontageMeters: 5,
+  tier2FrontageMeters: [8.2, 11],
+  depthMeters: { tier1: [50, 90], tier2: [30, 50] },
+  rowDepthStep: 0.1,
+  streetMeters: [8, 15],
+  backLaneMeters: [3, 4],
+  crossLane: CROSS_LANE,
+  armMeters: { first: 175, max: 750 },
+  cost: {
+    first: { weight: 1, base: 0 },
+    beyond: { weight: 1.5, base: 0 },
+    split: { weight: 2, base: 350 },
+    secondSplit: { weight: 3, base: 700 },
+    tier2: { weight: 2.5, base: 175 }
+  },
+  easeToleranceMeters: 8,
+  sources: [
+    "Historic England list entries 1017691, 1019521, 1017068, 1019026: tofts c. 15-50 m wide, mostly c. 20 m; a 4 m track behind the tofts (Uckerby)",
+    "Sheppard, Agricultural History Review 22 (1974): the 18 ft perch in regular Yorkshire village plans",
+    "Historic England list entry 1019026 (Wolfhampcote): main street 8-15 m",
+    "Passini, Espacios urbanos a lo largo del Camino de Santiago: an initial burgo of 200-350 m along the road"
+  ]
+};
+
 /**
  * Land a dwelling takes on these plots against the compact lots the meshless site size was fitted on (plan §6).
  * Measured 2026-11-18 on the walled synthetic inputs of 1,000–5,000 people (docs/plan/ce-burgage-plot-fabric.md §8.2),
