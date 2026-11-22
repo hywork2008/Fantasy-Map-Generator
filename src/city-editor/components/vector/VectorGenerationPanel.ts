@@ -383,7 +383,7 @@ export function createVectorGenerationPanel(
   // they are developed, so Generate city shows their state.
   const plotFabric = document.createElement("select");
   plotFabric.dataset.generationField = "plotFabric";
-  for (const value of ["compact", "compact-medium", "burgage", "burgage-dense"] as const) {
+  for (const value of ["compact", "compact-medium", "burgage", "burgage-dense", "burgage-village"] as const) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = text(`plotFabricOptions.${value}`);
@@ -572,10 +572,12 @@ export function createVectorGenerationPanel(
           : syntheticVectorInput(seed.value, Number(radius.value), river.checked, true);
       source.context.targetPopulation = target;
       // The editor's wall settings decide the wall, resolved on this seed (P4a).
+      // A roadside village is unwalled, whatever wall was picked (ce-meshless-roadside-burgage-village.md §4.3).
+      const villagePlots = plotFabric.value === "burgage-village";
       const editorWall =
-        editorInput && !wallPicked
+        editorInput && (!wallPicked || villagePlots)
           ? vectorWallChoice(
-              editorInput.settings,
+              { ...editorInput.settings, plotFabric: plotFabric.value as PlotFabric },
               seed.value,
               source.context.historicalPeriod,
               editorInput.frame.extentMeters
@@ -588,7 +590,7 @@ export function createVectorGenerationPanel(
           settings: {
             ...DEFAULT_VECTOR_GENERATION,
             seed: seed.value,
-            ...(editorWall ?? { wall: wall.value as VectorGenerationSettings["wall"] })
+            ...(editorWall ?? { wall: villagePlots ? "none" : (wall.value as VectorGenerationSettings["wall"]) })
           },
           urban: {
             ...DEFAULT_VECTOR_URBAN,

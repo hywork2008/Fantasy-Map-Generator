@@ -6,7 +6,7 @@ import type {
   RoadsideVillagePlan
 } from "../../types/contracts/burgage";
 import type { Point } from "../../types/geometry";
-import { pointInPolygon, polygonArea, simplifyPolyline } from "../geom";
+import { nearestOnPolyline, pointInPolygon, polygonArea, simplifyPolyline } from "../geom";
 import { makeRng, type Rng } from "../prng";
 import { drawIn, fillLength } from "./frame";
 import { VILLAGE_PERCH_METERS, VILLAGE_TOFT_PROFILE, type VillageToftProfile } from "./profiles";
@@ -22,9 +22,14 @@ export interface RoadsideVillageInput {
   seed: string;
   /** Roads out of the centre, from the centre outward. */
   arms: readonly RoadsideArm[];
-  plotsNeeded: number;
+  /** Dwellings the village needs; plots when `dwellingsOf` is absent. */
+  need: number;
+  /** Dwellings a plot of this frontage holds (one when absent). A split that holds no more is never taken. */
+  dwellingsOf?: (frontageMeters: number) => number;
   /** Ground no block may touch: water, reserved sites, the village centre. */
   obstacles?: readonly Point[][];
+  /** Blocks keep within this distance of the centre on either axis (the map's edge). */
+  halfExtentMeters?: number;
   profile?: VillageToftProfile;
 }
 
@@ -167,15 +172,32 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
       arms.map(a => [a.id, drawIn(makeRng(`${input.seed}:roadside:${a.id}:street`), profile.streetMeters) / 2])
     ),
     claims: Point[][] = [],
-    obstacles = input.obstacles ?? [];
+    box = (ring: readonly Point[]) => {
+      const xs = ring.map(p => p[0]),
+        ys = ring.map(p => p[1]);
+      return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)] as const;
+    },
+    apart = (a: readonly number[], b: readonly number[]) => a[2] < b[0] || b[2] < a[0] || a[3] < b[1] || b[3] < a[1],
+    obstacles = (input.obstacles ?? []).map(ring => ({ ring, box: box(ring) })),
+    bound = input.halfExtentMeters ?? Infinity,
+    centre = arms[0]?.points[0] ?? [0, 0],
+    dwellingsOf = input.dwellingsOf ?? (() => 1);
 
-  const free = (ring: Point[]) =>
-    !claims.some(c => convexOverlap(ring, c)) &&
-    !obstacles.some(o => polygonOverlap(ring, o)) &&
-    arms.every(arm => {
-      const h = half.get(arm.id)! - EPS;
-      return arm.points.slice(1).every((p, i) => segmentRingDistance(arm.points[i], p, ring) >= h);
-    });
+  const free = (ring: Point[]) => {
+    const b = box(ring);
+    return (
+      b[0] >= centre[0] - bound &&
+      b[2] <= centre[0] + bound &&
+      b[1] >= centre[1] - bound &&
+      b[3] <= centre[1] + bound &&
+      !claims.some(c => convexOverlap(ring, c)) &&
+      !obstacles.some(o => !apart(b, o.box) && polygonOverlap(ring, o.ring)) &&
+      arms.every(arm => {
+        const h = half.get(arm.id)! - EPS;
+        return arm.points.slice(1).every((p, i) => segmentRingDistance(arm.points[i], p, ring) >= h);
+      })
+    );
+  };
 
   // Tier 1, laid round robin over the arm sides by road distance, so the centre's corners go to the nearest blocks.
   interface Cursor {
@@ -337,7 +359,7 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
         candidates.push({
           cost: cost("tier2", along + p.parent!.depth),
           order: order++,
-          gain: 1,
+          gain: dwellingsOf(w),
           potential: p,
           plot: k,
           kind: "plot"
@@ -347,18 +369,27 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
       candidates.push({
         cost: cost(along <= profile.armMeters.first ? "first" : "beyond", along),
         order: order++,
-        gain: 1,
+        gain: dwellingsOf(w),
         potential: p,
         plot: k,
         kind: "plot"
       });
-      if (w / 2 >= profile.minFrontageMeters)
-        candidates.push({ cost: cost("split", along), order: order++, gain: 1, potential: p, plot: k, kind: "split" });
-      if (w / 4 >= profile.minFrontageMeters)
+      const halves = 2 * dwellingsOf(w / 2) - dwellingsOf(w),
+        quarters = 4 * dwellingsOf(w / 4) - 2 * dwellingsOf(w / 2);
+      if (w / 2 >= profile.minFrontageMeters && halves > 0)
+        candidates.push({
+          cost: cost("split", along),
+          order: order++,
+          gain: halves,
+          potential: p,
+          plot: k,
+          kind: "split"
+        });
+      if (w / 4 >= profile.minFrontageMeters && halves > 0 && quarters > 0)
         candidates.push({
           cost: cost("secondSplit", along),
           order: order++,
-          gain: 2,
+          gain: quarters,
           potential: p,
           plot: k,
           kind: "split2"
@@ -372,7 +403,7 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
   const extent = (p: Potential) => p.s0 + p.widths.slice(0, taken.get(p) ?? 0).reduce((n, w) => n + w, 0);
   let placed = 0;
   for (const c of candidates) {
-    if (placed >= input.plotsNeeded) break;
+    if (placed >= input.need) break;
     const p = c.potential,
       key = `${p.id}:${c.plot}`,
       count = taken.get(p) ?? 0;
@@ -395,8 +426,7 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
   }
 
   const blocks: RoadsideBlock[] = [],
-    lanes: RoadsideLane[] = [],
-    lastBack = new Map<string, RoadsideLane>();
+    lanes: RoadsideLane[] = [];
   for (const p of [...tier1, ...tier2]) {
     const count = taken.get(p) ?? 0;
     if (!count) continue;
@@ -439,28 +469,30 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
         side: p.side,
         kind: "cross",
         widthMeters: p.crossLane,
-        points: [at(f, crossAt, p.t0), at(f, crossAt, p.t0 + p.depth + p.backLane)]
+        // From the road's centre line, where it joins the road, to the back lane's far side.
+        points: [
+          nearestOnPolyline(at(f, crossAt, p.t0), arms.find(a => a.id === p.armId)!.points as Point[]).point,
+          at(f, crossAt, p.t0 + p.depth + p.backLane)
+        ]
       });
-      // Joins the back lane of the block before it on the same chord when the two line up.
-      const row = `${p.armId}:${p.side}`,
-        prev = lastBack.get(row),
-        start = at(f, p.s0 - p.crossLane, back),
-        end = prev?.points.at(-1);
-      if (prev && end && Math.hypot(end[0] - start[0], end[1] - start[1]) < 1e-6) prev.points.push(at(f, s1, back));
-      else {
-        const lane: RoadsideLane = {
-          id: `${p.id}:back`,
-          armId: p.armId,
-          side: p.side,
-          kind: "back",
-          widthMeters: p.backLane,
-          points: [start, at(f, s1, back)]
-        };
-        lanes.push(lane);
-        lastBack.set(row, lane);
-      }
+      // Behind the block and its cross lane: the back lanes of a row meet end to end.
+      lanes.push({
+        id: `${p.id}:back`,
+        armId: p.armId,
+        side: p.side,
+        kind: "back",
+        widthMeters: p.backLane,
+        points: [at(f, p.s0 - p.crossLane, back), at(f, s1, back)]
+      });
     }
   }
-  const shortfall = Math.max(0, input.plotsNeeded - placed);
-  return { blocks, lanes, plots: placed, shortfall, reasons: shortfall ? ["village-capacity"] : [] };
+  const shortfall = Math.max(0, input.need - placed);
+  return {
+    blocks,
+    lanes,
+    plots: blocks.reduce((n, b) => n + b.plots.length, 0),
+    dwellings: placed,
+    shortfall,
+    reasons: shortfall ? ["village-capacity"] : []
+  };
 }

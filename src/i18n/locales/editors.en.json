@@ -322,7 +322,8 @@
           "compact": "Compact (dense houses)",
           "compact-medium": "Compact, medium blocks (between compact and dense burgage)",
           "burgage": "Burgage plots with yards (village, small town)",
-          "burgage-dense": "Dense burgage plots (walled town, yards built over)"
+          "burgage-dense": "Dense burgage plots (walled town, yards built over)",
+          "burgage-village": "Roadside village (burgage tofts, unwalled)"
         },
         "compactBlockScale": "Block edge multiplier (compact-medium, 1.1–2.2)",
         "develop": "Preview lanes, facilities and housing",

@@ -231,7 +231,8 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       "vector-urban-v62",
       "vector-urban-v63",
       "vector-urban-v64",
-      "vector-urban-v65"
+      "vector-urban-v65",
+      "vector-urban-v66"
     ].includes(u.algorithm) ||
     !nonnegative(u.inputRevision) ||
     !keys(
@@ -259,7 +260,7 @@ export function validateVectorUrban(doc: VectorCityDocument): string[] {
       (!Number.isFinite(u.settings.lotOccupancy) || u.settings.lotOccupancy < 0.1 || u.settings.lotOccupancy > 1)) ||
     (u.settings.tanneryBends !== undefined && !["continuous", "leat"].includes(u.settings.tanneryBends)) ||
     (u.settings.plotFabric !== undefined &&
-      !["compact", "compact-medium", "burgage", "burgage-dense"].includes(u.settings.plotFabric)) ||
+      !["compact", "compact-medium", "burgage", "burgage-dense", "burgage-village"].includes(u.settings.plotFabric)) ||
     (u.settings.compactBlockScale !== undefined && !validCompactBlockScale(u.settings.compactBlockScale)) ||
     !object(u.baseGeneration) ||
     !object(u.baseContext) ||

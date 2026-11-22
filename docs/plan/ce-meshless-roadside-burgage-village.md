@@ -1,8 +1,8 @@
 # CE meshless 市壁のない短冊形区画の村 — 街道に張り付く街区と裏小路
 
 作成: 2026-11-22
-更新: 2026-11-22（V0: 村の区画の間口・奥行き、裏小路、村の通りと広場、南欧の村の史料を調べ、§2.4 に採用値を確定した。§4.2・§5 をそれに合わせて改めた。V1: 区画の型 `village-toft` と純関数 `planRoadsideBlocks` を作った。§5.6 の費用を「重み × 距離 ＋ 基準」に改め、設定・UI・検証は V2 に回した（§12））
-状態: V0・V1 完了。次は V2。
+更新: 2026-11-22（V0: 村の区画の間口・奥行き、裏小路、村の通りと広場、南欧の村の史料を調べ、§2.4 に採用値を確定した。§4.2・§5 をそれに合わせて改めた。V1: 区画の型 `village-toft` と純関数 `planRoadsideBlocks` を作った。§5.6 の費用を「重み × 距離 ＋ 基準」に改め、設定・UI・検証は V2 に回した（§12）。V2: `burgage-village` を生成に接続し、v66 とした（§13））
+状態: V0〜V2 完了。次は V3。
 対象: メッシュなし CE（skeleton-first）の、FMG と連携しない単独の都市生成（合成入力）。FMG から開いた都市、メッシュあり CE、廃止予定の CG は対象外。
 関連: [ce-burgage-plot-fabric.md](ce-burgage-plot-fabric.md)（区画の型と寸法）、[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md)（成長型の生成。未実装）、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)（市壁の外の街道沿いの帯）、[ce-rural-field-layout.md](ce-rural-field-layout.md)（郊外の耕地）、[bridge-skew-policy.md](bridge-skew-policy.md)
 
@@ -246,7 +246,7 @@
 | --- | --- | --- |
 | V0 | 村の toft の間口、南欧の村の区画、細長い広場の寸法を調べ、§2 と §4.2 を確定する | **完了（2026-11-22）**。§2.4、§11 |
 | V1 | `village-toft` の型（§4.2）。純関数 `planRoadsideBlocks(roads, centre, need, profile, obstacles)` を作り、1 段目の街区・区画の分割・横の小路・裏小路・2 段目の街区を、§5.6 の順序で返す | 単体テスト: 直線と曲がる街道で、街区がすべて四角形であり、互いに重ならず、街道との距離が揃うこと。§5.6 の目安（交差点の村の 3,000 人が上限に収まり、腕 1 本の村は未収容を報告する）が成り立つこと。**完了（2026-11-22）**。§12 |
-| V2 | `PlotFabric` の `burgage-village`・UI・多言語化・検証（V1 から移した。§12.1）。生成に接続する。円形の敷地を作らない流れ、大きさの見積もり（§5.6）、描画範囲、2 段目の街区、v66、保存と読込 | 200・500・1,000・2,000 人（川なし・川 1 本）で未収容 0。斜めに切られた区画が 0。ほかの Plot pattern の固定入力で、直列化した文書の SHA-256 が変わらない |
+| V2 | `PlotFabric` の `burgage-village`・UI・多言語化・検証（V1 から移した。§12.1）。生成に接続する。円形の敷地を作らない流れ、大きさの見積もり（§5.6）、描画範囲、2 段目の街区、v66、保存と読込 | 200・500・1,000・2,000 人（川なし・川 1 本）で未収容 0。斜めに切られた区画が 0。ほかの Plot pattern の固定入力で、直列化した文書の SHA-256 が変わらない。**完了（2026-11-22）**。§13 |
 | V3 | 村の中心（交差点の角、教会、広場、細長い広場）、施設（`placeFacilitiesOnPlots`）、tanners' row の判定の置き換え | 施設のある 1,000 人の村で、施設の 8 割以上が置ける。中心の角に三角の街区がない |
 | V4 | 土地利用と耕区。村の土地の外を耕地にし、裏小路に接する耕区の向きを判断する | 村の土地と耕地の間に 400 m² を超える空き地が残らない |
 | V5 | ブラウザで 2D・3D を確かめ、見た目の不自然さを直す | 画面での確認の記録を本書に書く |
@@ -275,7 +275,7 @@
 
 ## 10. 次に進める作業
 
-V2 に進む。`PlotFabric` に `burgage-village` を加え、UI・多言語化・検証・アルゴリズムの版（v66）を通す。合成入力の生成で、`burgage-village` のときは円形の敷地を作らず、街道を `RoadsideArm` にして `planRoadsideBlocks` を呼び、結果の街区・区画・小路を fabric と道として保存する。そのうえで §7 の V2 の完了条件（200〜2,000 人で未収容 0、斜めの区画 0、ほかの Plot pattern の出力が変わらない）を確かめる。
+V3 に進む。村の中心（交差点の角、教会、広場、細長い広場）を整え、施設のある村（`medieval-facilities`）で `placeFacilitiesOnPlots` が区画に施設を置けることを確かめる。`urban.ts` の `core`（円の 0.65 倍）を村の土地に置き換え、tanners' row の判定を直す。あわせて、§13.4 の「1 戸の家に 2〜3 世帯」をどう扱うかを決める。
 
 ## 11. V0 の記録（2026-11-22）
 
@@ -357,4 +357,62 @@ V0 の設計からの変更:
 - 120° 曲がる街道: 街区が直角の四角形で、道とも互いにも重ならない。
 - 川（障害物）を横切る街道: 街区が川に入らない。
 - 交差点の 3,000 人: 未収容 0、2 段目と割った区画がある、間口が 5 m 以上。腕 1 本の 3,000 人: 未収容を `village-capacity` で報告する。
+
+## 13. V2 の記録（2026-11-22）
+
+### 13.1 作ったもの
+
+| ファイル | 内容 |
+| --- | --- |
+| [types/contracts/burgage.ts](../../src/city-editor/types/contracts/burgage.ts)、[types/vector/urban.ts](../../src/city-editor/types/vector/urban.ts) | `PlotFabric` に `burgage-village`、版に `vector-urban-v66` |
+| [urbanState.ts](../../src/city-editor/generators/vector/generation/urbanState.ts)、[validation/urban.ts](../../src/city-editor/generators/vector/validation/urban.ts)、[validation/fabric.ts](../../src/city-editor/generators/vector/validation/fabric.ts)、[share.ts](../../src/city-editor/services/io/vector/share.ts) | `burgage-village` は v66。検証と共有リンクが値と版を受け付ける |
+| [VectorGenerationPanel.ts](../../src/city-editor/components/vector/VectorGenerationPanel.ts)、[editors.en.json](../../src/i18n/locales/editors.en.json)、[editors.ja.json](../../src/i18n/locales/editors.ja.json) | Plot pattern の選択肢「Roadside village (burgage tofts, unwalled)」「街道沿いの村（短冊形の屋敷地、市壁なし）」。選ぶと、Generate city は壁の選択によらず壁なしで生成する |
+| [wallShape.ts](../../src/city-editor/generators/vector/generation/wallShape.ts) | `vectorWallChoice` は `burgage-village` のとき `wall: "none"` を返す |
+| [editorInput.ts](../../src/city-editor/generators/vector/generation/editorInput.ts) | FMG と連携しない村では、描画範囲を `villageHalfExtentMeters`（街道の届く長さ＋奥行き＋畑の余白）の 2 倍に広げ、円形の敷地は村の中心（教会・広場）が入る大きさ（半径 40 m 以上）にする。稜堡の要塞は作らない |
+| [villagePlan.ts](../../src/city-editor/generators/vector/generation/villagePlan.ts) | `villageArms`（幅 4 m 以上の道を、中心に最も近い交点から各行き止まりまで最短でたどった腕）、`planVillagePerimeter`（`planRoadsideBlocks` の結果を CE の district・cell・区画・家にする）、`villageHalfExtentMeters` |
+| [urban.ts](../../src/city-editor/generators/vector/generation/urban.ts) | `burgage-village` では、円形の敷地を道で切った街区を使わず、`planVillagePerimeter` の結果を `joinPerimeterPlan` に渡す。敷地の拡大（最大 1.4 倍）はしない。土地利用には村の district の外形を町の土地として渡す。施設の要求は区画単位（`plots: true`） |
+| [roadsideBlocks.ts](../../src/city-editor/generators/burgage/roadsideBlocks.ts) | 必要数を戸数で数える（`need`、`dwellingsOf`）。戸数が増えない分割は取らない。描画範囲の内に収める（`halfExtentMeters`）。障害物は外接矩形で先に絞る。横の小路は道の中心線から始める（道とつながる）。裏小路は街区ごとに 1 本（隣の街区の裏小路と端で接する） |
+
+CE の fabric への写し方:
+
+- 1 段目の街区 1 つを 1 つの district にする。district の外形は、街区・横の小路・裏小路・後ろの 2 段目の街区を包む凸多角形である。district の街路（`streets`）は、その街区の横の小路と裏小路である。横の小路の道側の端は、`joinPerimeterPlan` が道との接続（mouth）にする。
+- cell は 1 段目と 2 段目の街区で、区画（`plots`）を持つ。cell の小路はない。
+- 家（V-R9）: 間口 12 m 以上の割っていない区画には、通りに沿った長い家（長さ 10〜16 m、奥行き 5.5〜7 m）を、片側に 3 m の通路を空けて建てる。割った区画には、間口いっぱいに奥行き 8〜12 m の家を建てる。家の建て方（どの家から建てるか、何戸入るか）は今の `placeVectorPerimeterHouses` に任せる。
+- 1 区画の戸数の見込みは、家の平均の床面積と `expectedVectorHouseStoreys` から `perimeterHouseDwellings` で出す。家の大きさと階数のばらつきに備え、必要戸数の 1.08 倍を区画にする（`VILLAGE_NEED_MARGIN`）。
+
+### 13.2 計測
+
+FMG と連携しない合成入力、シード `probe`（500 人は `roadside-village`）、`medieval`、`lotOccupancy` 1、Walls はオンのまま（生成は壁なし）。「川」は合成入力の既定の川 1 本。時間は入力・骨格・市街地の合計。
+
+| 人口 | 川 | 時間（ms） | 必要戸数 | 未収容 | 街区（うち 2 段目） | 区画 | 家 | 1 戸の世帯（平均） | 描画範囲（m） | 文書（KB） |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 200 | なし | 199 | 45 | 0 | 8（0） | 25 | 21 | 2.24 | 804 | 529 |
+| 200 | あり | 200 | 45 | 0 | 8（0） | 25 | 23 | 1.96 | 804 | 562 |
+| 500 | なし | 255 | 112 | 0 | 15（0） | 55 | 41 | 2.73 | 1,019 | 786 |
+| 500 | あり | 259 | 112 | 0 | 13（0） | 56 | 47 | 2.43 | 1,019 | 731 |
+| 1,000 | なし | 221 | 223 | 0 | 20（1） | 97 | 82 | 2.74 | 1,374 | 1,219 |
+| 1,000 | あり | 313 | 223 | 0 | 20（1） | 103 | 93 | 2.40 | 1,374 | 1,159 |
+| 2,000 | なし | 359 | 445 | 0 | 33（5） | 179 | 169 | 2.63 | 1,920 | 1,851 |
+| 2,000 | あり | 426 | 445 | 0 | 33（2） | 191 | 174 | 2.56 | 1,920 | 1,638 |
+
+- どの人口でも未収容 0、壁 0。区画と街区はすべて直角の四角形だった（テストで確かめた）。
+- 1,000 人・川ありの村は、4 本の街道に沿って両側に街区が並び、川の向こう側の腕にも街区が続いた。教会・広場のある中心の周りは空いたまま残る。
+
+### 13.3 ほかの Plot pattern が変わらないこと
+
+`compact`・`compact-medium`・`burgage`・`burgage-dense` の 4 つについて、壁のあり・なしと施設のあり・なしの 16 通り（1,500 人、シード `hash-probe`）の文書を作った。変更前（`git stash`）と変更後で、直列化した文書の SHA-256 は 16 件とも一致した。
+
+### 13.4 見つかったこと・残したこと
+
+- **1 戸の家に 2〜3 世帯**: CE の戸数の式（床面積 × 階数）では、長さ 13 m・奥行き 6 m・2 階余りの長い家に 2〜3 戸が入る。このため、200 人（45 戸）の村でも家は 21〜23 軒にとどまる。史料の村では、屋敷地 1 つに 1 世帯（4〜5 人）が普通である。村の家を 1 世帯にする（1 階にする、または村では戸数を 1 に固定する）かは V3 で決める。
+- **壁の設定の入力**: §4.3 では、`burgage-village` を選ぶと Walls などの入力を無効にするとしていた。V2 では生成が壁の設定を無視するだけで、市の設定パネルの入力はそのままである。V5 で画面とあわせて直す。
+- **合成入力のうち、海岸・曲がる川（native でない入力）**: 描画範囲は広げるが、敷地は `synthSite` の円のままで、村の中心だけの小さな敷地にはならない。区画は街道に沿って作られるが、確かめていない。
+- **画面での確認**: 生成の関数（`vectorInputFromEditor` → `generateVectorSkeleton` → `generateVectorUrban`）は Generate city と同じものをテストと計測で通した。CE の画面での描画（2D・3D）は V5 で確かめる。
+
+### 13.5 テスト
+
+- `npx vitest run src/city-editor/generators/burgage src/city-editor/generators/vector/generation/{villagePlan,burgagePlots,wallShape,urban,perimeter}.test.ts src/city-editor/services/io/vector`: 55 件成功。
+- `npx vitest run src/city-editor/components/vector/VectorGenerationPanel.test.ts src/city-editor/generators/vector/validation`: 37 件成功。
+- `npx tsc --noEmit`: 誤りなし。
+- 新しいテスト [villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) 2 件: 1,000 人・川ありの村が v66・壁なし・未収容 0 で、円形の敷地の 2 倍より遠くまで街区が並び、cell と区画がすべて直角の四角形、家はどれも区画の中、全 district の小路が道につながり、保存して読み直しても fabric が同じ。200 人の村は 2 段目を作らず、街区が描画範囲の内に収まる。
 

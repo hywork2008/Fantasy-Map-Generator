@@ -87,7 +87,7 @@ export interface VectorPerimeterPlan {
   blocks: VectorBlock[];
   laneWidthMeters: number;
   /** Street blocks laid out as burgage plots (v19). */
-  plotFabric?: "burgage" | "burgage-dense";
+  plotFabric?: "burgage" | "burgage-dense" | "burgage-village";
   /** Compact street blocks laid out with larger lane-bounded blocks (v61, `compactBlockScale`). */
   compactFabric?: "compact-medium";
 }

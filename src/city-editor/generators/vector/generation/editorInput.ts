@@ -19,6 +19,7 @@ import { syntheticVectorInput, vectorInputFromDescriptor } from "./input";
 import { vectorFacilityLand } from "./suburbs";
 import { bridgeSyntheticCrossings } from "./syntheticCrossings";
 import { MESHLESS_SITE_RIM_METERS, meshlessCityRadius, meshlessSiteFillScale } from "./urbanSizing";
+import { villageHalfExtentMeters } from "./villagePlan";
 import { isVectorWallShape, vectorBastionCount, vectorWallAreaShare, vectorWallChoice } from "./wallShape";
 
 export interface VectorEditorGenerationInput {
@@ -40,8 +41,24 @@ const CIVIC_LAND_FACTOR = 1.5;
 /** The land block a religious house takes: its precinct (about 4,000–5,600 m²) with its street verges. */
 const MONASTERY_BLOCK_M2 = 5500;
 
-export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
-  const { settings, seed } = input;
+export function vectorInputFromEditor(request: VectorEditorGenerationInput) {
+  const { settings, seed } = request;
+  // A roadside village is laid along its approaches, not on a round site (ce-meshless-roadside-burgage-village.md
+  // §5.1): its site holds only the centre, and its map reaches as far as its roads must run.
+  const village = settings.plotFabric === "burgage-village" && !settings.descriptor;
+  const input =
+    village && settings.population
+      ? {
+          ...request,
+          frame: {
+            ...request.frame,
+            extentMeters: Math.max(
+              request.frame.extentMeters,
+              Math.ceil(2 * villageHalfExtentMeters(getUrbanDwellings(settings.population.targetPopulation)))
+            )
+          }
+        }
+      : request;
   const period = settings.historicalPeriod ?? settings.descriptor?.historicalPeriod ?? "ageOfExploration";
   // The burial culture sites the cemetery: beside the church, outside the town or on a bank (P6a).
   const burial = vectorBurial(settings.burialProfile ?? settings.descriptor?.burialProfile, period),
@@ -198,7 +215,7 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
       doc.site!.id = "standalone-ce-site";
       // A bastioned town replaces the approach roads with the fortress routes, so it comes before the civic
       // centre that takes its access from them (P4c).
-      if (settings.townFortification) {
+      if (settings.townFortification && !village) {
         const fortified = fortifyVectorInput(doc, settings, seed);
         if ("failure" in fortified) throw new Error(fortified.failure);
         doc = fortified.document;
@@ -316,6 +333,8 @@ export function vectorInputFromEditor(input: VectorEditorGenerationInput) {
     houses = monasteryKindsFor(settings.descriptor?.civilization?.faith, period, walled)
       .slice(0, monasteryCountFor(getUrbanDwellings(settings.population.targetPopulation), period))
       .filter(kind => !(kind === "abbey" && walled)).length;
+  // The village's site is its centre: the church, the plaza and the junction of its roads.
+  if (village) return build(Math.max(40, civic.radiusMeters + MESHLESS_SITE_RIM_METERS));
   if (!reserved && !civic.specs.length && !houses) return build(fitBastions(() => size(0, facilityM2)));
   // The civic centre takes its area from the houses' land, and more: lots stop short of its setbacks and the
   // streets that front it. Its farthest corner must stay inside the rim.

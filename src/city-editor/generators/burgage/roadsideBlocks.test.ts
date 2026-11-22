@@ -53,7 +53,7 @@ const streetHalfMin = VILLAGE_TOFT_PROFILE.streetMeters[0] / 2;
 
 describe("planRoadsideBlocks", () => {
   it("lays rectangular blocks of tofts on both sides of a road, nearest the centre first", () => {
-    const plan = planRoadsideBlocks({ seed: "v1-through", arms: through, plotsNeeded: 24 });
+    const plan = planRoadsideBlocks({ seed: "v1-through", arms: through, need: 24 });
     expect(plan.shortfall).toBe(0);
     expect(plan.plots).toBe(24);
     expect(plan.blocks.every(b => b.tier === 1 && rectangular(b.ring))).toBe(true);
@@ -73,7 +73,7 @@ describe("planRoadsideBlocks", () => {
         rear: Point = [2 * cx - (a[0] + b[0]) / 2, 2 * cy - (a[1] + b[1]) / 2];
       expect(back.some(l => nearestOnPolyline(rear, l.points).dist <= l.widthMeters / 2 + 1e-6)).toBe(true);
     }
-    expect(planRoadsideBlocks({ seed: "v1-through", arms: through, plotsNeeded: 24 })).toEqual(plan);
+    expect(planRoadsideBlocks({ seed: "v1-through", arms: through, need: 24 })).toEqual(plan);
   });
 
   it("keeps blocks rectangular and off the road and each other along a bending road", () => {
@@ -81,7 +81,7 @@ describe("planRoadsideBlocks", () => {
       { id: "bend", points: arc(300, 120) },
       { id: "straight", points: line([-reach, 0]) }
     ];
-    const plan = planRoadsideBlocks({ seed: "v1-bend", arms, plotsNeeded: 150 });
+    const plan = planRoadsideBlocks({ seed: "v1-bend", arms, need: 150 });
     expect(plan.blocks.length).toBeGreaterThan(4);
     expect(plan.blocks.every(b => rectangular(b.ring))).toBe(true);
     expect(conflicts(plan, arms, streetHalfMin)).toBe(0);
@@ -94,14 +94,14 @@ describe("planRoadsideBlocks", () => {
       [90, 300],
       [60, 300]
     ];
-    const plan = planRoadsideBlocks({ seed: "v1-river", arms: through, plotsNeeded: 60, obstacles: [river] });
+    const plan = planRoadsideBlocks({ seed: "v1-river", arms: through, need: 60, obstacles: [river] });
     expect(plan.shortfall).toBe(0);
     for (const block of plan.blocks) expect(block.ring.every(p => p[0] <= 60 + 1e-6 || p[0] >= 90 - 1e-6)).toBe(true);
   });
 
   // Plan §5.6: 3,000 people (667 dwellings) fit a crossroads village; a road ending at the village reaches its limit.
   it("houses 3,000 people at a crossroads by splitting tofts and a second row, and reports a dead-end road short", () => {
-    const cross = planRoadsideBlocks({ seed: "v1-cross", arms: crossroads, plotsNeeded: 667 });
+    const cross = planRoadsideBlocks({ seed: "v1-cross", arms: crossroads, need: 667 });
     expect(cross.shortfall).toBe(0);
     expect(cross.blocks.some(b => b.tier === 2)).toBe(true);
     expect(cross.blocks.flatMap(b => b.plots).some(p => !p.undivided)).toBe(true);
@@ -110,7 +110,7 @@ describe("planRoadsideBlocks", () => {
     ).toBe(true);
     expect(cross.blocks.every(b => rectangular(b.ring))).toBe(true);
     expect(conflicts(cross, crossroads, streetHalfMin)).toBe(0);
-    const single = planRoadsideBlocks({ seed: "v1-single", arms: through.slice(0, 1), plotsNeeded: 667 });
+    const single = planRoadsideBlocks({ seed: "v1-single", arms: through.slice(0, 1), need: 667 });
     expect(single.shortfall).toBeGreaterThan(0);
     expect(single.reasons).toEqual(["village-capacity"]);
   });

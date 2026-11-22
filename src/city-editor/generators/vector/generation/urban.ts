@@ -27,6 +27,7 @@ import { reserveEdgeWorks } from "./edgeWorks";
 import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
 import { placeFacilitiesOnPlots } from "./facilityPlots";
 import { vectorHousingCulture, vectorTownCulture, vectorTownProfile } from "./housingCulture";
+import { expectedVectorHouseStoreys } from "./housingHeights";
 import { raiseVectorLandUse } from "./landUse";
 import { layoutVectorParks } from "./parks";
 import {
@@ -58,6 +59,7 @@ import {
   waterDistance
 } from "./urbanPacking";
 import { matchesVectorUrbanFingerprint, vectorUrbanAlgorithm, vectorUrbanFingerprint } from "./urbanState";
+import { planVillagePerimeter, type VillagePerimeter } from "./villagePlan";
 import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
 import { layoutVectorWells } from "./wells";
 import { dressWorkhomes } from "./workhomeExteriors";
@@ -278,7 +280,7 @@ function* vectorUrbanSteps(
             period: doc.context.historicalPeriod,
             port: !!doc.site.descriptor?.burg.port,
             culture: vectorTownCulture(vectorTownProfile(doc)),
-            plots: isBurgageFabric(settings.plotFabric)
+            plots: isBurgageFabric(settings.plotFabric) || settings.plotFabric === "burgage-village"
           })
             // The town's guildhall raised in its market place with the civic centre (plan W5c) is not placed again.
             .requests.filter(r => !(doc.placements[TOWN_GUILDHALL_ID] && r.id.endsWith(":guild:town")))
@@ -288,8 +290,11 @@ function* vectorUrbanSteps(
   timed("programme-and-domain/facility-programme");
   const domain = structuredClone(continuation?.domain ?? sourceSite.domain);
   // Expansion is a suburb within the synthetic input's known frame; source geometry is never stretched.
+  // A roadside village grows along its roads, not by widening a round site (ce-meshless-roadside-burgage-village.md).
+  const villageFabric = settings.plotFabric === "burgage-village";
   if (
     !continuation &&
+    !villageFabric &&
     settings.allowExpansion &&
     sourceSite.kind === "synthetic" &&
     sourceSite.id === "synthetic-site" &&
@@ -588,8 +593,19 @@ function* vectorUrbanSteps(
     if (run?.profile) run.profile.facilityMs = performance.now() - facilityStarted;
   };
   const facilityFabric = organicMode && settings.mode === "medieval-facilities";
-  let organic: VectorPerimeterPlan | undefined;
-  if (organicMode) {
+  let organic: VectorPerimeterPlan | undefined, village: VillagePerimeter | undefined;
+  if (organicMode && villageFabric) {
+    village = planVillagePerimeter(doc, required, {
+      storeys: expectedVectorHouseStoreys(
+        doc.context.historicalPeriod ?? "ageOfExploration",
+        doc.context.requestedSettings as GenerationSettings | undefined,
+        sourceSite.descriptor?.civilization?.tradition
+      ),
+      lotOccupancy: settings.lotOccupancy ?? 1,
+      protectedRegions
+    });
+    organic = { ...joinPerimeterPlan(doc, village.districts, settings), plotFabric: "burgage-village" };
+  } else if (organicMode) {
     const { context, jobs } = perimeterJobs(doc, blocks, settings);
     const streets = (yield { kind: "streets", context, jobs }) as PerimeterStreetPlan[];
     const cells = (yield {
@@ -886,7 +902,7 @@ function* vectorUrbanSteps(
   doc.site = sourceSite;
   doc.context.targetPopulation = settings.population;
   // The open land by use round the finished town and its suburbs (U5b).
-  const used = raiseVectorLandUse(doc, domain).environment?.landUse;
+  const used = raiseVectorLandUse(doc, [...domain, ...(village?.land ?? [])]).environment?.landUse;
   if (used) doc.environment = { features: {}, hidden: [], ...doc.environment, landUse: used };
   timed("land-use");
   doc.revision++;
