@@ -32,6 +32,7 @@ import { treeSeason } from "../../../city3d/treeSeason";
 import type { BuildingLot } from "../../generators/buildingLots.types";
 import { polygonArea, polygonCentroid } from "../../generators/geom";
 import type { TownWaterPart } from "../../generators/townWater";
+import { vectorTownCulture } from "../../generators/vector/generation/housingCulture";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
 import type { BuildingMassing } from "../../types/contracts/buildingMassing";
 import type { SimplificationPreferences } from "../../types/contracts/simplification";
@@ -180,7 +181,13 @@ function stampOf(...parts: unknown[]): string {
 /** The plan box of a plot-fitted street house, rounded as measured footprints are. */
 function workhomeFootprint(modelId: string, exterior: StreetHouseExterior) {
   const [width, depth] = streetHouseEnvelope(modelId, exterior);
-  return { halfX: Math.fround(width / 2), halfZ: Math.fround(depth / 2), centerX: 0, centerZ: 0, groundY: 0 };
+  return {
+    halfX: Math.fround(width / 2),
+    halfZ: Math.fround(depth / 2),
+    centerX: 0,
+    centerZ: 0,
+    groundY: 0
+  };
 }
 
 /** The pick envelope's height over a village workshop: its single storey and roof. */
@@ -237,7 +244,10 @@ export function createVectorScene(
     forestQuality?: Forest3dQuality;
   } = {}
 ) {
-  const simplification = options.simplification ?? { urban: "auto", outskirts: "auto" },
+  const simplification = options.simplification ?? {
+      urban: "auto",
+      outskirts: "auto"
+    },
     urbanLod = simplification.urban !== "off",
     outskirtsLod = simplification.outskirts !== "off";
   let setForestQuality: ((quality: Forest3dQuality) => boolean) | undefined;
@@ -266,7 +276,11 @@ export function createVectorScene(
   const material = (color: string) => {
     let m = materials.get(color);
     if (!m) {
-      m = new THREE.MeshStandardMaterial({ color, roughness: 0.9, side: THREE.DoubleSide });
+      m = new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.9,
+        side: THREE.DoubleSide
+      });
       materials.set(color, m);
     }
     return m;
@@ -301,20 +315,32 @@ export function createVectorScene(
   };
   // The trees' look in the descriptor's month, or for a standalone town the mesh editor's default display month
   // and latitude (July at 45°): leaf-out, autumn colours and bare branches (P2d-8).
-  const season = treeSeason(data.seasonDescriptor, "descriptor", { latitude: 45, month: 7 });
+  const season = treeSeason(data.seasonDescriptor, "descriptor", {
+    latitude: 45,
+    month: 7
+  });
   try {
     // Flat water uses the mesh editor's water tops and bank skirts, sunk below a ground cut open for it.
     const waterParts: TownWaterPart[] = data.terrain
       ? []
       : (data.water ?? []).flatMap(w =>
           w.polygons.flatMap(p => {
-            if (!p.holes.length) return [{ kind: w.kind, polygon: p.outer.map(q => [q[0], q[1]] as Point) }];
+            if (!p.holes.length)
+              return [
+                {
+                  kind: w.kind,
+                  polygon: p.outer.map(q => [q[0], q[1]] as Point)
+                }
+              ];
             // Parts are plain rings; an island splits the water into its triangles, which share unskirted edges.
             const vertices = [p.outer, ...p.holes].flat();
             return THREE.ShapeUtils.triangulateShape(
               p.outer.map(q => new THREE.Vector2(...q)),
               p.holes.map(h => h.map(q => new THREE.Vector2(...q)))
-            ).map(t => ({ kind: w.kind, polygon: t.map(i => [vertices[i][0], vertices[i][1]] as Point) }));
+            ).map(t => ({
+              kind: w.kind,
+              polygon: t.map(i => [vertices[i][0], vertices[i][1]] as Point)
+            }));
           })
         );
     const cutouts = [
@@ -388,7 +414,11 @@ export function createVectorScene(
           ),
           holder = new THREE.Group();
         holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
-        holder.userData = { kind: "feature", featureKind: "harbor", representation: "bv-pier" };
+        holder.userData = {
+          kind: "feature",
+          featureKind: "harbor",
+          representation: "bv-pier"
+        };
         holder.add(piers.group);
         return { object: holder, dispose: () => piers.dispose() };
       });
@@ -412,21 +442,36 @@ export function createVectorScene(
         const houses = createTownMonasteries(data.monasteries!, undefined, quality),
           holder = new THREE.Group();
         holder.position.set(-data.center[0], -datum, data.center[1]);
-        holder.userData = { kind: "feature", featureKind: "monastery", representation: "bv-monastery" };
+        holder.userData = {
+          kind: "feature",
+          featureKind: "monastery",
+          representation: "bv-monastery"
+        };
         holder.add(houses.group);
-        return { object: holder, dispose: () => houses.dispose(), bvKinds: ["monastery"] };
+        return {
+          object: holder,
+          dispose: () => houses.dispose(),
+          bvKinds: ["monastery"]
+        };
       });
     if (data.openSpaces && !data.terrain)
       layer("open-spaces", [data.openSpaces, season, outskirtsLod], () => {
         const spaces = createTownOpenSpaces(data.openSpaces!, undefined, outskirtsLod, season),
           holder = new THREE.Group();
         holder.position.set(-data.center[0], -datum, data.center[1]);
-        holder.userData = { kind: "feature", featureKind: "cemetery", representation: "bv-open-space" };
+        holder.userData = {
+          kind: "feature",
+          featureKind: "cemetery",
+          representation: "bv-open-space"
+        };
         holder.add(spaces.group);
         return {
           object: holder,
           dispose: () => spaces.dispose(),
-          cameraUpdate: (camera, height) => ({ changed: spaces.update(camera, height), pending: false }),
+          cameraUpdate: (camera, height) => ({
+            changed: spaces.update(camera, height),
+            pending: false
+          }),
           bvKinds: ["cemetery"]
         };
       });
@@ -440,8 +485,18 @@ export function createVectorScene(
             generationSeed: f.seed,
             forestSettings: { density: f.density },
             ...(f.climate.biome ? { biome: f.climate.biome } : {}),
-            buildingAppearanceContext: { temperatureC: f.climate.temperatureC },
-            fabric: { generation: { settings: { descriptor: { climate: { biomeKey: f.climate.climateBiomeKey } } } } }
+            buildingAppearanceContext: {
+              temperatureC: f.climate.temperatureC
+            },
+            fabric: {
+              generation: {
+                settings: {
+                  descriptor: {
+                    climate: { biomeKey: f.climate.climateBiomeKey }
+                  }
+                }
+              }
+            }
           } as unknown as CityDocument,
           regions = f.regions.map((r, i) => {
             const xs = r.outer.map(p => p[0]),
@@ -487,7 +542,10 @@ export function createVectorScene(
         return {
           object: holder,
           dispose: () => forest.dispose(),
-          cameraUpdate: (camera, height) => ({ changed: !!forest.update(camera, height), pending: false }),
+          cameraUpdate: (camera, height) => ({
+            changed: !!forest.update(camera, height),
+            pending: false
+          }),
           setQuality: (next: Forest3dQuality) => forest.setQuality(next),
           bvKinds: ["forest"]
         };
@@ -519,7 +577,11 @@ export function createVectorScene(
             p => local.find(w => w.point[0] === p[0] && w.point[1] === p[1])?.y ?? 0,
             harborCache
           );
-        wells.group.userData = { kind: "feature", featureKind: "well", representation: "bv-well" };
+        wells.group.userData = {
+          kind: "feature",
+          featureKind: "well",
+          representation: "bv-well"
+        };
         return { object: wells.group, dispose: () => wells.dispose() };
       });
     // Catalogue placements (church, stalls, civic furniture) for the object layer.
@@ -539,7 +601,11 @@ export function createVectorScene(
     const houseBatches = new Map<string, HouseBatch>();
     const villageHouses: VillageHouseSite[] = [],
       villageWorkshops: VillageHouseSite[] = [],
-      massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
+      massingLots: {
+        polygon: Point[];
+        massing: BuildingMassing;
+        appearance?: BuildingAppearance;
+      }[] = [],
       massingIds: string[] = [],
       massingElevations: number[] = [],
       massingDoors: ([Point, Point] | undefined)[] = [];
@@ -554,9 +620,17 @@ export function createVectorScene(
             holder = new THREE.Group();
           if (bridges.replaced.size) {
             holder.position.set(-data.center[0], -datum - LAND_Y, data.center[1]);
-            holder.userData = { id: owner.owner, kind: owner.kind, representation: "bv-bridge" };
+            holder.userData = {
+              id: owner.owner,
+              kind: owner.kind,
+              representation: "bv-bridge"
+            };
             holder.add(bridges.group);
-            return { object: holder, dispose: () => bridges.dispose(), massed: [owner.owner] };
+            return {
+              object: holder,
+              dispose: () => bridges.dispose(),
+              massed: [owner.owner]
+            };
           }
           bridges.dispose();
         }
@@ -575,7 +649,11 @@ export function createVectorScene(
         if (stonework) holder.add(stonework.group);
         // Massing is in plan metres at absolute heights; the scene group sits at the centre and the datum.
         holder.position.set(-data.center[0], -datum, data.center[1]);
-        holder.userData = { id: owner.owner, kind: owner.kind, representation: "structure-massing" };
+        holder.userData = {
+          id: owner.owner,
+          kind: owner.kind,
+          representation: "structure-massing"
+        };
         holder.add(meshes.group);
         return {
           object: holder,
@@ -646,7 +724,13 @@ export function createVectorScene(
             key = `${surface.color}:${heightsMeters[i]}:${Math.floor(x / HOUSE_TILE_METERS)},${Math.floor(y / HOUSE_TILE_METERS)}`;
           let batch = houseBatches.get(key);
           if (!batch) {
-            batch = { positions: [], ids: [], firstTriangles: [], triangles: 0, color: surface.color };
+            batch = {
+              positions: [],
+              ids: [],
+              firstTriangles: [],
+              triangles: 0,
+              color: surface.color
+            };
             houseBatches.set(key, batch);
           }
           const bottom = elevationsMeters[i] - datum;
@@ -692,7 +776,13 @@ export function createVectorScene(
             data.villageProfile!
           ),
           elevation = surface.elevationMeters - datum;
-        villageWorkshops.push({ id: p.id, spec: house.spec, center: house.center, angle: house.angle, elevation });
+        villageWorkshops.push({
+          id: p.id,
+          spec: house.spec,
+          center: house.center,
+          angle: house.angle,
+          elevation
+        });
         objectMarkers.push({
           id: p.id,
           modelId: p.modelId,
@@ -718,16 +808,20 @@ export function createVectorScene(
             sameFootprint(placementFootprint(p.modelId, placementQuality), placementFootprint(p.modelId, saved)),
           level = p.display?.provenance === "copied" || generated ? placementQuality : saved,
           // A trade workhome draws its saved street front; one saved before it had one keeps its Codex study.
-          workhome = p.exterior ?? (opusWorkhomeModel(p.modelId) ? ("codex" as const) : undefined),
+          // The housing culture is display-only: the town's current one replaces the culture saved at generation.
+          front =
+            p.exterior && data.wallProfile
+              ? { ...p.exterior, culture: vectorTownCulture(data.wallProfile) }
+              : p.exterior,
+          recultured = !!front && front.culture !== p.exterior?.culture,
+          workhome = front ?? (opusWorkhomeModel(p.modelId) ? ("codex" as const) : undefined),
           definition =
             placementDefinition(p.modelId, level, p.appearance?.palette, {
               activity: p.appearance?.activity,
               workhome
             }) ?? placeableObject(p.modelId),
           // A street house fitted to its plot (W4, W5b) stands on its own envelope, not its preset's.
-          footprint = p.exterior?.widthMeters
-            ? workhomeFootprint(p.modelId, p.exterior)
-            : placementFootprint(p.modelId, level);
+          footprint = front?.widthMeters ? workhomeFootprint(p.modelId, front) : placementFootprint(p.modelId, level);
         if (definition && footprint) {
           const expected = footprint.halfX * 2 * (footprint.halfZ * 2),
             area = surface.polygons.reduce((n, r) => n + regionArea(r), 0),
@@ -759,7 +853,7 @@ export function createVectorScene(
             }
             const measuredBounds = new THREE.Box3().setFromObject(model.group, true);
             // A laid piece's display height is the plan's estimate; the model is the authority.
-            const savedHeight = laid ? undefined : (p.building?.heightMeters ?? p.display?.heightMeters);
+            const savedHeight = laid || recultured ? undefined : (p.building?.heightMeters ?? p.display?.heightMeters);
             if (savedHeight !== undefined && Math.abs(measuredBounds.max.y - measuredBounds.min.y - savedHeight) > 0.01)
               warnings.push(`model-height-mismatch:${p.id}`);
             else {
@@ -859,7 +953,10 @@ export function createVectorScene(
         return {
           object: holder,
           dispose: () => objects.dispose(),
-          cameraUpdate: (camera, height) => ({ changed: objects.update(camera, height), pending: false }),
+          cameraUpdate: (camera, height) => ({
+            changed: objects.update(camera, height),
+            pending: false
+          }),
           resolve: hit => objects.resolve(hit)?.id
         };
       });
@@ -881,7 +978,12 @@ export function createVectorScene(
         owner.add(envelope);
         owner.position.set(m.position[0] - data.center[0], m.elevation, -m.position[1] + data.center[1]);
         owner.rotation.y = m.angle;
-        owner.userData = { id: m.id, kind: "building", representation: "bv", modelId: m.modelId };
+        owner.userData = {
+          id: m.id,
+          kind: "building",
+          representation: "bv",
+          modelId: m.modelId
+        };
         group.add(owner);
       }
     }
@@ -913,7 +1015,11 @@ export function createVectorScene(
             buildingKind: "housing",
             representation: "village-houses"
           };
-        return { object: holder, dispose: () => houses.dispose(), resolve: hit => houses.resolve(hit)?.id };
+        return {
+          object: holder,
+          dispose: () => houses.dispose(),
+          resolve: hit => houses.resolve(hit)?.id
+        };
       });
     if (massingLots.length) {
       // Houses use the mesh editor's walls and roofs. Each lot's triangles are contiguous, so the same house table
@@ -951,7 +1057,11 @@ export function createVectorScene(
             kind: "building",
             buildingKind: "housing",
             representation: "fabric-massing",
-            fabricHouses: { ids: houseIds, firstTriangles, triangles: index.count / 3 }
+            fabricHouses: {
+              ids: houseIds,
+              firstTriangles,
+              triangles: index.count / 3
+            }
           };
           mesh.geometry.computeBoundingSphere();
         }
@@ -964,7 +1074,11 @@ export function createVectorScene(
           cameraUpdate: (camera, height) => {
             const changed = regional.update(camera, height);
             details.update(camera, height, regional.replaced);
-            return { changed, pending: regional.stats.pending, detailedHouses: regional.stats.buildings };
+            return {
+              changed,
+              pending: regional.stats.pending,
+              detailedHouses: regional.stats.buildings
+            };
           },
           resolve: hit => {
             const site = regional.resolve(hit);
@@ -984,7 +1098,11 @@ export function createVectorScene(
         buildingKind: "housing",
         representation: "fabric-houses",
         batch: key,
-        fabricHouses: { ids: batch.ids, firstTriangles: batch.firstTriangles, triangles: batch.triangles }
+        fabricHouses: {
+          ids: batch.ids,
+          firstTriangles: batch.firstTriangles,
+          triangles: batch.triangles
+        }
       };
       group.add(mesh);
       disposers.push(() => geometry.dispose());

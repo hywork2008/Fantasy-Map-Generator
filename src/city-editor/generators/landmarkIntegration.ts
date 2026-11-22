@@ -1,3 +1,4 @@
+import { type StreetHouseExterior, streetHouseKind } from "../../buildings/medieval/streetHouses";
 import type { CityDocument, LandmarkPolygon } from "../types/document";
 import type { Point } from "../types/primitives";
 import type { BuildingLot } from "./buildingLots.types";
@@ -5,6 +6,7 @@ import { nearestOnPolyline, polygonArea } from "./geom";
 import { accessCorridor, polygonIntersectsLandmark } from "./landmarks";
 import { convexInfillParts, insetConvexKernel, longestFrame } from "./lotGeometry";
 import { bounds, PlotIndex, plotArea, subtractConvex } from "./parcelGeometry";
+import { vectorTownCulture } from "./vector/generation/housingCulture";
 
 export interface LandmarkStreet {
   points: Point[];
@@ -12,6 +14,10 @@ export interface LandmarkStreet {
 }
 /** Derive BV render instances from their single saved landmark owner. */
 export function bvLandmarkElements(document: CityDocument): import("../types/document").CityElement[] {
+  // A chosen housing culture draws street houses (trade workhomes, guild houses, rear works) in that culture, as the
+  // model viewer does; without one they keep their Codex study.
+  const profile = document.buildingAppearanceProfile,
+    culture = profile && profile !== "legacy" ? vectorTownCulture(profile) : undefined;
   return (document.landmarks ?? []).flatMap(instance => {
     const asset = document.landmarkAssets?.find(
       a => a.id === instance.assetId && a.revision === instance.assetRevision
@@ -27,6 +33,9 @@ export function bvLandmarkElements(document: CityDocument): import("../types/doc
             locked: instance.locked,
             objectType: asset.bvModel.id,
             objectQuality: asset.bvModel.quality,
+            ...(culture && streetHouseKind(asset.bvModel.id)
+              ? { objectWorkhome: { culture } as StreetHouseExterior }
+              : {}),
             objectScale: 1
           }
         ]
