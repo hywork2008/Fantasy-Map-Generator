@@ -119,7 +119,8 @@ export interface VillageToftProfile {
   /** Reach of an arm laid first, and the most it reaches (§5.6). */
   armMeters: { first: number; max: number };
   /** A candidate costs `weight` × its road distance from the centre + `base` (§5.6, game adjustments). The bases put
-   * every plot of the first reach before any split or second-row plot. */
+   * every plot of the first reach before any split or second-row plot, and a toft is split only once the roads
+   * reach about 230 m (V7: tofts left whole keep their longhouses). */
   cost: Record<"first" | "beyond" | "split" | "secondSplit" | "tier2", { weight: number; base: number }>;
   /** A road straying further than this from its eased line breaks the blocks along it. */
   easeToleranceMeters: number;
@@ -140,8 +141,8 @@ export const VILLAGE_TOFT_PROFILE: VillageToftProfile = {
   cost: {
     first: { weight: 1, base: 0 },
     beyond: { weight: 1.5, base: 0 },
-    split: { weight: 2, base: 175 },
-    secondSplit: { weight: 3, base: 350 },
+    split: { weight: 2, base: 350 },
+    secondSplit: { weight: 3, base: 700 },
     tier2: { weight: 2.5, base: 175 }
   },
   easeToleranceMeters: 8,

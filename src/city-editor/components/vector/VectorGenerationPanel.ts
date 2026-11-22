@@ -406,6 +406,16 @@ export function createVectorGenerationPanel(
   };
   showBlockScale();
   scope.listen(plotFabric, "change", showBlockScale);
+  // A roadside village is unwalled (plan §4.3): its wall choice is off, and the city settings learn the pattern, so
+  // they turn their wall settings off too.
+  const showVillage = () => {
+    const village = plotFabric.value === "burgage-village";
+    wall.disabled = village;
+    wall.title = village ? editorText("cityEditor.vector.settings.villageUnwalled" as EditorMessageKey) : "";
+    if (editorInput) editorInput.settings.plotFabric = plotFabric.value as PlotFabric;
+  };
+  showVillage();
+  scope.listen(plotFabric, "change", showVillage);
   /** The plot pattern with its block edge multiplier, which only compact-medium keeps. */
   const plotSettings = (): { plotFabric: PlotFabric; compactBlockScale?: number } => {
     const fabric = plotFabric.value as PlotFabric;

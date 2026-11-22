@@ -2,7 +2,7 @@ import { normalizeBuildingAppearanceContext } from "../../../buildings/appearanc
 import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { TREE_SPECIES, type TreeSpecies, treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
-import type { VillageHouseSpec } from "../../../buildings/medieval/opusVillageHouses";
+import type { VillageHouseProfile, VillageHouseSpec } from "../../../buildings/medieval/opusVillageHouses";
 import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
 import { growthRandom } from "../../../utils/urbanMorphology";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
@@ -128,6 +128,9 @@ export interface VectorRenderData {
   structures?: ReturnType<typeof vectorStructures>;
   /** The culture profile of the mesh editor's BV town towers and gates (P2d-2). */
   wallProfile?: BuildingAppearanceProfile;
+  /** A roadside village's region for its Opus village models: its houses, and the 3D shape of its workshops' street
+   * houses (docs/plan/ce-meshless-roadside-burgage-village.md V7). */
+  villageProfile?: VillageHouseProfile;
   /** Facility plans and religious houses drawn as the mesh editor's BV facilities in 3D (P2d-4). */
   facilities?: FacilityPlans;
   monasteries?: Monastery[];
@@ -1189,6 +1192,7 @@ export function vectorRenderData(
     water,
     structures: vectorStructures(doc).filter(s => drawn.has(s.owner)),
     wallProfile: vectorWallProfile(doc),
+    ...(doc.urban?.settings.plotFabric === "burgage-village" ? { villageProfile: vectorVillageProfile(doc) } : {}),
     facilities: {
       aerial: {
         windmills: doc.environment?.landmarks?.windmills ?? [],

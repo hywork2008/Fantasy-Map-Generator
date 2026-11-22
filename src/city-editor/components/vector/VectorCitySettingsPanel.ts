@@ -27,6 +27,19 @@ const text = (key: string) => editorText(`cityEditor.vector.settings.${key}` as 
  * panels. The settings are the editor input's, edited in place; the housing culture applies to the open city at
  * once, as it only changes the look of its houses, towers and gates.
  */
+/** The settings of the town wall, unused by a roadside village. */
+const WALL_SETTINGS = new Set([
+  "walls",
+  "wallMaterial",
+  "wallCoast",
+  "wallShape",
+  "wallSides",
+  "townWallRings",
+  "townWallBuildOrder",
+  "innerWallState",
+  "townMoat"
+]);
+
 export function createVectorCitySettingsPanel(
   scope: EditorLifetime,
   parent: HTMLElement,
@@ -350,6 +363,13 @@ export function createVectorCitySettingsPanel(
     // A port toggle is set on a water the site has; one kept from before a water was removed stays as chosen.
     (portCoast.element as HTMLInputElement).disabled = s().config.coast === "none";
     for (const [i, c] of portRivers.entries()) (c.element as HTMLInputElement).disabled = count <= i;
+    // A roadside village is unwalled whatever its wall settings (ce-meshless-roadside-burgage-village.md §4.3).
+    const village = s().plotFabric === "burgage-village";
+    for (const element of body.querySelectorAll<HTMLInputElement | HTMLSelectElement>("[data-city-setting]"))
+      if (WALL_SETTINGS.has(element.dataset.citySetting ?? "")) {
+        element.disabled = village;
+        element.title = village ? text("villageUnwalled") : "";
+      }
   }
   sync();
   return { refresh: sync };

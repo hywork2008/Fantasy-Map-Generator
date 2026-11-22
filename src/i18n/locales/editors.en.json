@@ -555,6 +555,7 @@
       },
       "settings": {
         "title": "City settings",
+        "villageUnwalled": "A roadside village has no town wall: these settings are not used.",
         "auto": "Automatic",
         "noRiver": "No river",
         "historicalPeriod": "Historical period",

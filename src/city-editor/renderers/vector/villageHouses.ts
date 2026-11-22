@@ -81,3 +81,42 @@ export function villageHouse3d(
     angle
   };
 }
+
+/**
+ * A village workshop's street house (a trade workhome, a guild house, a shop-house's rear works) as a village building
+ * on its own site (plan V7): a single-storey cottage or longhouse, a barn for rear works, its long side along the
+ * longer side of the site. `facingDegrees` turns the street house's front (+z) as a placement does.
+ */
+export function villageWorkshop3d(
+  site: Point[],
+  center: Point,
+  facingDegrees: number,
+  rearWorks: boolean,
+  profile: VillageHouseProfile
+): VillageHouse3d {
+  const angle = (facingDegrees * Math.PI) / 180,
+    c = Math.cos(angle),
+    s = Math.sin(angle),
+    local = site.map(p => {
+      const x = p[0] - center[0],
+        y = p[1] - center[1];
+      return [x * c + y * s, -x * s + y * c];
+    }),
+    across = Math.max(...local.map(p => p[0])) - Math.min(...local.map(p => p[0])),
+    deep = Math.max(...local.map(p => p[1])) - Math.min(...local.map(p => p[1])),
+    // A site deeper than wide takes the building end on to the street, its front to one side.
+    alongFront = across >= deep,
+    length = Math.max(across, deep),
+    width = Math.min(across, deep);
+  return {
+    spec: {
+      kind: rearWorks ? "barn" : length >= LONGHOUSE_MIN_METERS ? "longhouse" : "cottage",
+      profile,
+      length: step(length),
+      width: step(width),
+      variant: growthRandom(`${center[0].toFixed(2)},${center[1].toFixed(2)}`) < 0.5 ? 0 : 1
+    },
+    center,
+    angle: alongFront ? angle : angle + Math.PI / 2
+  };
+}

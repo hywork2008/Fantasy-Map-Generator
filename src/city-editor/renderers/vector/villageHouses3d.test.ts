@@ -13,9 +13,13 @@ import { vectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
 
 /** A roadside village of 300 people (docs/plan/ce-meshless-roadside-burgage-village.md V4). */
-function village() {
+function village(facilities = false) {
   const seed = "village-3d",
-    settings = { ...defaultGenerationSettings(), plotFabric: "burgage-village" as const };
+    settings = {
+      ...defaultGenerationSettings(),
+      plotFabric: "burgage-village" as const,
+      ...(facilities ? { facilityLayout: "population" as const } : {})
+    };
   settings.config = { ...settings.config, rivers: [], features: { ...settings.config.features, port: false } };
   settings.population = defaultPopulationSettings(300);
   const input = vectorInputFromEditor({
@@ -28,7 +32,7 @@ function village() {
     skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document;
   return generateVectorUrban(skeleton, {
     ...DEFAULT_VECTOR_URBAN,
-    mode: "medieval",
+    mode: facilities ? "medieval-facilities" : "medieval",
     population: 300,
     plotFabric: "burgage-village"
   });
@@ -70,6 +74,30 @@ describe("roadside village in 3D (plan V4)", () => {
       // Several meshes per model (walls, roof), one instance each per house.
       expect(instances).toBeGreaterThanOrEqual(expected);
       expect(ids.size).toBe(expected);
+    } finally {
+      scene.dispose();
+    }
+  });
+
+  // Plan V7: a village's workshops are single-storey village buildings too, not the town's street houses.
+  it("draws a village's workshops with the village models", () => {
+    const doc = village(true),
+      data = vectorRenderData(doc, "housing"),
+      street = Object.values(doc.placements).filter(p =>
+        /^trade-workhome\.|^trade-workshop\.rear-works/.test(p.modelId)
+      );
+    expect(street.length).toBeGreaterThan(0);
+    const scene = createVectorScene(data, { quality: "low" });
+    try {
+      const drawn = new Set<string>();
+      let workshops = 0;
+      scene.group.traverse(o => {
+        if (o.userData.representation === "village-houses" && o.userData.buildingKind === "facility")
+          workshops += (o as THREE.InstancedMesh).count;
+        if (o.userData.representation === "bv-instances") drawn.add(String(o.userData.modelId));
+      });
+      expect(workshops).toBeGreaterThanOrEqual(street.length);
+      for (const p of street) expect(drawn.has(p.modelId)).toBe(false);
     } finally {
       scene.dispose();
     }

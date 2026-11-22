@@ -555,6 +555,7 @@
       },
       "settings": {
         "title": "都市の設定",
+        "villageUnwalled": "街道沿いの村には市壁がないため、この設定は使いません。",
         "auto": "自動",
         "noRiver": "川なし",
         "historicalPeriod": "時代",

@@ -130,7 +130,8 @@ describe("roadside village (docs/plan/ce-meshless-roadside-burgage-village.md V2
     const doc = village(1000, true, { seed: "e", facilities: true }),
       zones = doc.environment!.landUse!.zones.reduce((n, z) => n + z.areaM2, 0),
       countryside = vectorCountryside(doc, doc.urban!.domain).reduce((n, r) => n + regionArea(r), 0);
-    expect(zones).toBeGreaterThan(countryside - 400);
+    // Slivers under the zones' 400 m² floor go to no use; nothing larger is lost (V6 lost 5% of it).
+    expect(zones).toBeGreaterThan(countryside * 0.999);
   });
 
   it("refuses a village of more than 1,000 people: it is a town", () => {

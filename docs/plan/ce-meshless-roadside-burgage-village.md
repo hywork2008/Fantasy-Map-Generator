@@ -2,7 +2,7 @@
 
 作成: 2026-11-22
 更新: 2026-11-22（V0: 村の区画の間口・奥行き、裏小路、村の通りと広場、南欧の村の史料を調べ、§2.4 に採用値を確定した。§4.2・§5 をそれに合わせて改めた。V1: 区画の型 `village-toft` と純関数 `planRoadsideBlocks` を作った。§5.6 の費用を「重み × 距離 ＋ 基準」に改め、設定・UI・検証は V2 に回した（§12）。V2: `burgage-village` を生成に接続し、v66 とした（§13））
-状態: V0〜V6 完了。2026-11-22 に村の家と人口の上限を見直し（§14）、V3 以降の段階を組み直した。次は V7。
+状態: V0〜V7 完了（2026-11-22）。村の家と人口の上限を見直し（§14）、V3 以降の段階を組み直した。残りは §9 の 1・4（FMG から開いた都市、成長型の生成との関係）。
 対象: メッシュなし CE（skeleton-first）の、FMG と連携しない単独の都市生成（合成入力）。FMG から開いた都市、メッシュあり CE、廃止予定の CG は対象外。
 関連: [ce-burgage-plot-fabric.md](ce-burgage-plot-fabric.md)（区画の型と寸法）、[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md)（成長型の生成。未実装）、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)（市壁の外の街道沿いの帯）、[ce-rural-field-layout.md](ce-rural-field-layout.md)（郊外の耕地）、[bridge-skew-policy.md](bridge-skew-policy.md)
 
@@ -251,7 +251,7 @@
 | V4 | MV に村の家のモデルを作る（§14.4）: 長い家（住まいと牛舎）、小屋、納屋。地域の型ごとの壁と屋根。CE の 3D で村の家をそのモデルで描く | MV で一覧に出て、寸法が §14.2 の範囲にある。CE の 3D で村の家が 1 階・草葺き（地域による）で、区画の通り側に建つ。**完了（2026-11-22）**。§16 |
 | V5 | 村の中心（交差点の角、教会、広場、細長い広場）、施設（`placeFacilitiesOnPlots`）、tanners' row の判定の置き換え（旧 V3） | 施設のある 1,000 人の村で、施設の 8 割以上が置ける。中心の角に三角の街区がない。**完了（2026-11-22）**。§17 |
 | V6 | 土地利用と耕区。村の土地の外を耕地にし、裏小路に接する耕区の向きを判断する（旧 V4） | 村の土地と耕地の間に 400 m² を超える空き地が残らない。**完了（2026-11-22）**。§18 |
-| V7 | ブラウザで 2D・3D を確かめ、見た目の不自然さを直す。市の設定パネルの Walls などの入力を、村では無効にする（旧 V5） | 画面での確認の記録を本書に書く |
+| V7 | ブラウザで 2D・3D を確かめ、見た目の不自然さを直す。市の設定パネルの Walls などの入力を、村では無効にする（旧 V5） | 画面での確認の記録を本書に書く。**完了（2026-11-22）**。§19 |
 
 ## 8. 検証
 
@@ -271,15 +271,15 @@
 ## 9. 決めていないこと
 
 1. FMG から開いた都市に `burgage-village` を出すか。出す場合、FMG の道路入口と固定交差を動かさずに街区を張り付ける方法は、成長型の生成の GM3 と合わせて決める。
-2. §5.6 の費用の重みと基準、腕の長さの区切り（175 m・750 m）。V0・V1 で仮の値を決めた。V2 で町並みを見て調整する。特に、200 人の村でも腕 1 本では区画の半分以上が割られる（§12.2）のを、そのままにするか。
+2. ~~§5.6 の費用の重みと基準~~ → V7 で、屋敷地を割る基準を 175 から 350 に上げた（§19.2）。
 3. ~~3,000 人を超えたときの扱い~~ → 1,000 人を上限とし、超える集落は町として作る（§14.3）。村から町への成長（同じ集落が人口とともに村の形から町の形へ変わる）は、成長型の生成（[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md)）で扱う。
 4. 成長型の生成（`growth`）が実装されたら、本書の 1 段目・2 段目をその成長の段階として扱うか。
-5. 2 本以上の道が集まる中心の広い広場（broad green）を作るか（§17.2）。
-6. 村の施設（工房・店）を、2 階建ての町家のモデルではなく、村の家のモデルで描くか（§17.4）。
+5. ~~broad green を作るか~~ → 作らない（§19.3）。
+6. ~~村の施設のモデル~~ → 村の家のモデルで描く（§19.4）。
 
 ## 10. 次に進める作業
 
-V7 に進む。ブラウザで 2D・3D をまとめて確かめ、見た目の不自然さを直す。市の設定パネルの Walls などの入力を、村では無効にする（§4.3）。あわせて、§9 の 2（分割と延長の順序）・5（broad green）・6（村の施設のモデル）を決める。
+V0〜V7 は終わった。残っているのは §9 の 1（FMG から開いた都市に `burgage-village` を出すか）と 4（成長型の生成との関係）で、どちらも別の計画（[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md) の GM3 など）と合わせて決める。
 
 ## 11. V0 の記録（2026-11-22）
 
@@ -680,5 +680,57 @@ V5 の画面の確認で、村の中心の周りと川沿いに、畑にも村�
 - [forest.test.ts](../../src/city-editor/generators/vector/generation/forest.test.ts) に 1 件: 同じ点を 2 度通る輪郭と、頂点が別の辺に乗る輪郭が、面積を保ったまま 2 つの単純な輪郭に分かれる。
 - [villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) に 1 件: シード `e`・1,000 人・川ありの村で、土地利用の面積が村の外の面積から 400 m² 以内に収まる。
 - `npx vitest run src/city-editor/generators/vector/generation/{villagePlan,forest,landUse,urban,burgagePlots,perimeter}.test.ts src/city-editor/generators/burgage src/city-editor/generators/vector/validation`: 10 ファイル・75 件成功。
+- `npx tsc --noEmit`: 誤りなし。
+
+## 19. V7 の記録（2026-11-22）
+
+### 19.1 市壁の設定を村では使えなくした（§4.3）
+
+| ファイル | 内容 |
+| --- | --- |
+| [VectorGenerationPanel.ts](../../src/city-editor/components/vector/VectorGenerationPanel.ts) | Plot pattern で「街道沿いの村」を選ぶと、生成パネルの壁の選択を無効にし、理由を title に出す。選んだ Plot pattern を市の設定（`editorInput.settings.plotFabric`）にも書く |
+| [VectorCitySettingsPanel.ts](../../src/city-editor/components/vector/VectorCitySettingsPanel.ts) | 市の設定パネルは、Plot pattern が村のとき、壁の設定（City walls、壁の材料・海側・形・辺の数・二重壁・築く順・内側の壁・堀）を無効にし、理由を title に出す |
+| [VectorEditorPage.ts](../../src/city-editor/components/vector/VectorEditorPage.ts) | 生成パネルで Plot pattern が変わると、市の設定パネルを更新する |
+| [editors.en.json](../../src/i18n/locales/editors.en.json)、[editors.ja.json](../../src/i18n/locales/editors.ja.json) | 理由の文言「街道沿いの村には市壁がないため、この設定は使いません。」 |
+
+開発サーバーで、村を選ぶと壁の設定 4 つ（City walls・壁の形・材料・堀）と生成パネルの壁の選択が無効になり、`burgage` に戻すと有効に戻ることを確かめた。
+
+### 19.2 屋敷地を割る順序（§9 の 2）
+
+V3 の計測で、人口が増えるほど長い家が減った（§15.2）。腕の 175 m を超えると、腕を伸ばすより中心の近くの屋敷地を割る方が先になり、割った区画には小屋が建つためである。
+
+屋敷地を割る基準（`cost.split.base`）を 175・350・525 で比べた（1 区画 1 戸、川あり、`medieval`）。
+
+| シード | 人口 | 長い家（175） | 長い家（350） | 長い家（525） | 奥（175 → 350 → 525、m） |
+| --- | --- | --- | --- | --- | --- |
+| `roadside-village` | 200 | 21 | 25 | 25 | 227 → 238 → 238 |
+| `roadside-village` | 500 | 29 | 48 | 62 | 356 → 399 → 427 |
+| `roadside-village` | 1,000 | 34 | 51 | 69 | 517 → 555 → 595 |
+| `e` | 1,000 | 30 | 53 | 69 | 507 → 565 → 593 |
+
+350 にした（2 度目の分割は 700）。屋敷地は腕が約 230 m に届いてから割られ始める。525 では村が 1,000 人で 600 m 近くに伸び、中心から端まで徒歩で 7〜8 分になる。小屋住み（cottar）の多い大きな村は、史料の村の姿でもある（Halesowen では 1305 年に 1 つの holding が 6 世帯を支えた。検索結果の要約で見た村の研究の記述で、本文は読んでいない）ので、分割を無くすことはしない。
+
+### 19.3 中心の広い広場（broad green）を作らない（§9 の 5）
+
+作らないことにした。
+
+- 2 本以上の道が集まる中心には、既に教会・墓地・広場（`vectorCivicLayout`）がある。broad green を足すと、これらと重なるか、中心を広げて村の長さが伸びる。
+- 細長い広場（street green）は V5 で作った。Durham の広場の村の 2 つの型のうち、村の形の違いはこれで出せる。
+
+### 19.4 村の施設を村の家のモデルで描く（§9 の 6）
+
+V5 の画面の確認で、村の工房・店（trade workhome、shop-house、そのうしろの rear works、guild house）が 2 階建ての町家のモデルで描かれ、1 階の村の家の中で目立った。3D では、村の施設のこれらの建物を村の家のモデルで描くことにした。
+
+- [villageHouses.ts](../../src/city-editor/renderers/vector/villageHouses.ts) の `villageWorkshop3d`: 施設の敷地の大きさと向きから、小屋・長い家（長い辺が 11.5 m 以上）・納屋（rear works）を選ぶ。敷地が通りに沿って長ければ軒を通りに、奥に長ければ妻を通りに向ける（参考画像の Manor Lords の家のように）。
+- [scene3d.ts](../../src/city-editor/renderers/vector/scene3d.ts): 村（render data の `villageProfile`）では、これらの施設を `village-workshops` の層で描く。選ぶための見えない箱は今までどおり施設の id で置くので、施設を選べる。
+- 置き方・保存・2D は変えない。生成の結果（施設の建物の大きさ・戸数）も変えない。パン焼き・醸造・鍛冶・皮なめしなどの専用の建物（`trade-workshop.dedicated-*`、`ale-brewhouse`）は、もともと 1 階の作業場なので、今のモデルのままにした。
+
+開発サーバーでシード `e`・1,000 人の村を 3D で見て、施設が 1 階の村の家として並び、広場の両側の芝地と、その奥に下がって並ぶ屋敷地が描かれることを確かめた。
+
+### 19.5 テスト
+
+- [villageHouses3d.test.ts](../../src/city-editor/renderers/vector/villageHouses3d.test.ts) に 1 件: 施設のある 300 人の村で、工房・店・rear works がどれも町家のモデル（`bv-instances`）で描かれず、村の家のモデルの施設として描かれる。
+- [villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) の「村の外がすべて耕地などになる」の許す差を、400 m² から村の外の 0.1% に改めた。土地利用は 400 m² 未満の切れ端を使わない決まりで、分割の基準を変えた後の村では切れ端の合計が 443 m² になったためである（V6 の前の失われた土地は 5%）。
+- `npx vitest run src/city-editor/generators/burgage src/city-editor/generators/vector/generation/villagePlan.test.ts src/city-editor/renderers/vector src/city-editor/components/vector`: 29 ファイル（うち 2 ファイルは既定で飛ばすもの）・96 件成功。
 - `npx tsc --noEmit`: 誤りなし。
 
