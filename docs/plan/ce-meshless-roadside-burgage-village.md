@@ -2,7 +2,7 @@
 
 作成: 2026-11-22
 更新: 2026-11-22（V0: 村の区画の間口・奥行き、裏小路、村の通りと広場、南欧の村の史料を調べ、§2.4 に採用値を確定した。§4.2・§5 をそれに合わせて改めた。V1: 区画の型 `village-toft` と純関数 `planRoadsideBlocks` を作った。§5.6 の費用を「重み × 距離 ＋ 基準」に改め、設定・UI・検証は V2 に回した（§12）。V2: `burgage-village` を生成に接続し、v66 とした（§13））
-状態: V0〜V5 完了。2026-11-22 に村の家と人口の上限を見直し（§14）、V3 以降の段階を組み直した。次は V6。
+状態: V0〜V6 完了。2026-11-22 に村の家と人口の上限を見直し（§14）、V3 以降の段階を組み直した。次は V7。
 対象: メッシュなし CE（skeleton-first）の、FMG と連携しない単独の都市生成（合成入力）。FMG から開いた都市、メッシュあり CE、廃止予定の CG は対象外。
 関連: [ce-burgage-plot-fabric.md](ce-burgage-plot-fabric.md)（区画の型と寸法）、[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md)（成長型の生成。未実装）、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)（市壁の外の街道沿いの帯）、[ce-rural-field-layout.md](ce-rural-field-layout.md)（郊外の耕地）、[bridge-skew-policy.md](bridge-skew-policy.md)
 
@@ -250,7 +250,7 @@
 | V3 | 村の家（§14.2）: 1 階建て・1 軒 1 世帯、屋敷地の型ごとの家（長い家・小屋）と離れの納屋。人口の上限（§14.3）: 生成の検証、UI、未収容の理由。戸数の見込みを 1 軒 1 世帯に改める | 50・200・500・1,000 人で未収容 0、家はすべて 1 階・1 世帯。1,001 人以上は生成せず理由を返す。ほかの Plot pattern の出力が変わらない。**完了（2026-11-22）**。§15 |
 | V4 | MV に村の家のモデルを作る（§14.4）: 長い家（住まいと牛舎）、小屋、納屋。地域の型ごとの壁と屋根。CE の 3D で村の家をそのモデルで描く | MV で一覧に出て、寸法が §14.2 の範囲にある。CE の 3D で村の家が 1 階・草葺き（地域による）で、区画の通り側に建つ。**完了（2026-11-22）**。§16 |
 | V5 | 村の中心（交差点の角、教会、広場、細長い広場）、施設（`placeFacilitiesOnPlots`）、tanners' row の判定の置き換え（旧 V3） | 施設のある 1,000 人の村で、施設の 8 割以上が置ける。中心の角に三角の街区がない。**完了（2026-11-22）**。§17 |
-| V6 | 土地利用と耕区。村の土地の外を耕地にし、裏小路に接する耕区の向きを判断する（旧 V4） | 村の土地と耕地の間に 400 m² を超える空き地が残らない |
+| V6 | 土地利用と耕区。村の土地の外を耕地にし、裏小路に接する耕区の向きを判断する（旧 V4） | 村の土地と耕地の間に 400 m² を超える空き地が残らない。**完了（2026-11-22）**。§18 |
 | V7 | ブラウザで 2D・3D を確かめ、見た目の不自然さを直す。市の設定パネルの Walls などの入力を、村では無効にする（旧 V5） | 画面での確認の記録を本書に書く |
 
 ## 8. 検証
@@ -279,7 +279,7 @@
 
 ## 10. 次に進める作業
 
-V6 に進む。村の外の土地利用と耕区を整える。V5 の画面の確認では、村の中心の周りと川沿いに、畑にも村にもならない土地（地図の地の色）が広く残った（§17.4）。その原因を調べ、村の土地の外を耕地・牧草地にし、裏小路に接する耕区の向きを判断する。
+V7 に進む。ブラウザで 2D・3D をまとめて確かめ、見た目の不自然さを直す。市の設定パネルの Walls などの入力を、村では無効にする（§4.3）。あわせて、§9 の 2（分割と延長の順序）・5（broad green）・6（村の施設のモデル）を決める。
 
 ## 11. V0 の記録（2026-11-22）
 
@@ -631,5 +631,54 @@ V5 の前は、同じ入力で 1／12、3／39、0／39 だった。
 - [villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) に 2 件を加えた: 施設のある 1,000 人・川ありの村で、施設の 8 割以上が置け、皮なめしがあり、皮なめし以外の施設はどれも屋敷地の上に建つ。シード `green-village` の 500 人の村に広場の芝地があり、芝地は屋敷地の外にある。
 - [roadsideBlocks.test.ts](../../src/city-editor/generators/burgage/roadsideBlocks.test.ts) の裏小路の確かめ方を、小路の隙間（5 cm）の分だけ直した。
 - `npx vitest run src/city-editor/generators/burgage src/city-editor/generators/vector/generation/{villagePlan,burgagePlots,perimeter,urban,facilityLots}.test.ts src/city-editor/renderers/vector/villageHouses3d.test.ts src/city-editor/generators/vector/validation`: 10 ファイル・74 件成功。
+- `npx tsc --noEmit`: 誤りなし。
+
+## 18. V6 の記録（2026-11-22）
+
+### 18.1 使われない土地の原因
+
+V5 の画面の確認で、村の中心の周りと川沿いに、畑にも村にもならない土地が残った。調べると次のとおりだった。
+
+- 土地利用は、地図から村の土地・水・道の帯を除いた「村の外」（`vectorCountryside`）を、耕地・牧草地などに分ける。シード `e`・1,000 人の村では、村の外が約 156 万 m² あるのに、土地利用は約 147 万 m² しか無く、約 9 万 m²（地図の約 5%）がどこにも入っていなかった。
+- 村の外を求める切り抜きで、川と村の街区に挟まれた約 9 万 m² の土地が、輪郭が自分の辺に接する形（ある頂点が同じ輪郭の別の辺の上に乗る）で返っていた。`vectorCountryside` は単純な輪郭でない土地を捨てるので、この土地はまるごと失われた。
+- 村の街区は、隣の街区や小路の帯と角や辺で接することが多く、街区の数も多い。円形の敷地の町より、この形ができやすい。
+
+### 18.2 直したこと
+
+| ファイル | 内容 |
+| --- | --- |
+| [forest.ts](../../src/city-editor/generators/vector/generation/forest.ts) | `unpinched`: 自分に接する輪郭を、接する頂点（同じ点を 2 度通る点、または別の辺の上に乗る頂点）で切り分け、単純な輪郭の集まりにする。穴は、それを含む方の輪郭に付ける。`vectorCountryside` は、単純でない土地を捨てる前に、これで切り分ける |
+| [landUse.ts](../../src/city-editor/generators/vector/generation/landUse.ts) | 土地利用の区分（耕地・牧草地など）を整える `clean` も、捨てる前に `unpinched` で切り分ける |
+
+この 2 つは村に限らず、すべての町の土地利用に効く。§13.3 と同じ 16 通り（`compact`・`compact-medium`・`burgage`・`burgage-dense`）の文書の SHA-256 は、変更の前後で一致した（この 16 通りでは、切り抜きがこの形を作っていなかった）。
+
+村の土地を少し広げて角の接し方を変える案も試したが、使われない土地は減らなかった。原因が接し方ではなく切り抜きの結果の輪郭だったので、採らなかった。
+
+### 18.3 計測
+
+合成入力、川あり、`medieval-facilities`。「空き地」は、地図を 10 m おきに見て、土地利用・村の土地・水・道のどれにも入らない点の割合。「400 m² を超える空き地」は、地図から土地利用・村の土地・水・道の帯（道幅＋4 m）を除いた残りのうち、400 m² を超える塊の数。
+
+| シード | 人口 | 空き地（前） | 空き地（後） | 400 m² を超える空き地（後） |
+| --- | --- | --- | --- | --- |
+| `e` | 1,000 | 5.0%（約 9.3 万 m²） | 0.2%（約 0.3 万 m²） | 0 |
+| `village-v5` | 1,000 | 0.1% | 0.1% | 0 |
+| `e` | 400 | 4.2% | 0.1% | 0 |
+
+後に残る 0.1〜0.2% は、道の両側の帯（道幅の外の 2 m。土地利用は道から少し離して始まる）である。
+
+開発サーバーでシード `e`・1,000 人の村を 2D で見て、川と西の腕の街区の間が畑になったことを確かめた。中心の円（教会・広場・墓地のある村の中心の敷地）は、町の地面のまま残る。
+
+### 18.4 耕区の向き
+
+裏小路に接する耕区（furlong）の向きは、今のまま（耕区のまとまりごとに、近くの道に沿って向きを決める。[ce-rural-field-layout.md](ce-rural-field-layout.md)）にした。
+
+- 屋敷地の奥（croft）は、裏小路の外の耕地に接して終わる（V-R4、Appleton-le-Moors）。屋敷地と耕区は別の地割で、耕区の向きを屋敷地に揃える理由を示す史料は、本書の調べでは得ていない。
+- 三富新田のように、屋敷地から耕地・林まで 1 戸ごとの帯が続く村（Waldhufendorf の型）は、別の村の形である。本書の村では作らない（§9 に加えない。必要になれば別の Plot pattern として扱う）。
+
+### 18.5 テスト
+
+- [forest.test.ts](../../src/city-editor/generators/vector/generation/forest.test.ts) に 1 件: 同じ点を 2 度通る輪郭と、頂点が別の辺に乗る輪郭が、面積を保ったまま 2 つの単純な輪郭に分かれる。
+- [villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) に 1 件: シード `e`・1,000 人・川ありの村で、土地利用の面積が村の外の面積から 400 m² 以内に収まる。
+- `npx vitest run src/city-editor/generators/vector/generation/{villagePlan,forest,landUse,urban,burgagePlots,perimeter}.test.ts src/city-editor/generators/burgage src/city-editor/generators/vector/validation`: 10 ファイル・75 件成功。
 - `npx tsc --noEmit`: 誤りなし。
 

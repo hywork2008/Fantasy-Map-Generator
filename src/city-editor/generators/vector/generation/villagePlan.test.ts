@@ -6,7 +6,9 @@ import { defaultGenerationSettings } from "../../generation/settings";
 import { pointInPolygon, polygonCentroid } from "../../geom";
 import { defaultPopulationSettings } from "../../populationPlan";
 import { unpackPoints } from "../fabric/pack";
+import { regionArea } from "../geometry/regions";
 import { vectorInputFromEditor } from "./editorInput";
+import { vectorCountryside } from "./forest";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "./pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { vectorWallChoice } from "./wallShape";
@@ -121,6 +123,14 @@ describe("roadside village (docs/plan/ce-meshless-roadside-burgage-village.md V2
     for (const lawn of green!.lawns)
       expect(plots.some(plot => pointInPolygon(polygonCentroid(lawn as Point[]), plot))).toBe(false);
     expect(doc.urban!.report.unplacedDwellings).toBe(0);
+  });
+
+  // Plan V6: the countryside round the village is all farmed; no piece pinched between its blocks is lost.
+  it("farms all the countryside round a village", () => {
+    const doc = village(1000, true, { seed: "e", facilities: true }),
+      zones = doc.environment!.landUse!.zones.reduce((n, z) => n + z.areaM2, 0),
+      countryside = vectorCountryside(doc, doc.urban!.domain).reduce((n, r) => n + regionArea(r), 0);
+    expect(zones).toBeGreaterThan(countryside - 400);
   });
 
   it("refuses a village of more than 1,000 people: it is a town", () => {

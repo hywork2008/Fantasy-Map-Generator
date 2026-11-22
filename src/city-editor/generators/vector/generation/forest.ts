@@ -4,6 +4,7 @@ import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import { STANDARD_GLACIS_METERS } from "../../defenseClearance";
+import { pointInPolygon } from "../../geom";
 import { treeBiomeForClimate } from "../../landscapeVegetation";
 import { featureReservations } from "../environmentState";
 import { validateVectorForest } from "../forest";
@@ -20,6 +21,48 @@ const MIN_REGION_M2 = 400;
 
 /** Points at least this far apart: a wall sampled every few decimetres would give the clipper thousands of quads. */
 const CORRIDOR_STEP_METERS = 6;
+
+/** A ring that touches itself at a vertex, as clipping leaves one where two pieces of town meet at a corner, split
+ * there into its loops; a simple ring as it is. */
+function loops(ring: Point[]): Point[][] {
+  const key = (p: Point) => `${Math.round(p[0] * 1e4)},${Math.round(p[1] * 1e4)}`,
+    seen = new Map<string, number>();
+  for (let i = 0; i < ring.length; i++) {
+    const k = key(ring[i]),
+      j = seen.get(k);
+    if (j !== undefined)
+      return [...loops([...ring.slice(0, j), ...ring.slice(i)]), ...loops(ring.slice(j, i))].filter(l => l.length >= 3);
+    seen.set(k, i);
+  }
+  // A vertex touching another edge of the ring: it becomes a vertex of that edge too, and the ring splits there.
+  const n = ring.length;
+  for (let i = 0; i < n; i++)
+    for (let k = 0; k < n; k++) {
+      const a = ring[k],
+        b = ring[(k + 1) % n];
+      if (k === i || (k + 1) % n === i) continue;
+      const dx = b[0] - a[0],
+        dy = b[1] - a[1],
+        l2 = dx * dx + dy * dy;
+      if (l2 < 1e-12) continue;
+      const t = ((ring[i][0] - a[0]) * dx + (ring[i][1] - a[1]) * dy) / l2;
+      if (t <= 1e-6 || t >= 1 - 1e-6) continue;
+      if (Math.hypot(a[0] + dx * t - ring[i][0], a[1] + dy * t - ring[i][1]) > 1e-4) continue;
+      return loops([...ring.slice(0, k + 1), ring[i], ...ring.slice(k + 1)]);
+    }
+  return [ring];
+}
+
+/** Each piece as simple rings: a pinched outline split at its pinch, each hole kept with the piece that holds it. */
+export function unpinched(region: VectorPolygon): VectorPolygon[] {
+  if (simpleContour(region.outer, true) && region.holes.every(h => simpleContour(h, true))) return [region];
+  const outers = loops(region.outer),
+    holes = region.holes.flatMap(loops);
+  return outers.map(outer => ({
+    outer,
+    holes: holes.filter(h => outers.length === 1 || pointInPolygon(h[0], outer))
+  }));
+}
 
 /** Quads along a line, `width` wide: the mesh editor's corridor clearances. */
 function corridor(line: Point[], width: number): VectorPolygon[] {
@@ -138,9 +181,13 @@ export function vectorCountryside(doc: VectorCityDocument, townLand: VectorPolyg
     },
     occupied = vectorOccupiedSites(doc, "reserved").filter(site => !within(site));
   const land = (cut: VectorPolygon[]) =>
-    regionBoolean([frame], cut, "difference").filter(
-      r => regionArea(r) >= MIN_REGION_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
-    );
+    // A piece pinched where pieces of town meet at a corner is split there, not dropped (roadside village V6).
+    regionBoolean([frame], cut, "difference")
+      .flatMap(unpinched)
+      .filter(
+        r =>
+          regionArea(r) >= MIN_REGION_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
+      );
   try {
     return land([...keepOut, ...occupied, ...corridors]);
   } catch {

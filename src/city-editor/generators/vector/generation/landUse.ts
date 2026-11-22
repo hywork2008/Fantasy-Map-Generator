@@ -9,7 +9,7 @@ import { regionArea, regionBoolean } from "../geometry/regions";
 import { samplePath } from "../geometry/sampling";
 import { simpleContour } from "../geometry/surfaces";
 import { validateVectorLandUse } from "../landUse";
-import { vectorCountryside, vectorForestSettings, vectorLandscapeClimate, vectorTreesGrow } from "./forest";
+import { unpinched, vectorCountryside, vectorForestSettings, vectorLandscapeClimate, vectorTreesGrow } from "./forest";
 import { vectorFurlongs } from "./furlongs";
 import { vectorReachableLand } from "./reachability";
 
@@ -119,9 +119,11 @@ function reach(lines: { points: Point[]; closed?: boolean }[], r: number, base: 
 }
 
 const clean = (regions: VectorPolygon[]) =>
-  regions.filter(
-    r => regionArea(r) >= MIN_ZONE_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
-  );
+  regions
+    .flatMap(unpinched)
+    .filter(
+      r => regionArea(r) >= MIN_ZONE_M2 && simpleContour(r.outer, true) && r.holes.every(h => simpleContour(h, true))
+    );
 
 /** The town centre a carter starts from: the outer wall's centre, else the largest piece of the town's land. */
 function townCentre(doc: VectorCityDocument): Point {
