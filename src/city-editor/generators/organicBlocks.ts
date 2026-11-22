@@ -8,7 +8,8 @@ import {
   nearestOnPolyline,
   pointInPolygon,
   polygonArea,
-  polygonCentroid
+  polygonCentroid,
+  segmentSegmentHit
 } from "./geom";
 import { civicSizeForExtent, dwellingLotArea } from "./housing";
 import { insetConvexKernel } from "./lotGeometry";
@@ -27,6 +28,9 @@ export interface OrganicBlockContext {
   streetWidthMeters?: number;
   /** Edge-length multiplier of the lane-bounded blocks of house-sized lots (`compactBlockScale`); absent means 1. */
   blockScale?: number;
+  /** No cut runs along the block's edge closer than a house's depth for most of its length (meshless): it would
+   * leave a sliver no row of houses fits, a lane beside the street. */
+  noSliverCuts?: boolean;
 }
 
 type Split = { parts: [Point[], Point[]]; path: Point[] };
@@ -135,8 +139,10 @@ export function planOrganicStreetCells(
     polygonCentroid(outline)
   );
   const cells: OrganicStreetCell[] = [];
-  for (const domain of corridorDomains(outline, boundaries, layout.width, layout.pairedSpan)) {
+  const marked = withSingleRowBacks(outline, boundaries, layout.pairedSpan);
+  for (const domain of corridorDomains(outline, marked, layout.width, layout.pairedSpan)) {
     for (const edge of domain.boundaries) {
+      if (edge.back) continue;
       if (!edge.feature || edge.barrier) layout.addStreet([edge.a, edge.b]);
       else layout.entries.push(edge.a, edge.b);
     }
@@ -214,6 +220,7 @@ function organicLayout(
   const compact: CompactSplit | undefined = micro ? { laneWidth: width, houseDepth, lotArea } : undefined;
   const hub = context?.hub ?? fallbackHub;
   const blockScale = context?.blockScale ?? 1;
+  const sliver = context?.noSliverCuts ? houseDepth : 0;
   const preferredAxis: Point | undefined = parameters
     ? [Math.cos(parameters.orientation), Math.sin(parameters.orientation)]
     : undefined;
@@ -231,7 +238,16 @@ function organicLayout(
   function partition(poly: Point[], depth: number, cell: number, scope: Scope, leaf: (poly: Point[]) => void): void {
     const frame = localFrame(poly);
     if (depth < 12 && area(poly) > cell * cell * 1.6 && frame.hi - frame.lo > cell * 1.25) {
-      const split = chooseSplit(poly, frame.axis, rng, Math.max(pairedSpan, cell * 0.45), scope.boundaries);
+      const split = chooseSplit(
+        poly,
+        frame.axis,
+        rng,
+        Math.max(pairedSpan, cell * 0.45),
+        scope.boundaries,
+        undefined,
+        undefined,
+        sliver
+      );
       if (split) {
         const street = context?.streetWidthMeters ?? width;
         addStreet(split.path, street);
@@ -271,7 +287,16 @@ function organicLayout(
       // Blend a local wall normal with the direction away from the plaza.
       // This follows polygonal walls without imposing a city-wide grid.
       normal = unit([normal[0] * 0.65 + radial[0] * 0.35, normal[1] * 0.65 + radial[1] * 0.35]);
-      const split = chooseSplit(poly, normal, rng, pairedSpan, scope.boundaries, { hub, outward: normal }, compact);
+      const split = chooseSplit(
+        poly,
+        normal,
+        rng,
+        pairedSpan,
+        scope.boundaries,
+        { hub, outward: normal },
+        compact,
+        sliver
+      );
       if (split) {
         addStreet(split.path);
         for (const child of split.parts) connectDistrict(child, level + 1, scope);
@@ -308,7 +333,7 @@ function organicLayout(
     // Recompute the frame from each child's actual edges. Alternating axes
     // and independent half/third positions produce branching T junctions,
     // trapezoids and tapered blocks, without a stack of parallel ribbons.
-    let split = chooseSplit(poly, frame.axis, rng, pairedSpan, scope.boundaries, undefined, compact);
+    let split = chooseSplit(poly, frame.axis, rng, pairedSpan, scope.boundaries, undefined, compact, sliver);
     if (!split && deepNotch) split = splitReflex(poly, pairedSpan * pairedSpan * 0.18);
     if (!split) {
       scope.parcels.push(poly);
@@ -443,7 +468,9 @@ function chooseSplit(
   span: number,
   boundaries: BlockBoundary[],
   bend?: { hub: Point; outward: Point },
-  compact?: CompactSplit
+  compact?: CompactSplit,
+  /** Reject a cut most of whose middle runs within this of the block's edge (0: no test). */
+  sliver = 0
 ): Split | null {
   let best: Split | null = null;
   let bestScore = Infinity;
@@ -480,6 +507,7 @@ function chooseSplit(
       if (Math.min(...sizes) < span * span * 0.32) continue;
       const frames = candidate.parts.map(p => localFrame(p));
       if (frames.some(f => f.short < span * 0.52)) continue;
+      if (sliver > 0 && runsBesideEdge(path, poly, sliver)) continue;
       // At Micro scale, a wide arterial can consume much of a small parcel.
       // Judge the same inset that will be passed to housing, not just the
       // untrimmed bounding box. Never add an alley that leaves an empty sliver.
@@ -532,6 +560,34 @@ function chooseSplit(
     }
   }
   return best;
+}
+
+/** Most of the middle of `path` runs within `gap` of an edge of `poly` parallel to it (within 30°): the cut runs
+ * beside that edge and leaves a sliver (an L-shaped part passes the frame test though one arm of it is thin). */
+function runsBesideEdge(path: Point[], poly: Point[], gap: number): boolean {
+  const lengths = path.slice(1).map((p, i) => distance(path[i], p)),
+    total = lengths.reduce((a, b) => a + b, 0);
+  if (total < 1e-6) return false;
+  // A sample at fraction `f` of the path's length, with the direction of its segment.
+  const at = (f: number): { p: Point; dir: Point } => {
+    let left = f * total;
+    for (let i = 0; i < lengths.length; i++) {
+      if (left <= lengths[i] || i === lengths.length - 1)
+        return { p: lerp(path[i], path[i + 1], Math.min(1, left / lengths[i])), dir: unit(sub(path[i + 1], path[i])) };
+      left -= lengths[i];
+    }
+    return { p: path.at(-1)!, dir: unit(sub(path.at(-1)!, path[0])) };
+  };
+  const beside = ({ p, dir }: { p: Point; dir: Point }) =>
+    poly.some((a, i) => {
+      const b = poly[(i + 1) % poly.length];
+      return (
+        distance(a, b) > 1e-6 &&
+        Math.abs(dot(unit(sub(b, a)), dir)) > Math.cos(Math.PI / 6) &&
+        nearestOnPolyline(p, [a, b]).dist < gap
+      );
+    });
+  return Array.from({ length: 7 }, (_, k) => at(0.2 + k * 0.1)).filter(beside).length >= 4;
 }
 
 /** Split only along a path fully inside the parent, with both ends on its
@@ -635,6 +691,71 @@ function parcelSides(poly: Point[], perimeter: BlockBoundary[], laneWidth: numbe
   });
 }
 
+/** A house's back keeps this far off the wall, water or precinct it backs onto (an eavesdrop). */
+const BACK_SETBACK_METERS = 1;
+/** Samples along a barrier edge, at most this far apart, whose depth across the strip is measured. */
+const BACK_SAMPLE_METERS = 3;
+
+/**
+ * A strip too shallow for two rows of houses back to back (`span`) holds one row, and that row fronts the street
+ * across it: a lane along its back would only double that street. A barrier edge (a wall, a bank, a precinct's edge)
+ * is such a back when, from every point along it, the strip ends within `span` straight across on a frontage. Where
+ * no frontage lies across (a strip between a bank and a wall), the longest barrier run keeps its street and serves
+ * as the frontage of the runs across it. A road at a strip's end does not make a back: it runs across the strip.
+ */
+function withSingleRowBacks(outline: Point[], boundaries: BlockBoundary[], span: number): BlockBoundary[] {
+  const n = boundaries.length,
+    street = (e: BlockBoundary) => !e.feature || e.barrier;
+  if (!boundaries.some(street)) return boundaries;
+  const sign = -Math.sign(polygonArea(outline)),
+    frontage = boundaries.map(e => !street(e)),
+    backs = new Set<number>();
+  // Every sample's strip, straight across, ends within `span` on a frontage.
+  const shallow = (i: number) => {
+    const { a, b } = boundaries[i],
+      length = distance(a, b);
+    if (length < 1e-6) return false;
+    const tangent = unit(sub(b, a)),
+      inward: Point = [-sign * tangent[1], sign * tangent[0]],
+      steps = Math.max(1, Math.ceil(length / BACK_SAMPLE_METERS));
+    return Array.from({ length: steps }, (_, k) => lerp(a, b, (k + 0.5) / steps)).every(p => {
+      const from: Point = [p[0] + inward[0] * 0.01, p[1] + inward[1] * 0.01],
+        to: Point = [p[0] + inward[0] * span, p[1] + inward[1] * span];
+      let hit = { t: Infinity, edge: -1 };
+      boundaries.forEach((e, j) => {
+        if (j === i) return;
+        const at = segmentSegmentHit(from, to, e.a, e.b);
+        if (at && at.t < hit.t) hit = { t: at.t, edge: j };
+      });
+      return hit.edge >= 0 && frontage[hit.edge];
+    });
+  };
+  for (let i = 0; i < n; i++) if (street(boundaries[i]) && !boundaries[i].shared && shallow(i)) backs.add(i);
+  // Runs of barrier edges still laid as streets, longest first: each kept run is a frontage to the runs after it.
+  const open = (i: number) => street(boundaries[i]) && !backs.has(i),
+    runs: number[][] = [],
+    seen = new Set<number>();
+  for (let i = 0; i < n; i++) {
+    if (!open(i) || seen.has(i)) continue;
+    let start = i;
+    for (let k = 0; k < n && open((start + n - 1) % n) && (start + n - 1) % n !== i; k++) start = (start + n - 1) % n;
+    const run: number[] = [];
+    for (let j = start; run.length < n && open(j % n) && !seen.has(j % n); j++) {
+      run.push(j % n);
+      seen.add(j % n);
+    }
+    runs.push(run);
+  }
+  const length = (run: number[]) => run.reduce((sum, i) => sum + distance(boundaries[i].a, boundaries[i].b), 0);
+  for (const run of runs.sort((x, y) => length(y) - length(x) || x[0] - y[0])) {
+    for (const i of run) if (!boundaries[i].shared && shallow(i)) backs.add(i);
+    for (const i of run) if (!backs.has(i)) frontage[i] = true;
+  }
+  return boundaries.map((e, i) =>
+    backs.has(i) ? { a: e.a, b: e.b, feature: false, barrier: false, back: true, setback: BACK_SETBACK_METERS } : e
+  );
+}
+
 function corridorDomains(
   outline: Point[],
   boundaries: BlockBoundary[],
@@ -703,6 +824,7 @@ function corridorDomains(
         b: ring[(i + 1) % ring.length],
         feature: edge.original?.feature ?? false,
         barrier: edge.original?.barrier ?? false,
+        ...(edge.original?.back ? { back: true } : {}),
         setback: edge.original?.barrier
           ? width / 2 + ORGANIC_LANE_FACADE_CLEARANCE
           : (edge.original?.setback ?? width / 2 + ORGANIC_LANE_FACADE_CLEARANCE)

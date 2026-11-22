@@ -15,7 +15,9 @@ export const BUILDING_DETAIL_BUDGET = {
 export function createTownBuildingDetails(
   lots: readonly BuildingLot[],
   foundationAt?: (ring: Point[]) => number,
-  simplify = true
+  simplify = true,
+  /** A lot's recorded door, when its caller knows one: the entrance goes on the wall nearest it. */
+  entranceOf?: (lot: BuildingLot) => Point | undefined
 ) {
   const group = new THREE.Group();
   group.name = "ce-building-details";
@@ -121,7 +123,8 @@ export function createTownBuildingDetails(
               trim: linear("#71573E"),
               window: linear("#303B39")
             },
-            d.elevation
+            d.elevation,
+            entranceOf?.(d.lot)
           );
           cache.set(d.index, geometry);
         }

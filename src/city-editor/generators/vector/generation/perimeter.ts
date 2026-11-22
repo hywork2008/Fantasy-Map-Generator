@@ -20,7 +20,14 @@ import {
 } from "../../burgage/perimeterCell";
 import { burgageProfileFor, isBurgageFabric } from "../../burgage/profiles";
 import { compactBlockScale } from "../../compactBlocks";
-import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "../../geom";
+import {
+  isSimplePolygon,
+  nearestOnPolyline,
+  pointInPolygon,
+  polygonArea,
+  polygonCentroid,
+  segmentSegmentHit
+} from "../../geom";
 import {
   buildOrganicStreetCell,
   COARSE_STREET_CELL_METERS,
@@ -35,7 +42,7 @@ import { curveSource } from "../editing/paths";
 import { fabricCellHash, fabricDistrictHash } from "../fabric/hash";
 import { fabricLine, isDetachedFabricLine } from "../fabric/lines";
 import { packLines, packPoints, unpackPoints } from "../fabric/pack";
-import { evaluateAnchor } from "../geometry/curves";
+import { evaluateAnchor, pathIsClosed } from "../geometry/curves";
 import { gateOpening, junctionSurface } from "../geometry/network";
 import { regionArea, regionBoolean, regionsOverlap } from "../geometry/regions";
 import { offsetRing, sampledClosedRing } from "../geometry/routing";
@@ -123,6 +130,11 @@ export interface PerimeterPlanContext {
 export interface PerimeterDistrictJob {
   districtId: string;
   outline: Point[];
+  /** Outline edges against another district's edge with nothing between them (a slit cut through a hole): one
+   * street serves both, laid by the district that `keep`s it and fronted by the other. */
+  neighbours?: { edge: number; keep: boolean }[];
+  /** Outline edges along a facility's ground: its door may open onto the street there, which is always laid. */
+  facilitySides?: number[];
 }
 export interface PerimeterDistrictResult {
   district: DistrictPlan;
@@ -198,6 +210,104 @@ function withoutHoles(block: VectorBlock): VectorBlock[] {
     }));
 }
 
+/**
+ * The harbour's quays, yards and cart paths as frontage: a quayside is a street in itself, so a district fronts it as
+ * it fronts a main road and lays no street of its own beside it. The quays' own land ends on the space outlines; a cart
+ * path's reservation is at least 4 m wide (`harborReservations`).
+ */
+function harborFrontages(doc: VectorCityDocument): PerimeterPlanContext["roads"] {
+  const harbor = doc.environment?.harbor;
+  if (!harbor) return [];
+  return [
+    ...harbor.spaces.map(s => ({ points: [...s.polygon.outer, s.polygon.outer[0]], frontage: 1 })),
+    ...harbor.frontages.map(f => ({ points: [f.a, f.b], frontage: Math.max(4, f.widthMeters) })),
+    ...harbor.accesses.map(a => ({ points: a.points, frontage: Math.max(4, a.widthMeters) }))
+  ];
+}
+
+/** Two districts' edges at most this far apart, with nothing between them, are one boundary. */
+const NEIGHBOUR_GAP_METERS = 1;
+/** Edges this close to parallel (sine of the angle) can share a street. */
+const NEIGHBOUR_SINE = Math.sin((10 * Math.PI) / 180);
+
+/**
+ * Edges of two districts that lie against each other, as the two sides of the 0.2 m slit `withoutHoles` cuts: each
+ * would otherwise lay a street along its side, two lanes side by side. The district whose id sorts first keeps its
+ * street, so the choice does not depend on the jobs' order; the other one fronts it. Mutates the jobs.
+ */
+function markNeighbourEdges(jobs: PerimeterDistrictJob[]) {
+  const edges = new RBush<{
+    minX: number;
+    minY: number;
+    maxX: number;
+    maxY: number;
+    job: number;
+    a: Point;
+    b: Point;
+  }>();
+  edges.load(
+    jobs.flatMap((job, j) =>
+      job.outline.map((a, k) => {
+        const b = job.outline[(k + 1) % job.outline.length];
+        return { ...boxOf([a, b], NEIGHBOUR_GAP_METERS), job: j, a, b };
+      })
+    )
+  );
+  jobs.forEach((job, j) => {
+    const neighbours: NonNullable<PerimeterDistrictJob["neighbours"]> = [];
+    job.outline.forEach((a, k) => {
+      const b = job.outline[(k + 1) % job.outline.length],
+        length = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      if (length < 1) return;
+      const direction: Point = [(b[0] - a[0]) / length, (b[1] - a[1]) / length],
+        near = edges.search(boxOf([a, b])).filter(e => {
+          if (e.job === j) return false;
+          const l = Math.hypot(e.b[0] - e.a[0], e.b[1] - e.a[1]);
+          return (
+            l > 1e-6 &&
+            Math.abs(direction[0] * (e.b[1] - e.a[1]) - direction[1] * (e.b[0] - e.a[0])) / l <= NEIGHBOUR_SINE
+          );
+        }),
+        other = [0.1, 0.5, 0.9]
+          .map(t => {
+            const p: Point = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t],
+              hit = near
+                .map(e => ({ job: e.job, dist: nearestOnPolyline(p, [e.a, e.b]).dist }))
+                .sort((x, y) => x.dist - y.dist)[0];
+            return hit && hit.dist <= NEIGHBOUR_GAP_METERS ? hit.job : -1;
+          })
+          .reduce((x, y) => (x === y ? x : -1));
+      if (other >= 0) neighbours.push({ edge: k, keep: job.districtId < jobs[other].districtId });
+    });
+    if (neighbours.length) job.neighbours = neighbours;
+  });
+}
+
+/**
+ * Edges of districts along a facility already placed (the plan is laid again round the facilities): a facility's door
+ * opens onto the street along its ground, so that street is never left out as a strip's back. Mutates the jobs.
+ */
+function markFacilitySides(doc: VectorCityDocument, jobs: PerimeterDistrictJob[]) {
+  const rings = Object.values(doc.placements).flatMap(p =>
+    p.building?.kind === "facility" ? p.building.reserved.map(r => [...r.outer, r.outer[0]]) : []
+  );
+  if (!rings.length) return;
+  const index = new RBush<{ minX: number; minY: number; maxX: number; maxY: number; ring: Point[] }>();
+  index.load(rings.map(ring => ({ ...boxOf(ring, NEIGHBOUR_GAP_METERS), ring })));
+  for (const job of jobs) {
+    const sides = job.outline.flatMap((a, k) => {
+      const b = job.outline[(k + 1) % job.outline.length],
+        mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      return index
+        .search({ minX: mid[0], minY: mid[1], maxX: mid[0], maxY: mid[1] })
+        .some(e => nearestOnPolyline(mid, e.ring).dist <= NEIGHBOUR_GAP_METERS)
+        ? [k]
+        : [];
+    });
+    if (sides.length) job.facilitySides = sides;
+  }
+}
+
 /** District jobs in block order and their shared context. District ids are assigned over every block, so the
  * ids never depend on how the jobs are split. */
 export function perimeterJobs(
@@ -235,13 +345,19 @@ export function perimeterJobs(
       .find(ring => ring !== undefined);
     if (outline) jobs.push({ districtId, outline });
   }
+  markNeighbourEdges(jobs);
+  markFacilitySides(doc, jobs);
+  const roads = [
+    ...primary.map(path => ({
+      points: samplePath(path).map(p => p.point),
+      frontage: path.width.leftMeters + path.width.rightMeters
+    })),
+    ...harborFrontages(doc)
+  ];
   return {
     context: {
-      roads: primary.map(path => ({
-        points: samplePath(path).map(p => p.point),
-        frontage: path.width.leftMeters + path.width.rightMeters
-      })),
-      frontageReach: Math.max(0, ...primary.map(p => p.width.leftMeters + p.width.rightMeters + 0.1)) + 1e-6,
+      roads,
+      frontageReach: Math.max(0, ...roads.map(r => r.frontage + 0.1)) + 1e-6,
       seed: doc.recipe.seed,
       laneWidthMeters: settings.laneWidthMeters,
       walls,
@@ -260,14 +376,26 @@ export function perimeterJobs(
 }
 
 /** The plot type from the housing culture, and the wall rings that tell intramural street blocks. */
+/**
+ * The outer town wall as rings. A coastal town's wall runs from shore to shore and makes no circuit: closed across its
+ * ends along the shore, it bounds the town all the same (as `generateVectorUrban` tells its core), so its street blocks
+ * are intramural, not laid out as the open country's.
+ */
+function outerWallRings(doc: VectorCityDocument): Point[][] {
+  const circuits = Object.values(doc.connections.circuits)
+    .filter(c => !c.parentCircuitId)
+    .map(c => sampledClosedRing(doc, c.pathId));
+  if (circuits.length) return circuits;
+  const shore = Object.values(doc.paths).find(p => p.role === "wall" && !pathIsClosed(p) && !p.id.includes("inner"));
+  return shore ? [samplePath(shore).map(q => q.point)] : [];
+}
+
 function burgagePlanContext(doc: VectorCityDocument, dense: boolean): BurgagePlanContext {
   const culture = vectorHousingCulture(doc);
   return {
     ...(dense ? { dense: true } : {}),
     profile: burgageProfileFor(culture),
-    wallRings: Object.values(doc.connections.circuits)
-      .filter(c => !c.parentCircuitId)
-      .map(c => sampledClosedRing(doc, c.pathId)),
+    wallRings: outerWallRings(doc),
     ...(culture === "stone-upland" ? { shallow: true } : {})
   };
 }
@@ -290,6 +418,7 @@ const ceContext = (context: PerimeterPlanContext) => ({
   // Skeleton blocks are far coarser than a CE mesh cell, so CE's coarse-mesh street blocks apply.
   streetCellMeters: COARSE_STREET_CELL_METERS,
   streetWidthMeters: COARSE_STREET_WIDTH_METERS,
+  noSliverCuts: true,
   ...(context.blockScale ? { blockScale: context.blockScale } : {})
 });
 const districtFace = (id: string): Face => ({
@@ -330,7 +459,8 @@ const streetPlanKey = (
   context: PerimeterPlanContext,
   job: PerimeterDistrictJob,
   boundaries: PerimeterStreetPlan["boundaries"]
-) => `${planKey(context)}|${job.districtId}|${JSON.stringify(job.outline)}|${JSON.stringify(boundaries)}`;
+) =>
+  `${planKey(context)}|${job.districtId}|${JSON.stringify(job.outline)}|${JSON.stringify(boundaries)}|${JSON.stringify(job.neighbours ?? [])}|${JSON.stringify(job.facilitySides ?? [])}`;
 /** Keeps plans computed elsewhere (a worker pool) so later dependency updates here can reuse them. */
 export function rememberPerimeterResults(
   request: PerimeterRequest,
@@ -426,7 +556,18 @@ export function planPerimeterStreets(context: PerimeterPlanContext, job: Perimet
     const road = roadsNear(mid, context.frontageReach).find(
       p => nearestOnPolyline(mid, p.points).dist <= p.frontage + 0.1
     );
-    return { a, b, feature: !!road, barrier: !road, setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3 };
+    const neighbour = !road ? job.neighbours?.find(n => n.edge === i) : undefined;
+    // A street shared with the district across a slit: kept by one, fronted by the other.
+    if (neighbour && !neighbour.keep)
+      return { a, b, feature: true, barrier: false, setback: ROAD_FACADE_CLEARANCE_METERS };
+    return {
+      a,
+      b,
+      feature: !!road,
+      barrier: !road,
+      setback: road ? ROAD_FACADE_CLEARANCE_METERS : 3,
+      ...(neighbour || (!road && job.facilitySides?.includes(i)) ? { shared: true } : {})
+    };
   });
   const boundaries = fullBoundaries.map(b => ({ feature: b.feature, barrier: b.barrier, setback: b.setback })),
     key = streetPlanKey(context, job, boundaries),
@@ -1041,6 +1182,91 @@ const boxesMeet = (a: ReturnType<typeof boxOf>, b: ReturnType<typeof boxOf>) =>
 /** Share of a lot's place in the build order given by its distance from the town centre rather than its draw. */
 const CENTRE_WEIGHT = 0.6;
 
+/**
+ * The door of a house on a burgage plot (docs/plan/ce-burgage-plot-fabric.md §5.4): the front house opens onto the
+ * plot's street, from its side facing the plot's front. A house behind it (a rear house, a dense plot's range) has no
+ * street of its own: it opens onto the court towards the front, and its access is the plot's front on the street,
+ * reached through the front house or the side passage, as Lübeck's Buden through the Gänge broken through the front
+ * houses, or the Scottish backlands through their closes. Undefined off a plot, or when no street line lies along the
+ * plot's front.
+ */
+function plotEntrance(
+  polygon: Point[],
+  plots: NonNullable<CellPlan["plots"]> | undefined,
+  lines: RBush<{ minX: number; minY: number; maxX: number; maxY: number; points: Point[] }>
+): { from: Point; to: Point; distance: number } | undefined {
+  if (!plots) return;
+  const centre = polygonCentroid(polygon),
+    plot = plots.find(p => pointInPolygon(centre, p.ring));
+  if (!plot) return;
+  const [a, b] = plot.front,
+    mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
+    // The street the plot fronts: the line nearest the middle of its front.
+    street = lines
+      .search(boxOf([mid], PLOT_STREET_REACH_METERS))
+      .map(item => ({ points: item.points, hit: nearestOnPolyline(mid, item.points) }))
+      .sort((x, y) => x.hit.dist - y.hit.dist)[0];
+  if (!street || street.hit.dist > PLOT_STREET_REACH_METERS) return openPlotEntrance(polygon, plot, plots, lines);
+  // The middle of the house side nearest the plot's front.
+  let door: Point | undefined,
+    gap = Infinity;
+  polygon.forEach((p, i) => {
+    const q = polygon[(i + 1) % polygon.length],
+      m: Point = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2],
+      d = nearestOnPolyline(m, [a, b]).dist;
+    if (d < gap) {
+      gap = d;
+      door = m;
+    }
+  });
+  if (!door) return;
+  // A front house (its side on the plot's front) steps straight out onto that street; a house behind it reaches
+  // the street at the middle of the plot's front.
+  const target = gap <= PLOT_FRONT_METERS ? nearestOnPolyline(door, street.points).point : street.hit.point;
+  return { from: door, to: target, distance: Math.hypot(target[0] - door[0], target[1] - door[1]) };
+}
+/** A house side this near its plot's front is the house's street front. */
+const PLOT_FRONT_METERS = 2;
+/** A plot's street runs at most this far from the middle of its front (the street's half width and the setback). */
+const PLOT_STREET_REACH_METERS = 6;
+/** A plot with no street along its front reaches a line at most this far. */
+const PLOT_OPEN_REACH_METERS = 30;
+
+/**
+ * A plot whose front has no street along it (a square, a quay, or a strip the burgage layout fronted onto open
+ * ground): the house opens from whichever side reaches a line soonest without crossing another plot.
+ */
+function openPlotEntrance(
+  polygon: Point[],
+  plot: NonNullable<CellPlan["plots"]>[number],
+  plots: NonNullable<CellPlan["plots"]>,
+  lines: RBush<{ minX: number; minY: number; maxX: number; maxY: number; points: Point[] }>
+): { from: Point; to: Point; distance: number } | undefined {
+  const others = plots.filter(p => p !== plot),
+    crosses = (from: Point, to: Point) =>
+      others.some(
+        p =>
+          pointInPolygon(to, p.ring) ||
+          p.ring.some((a, i) => {
+            const hit = segmentSegmentHit(from, to, a, p.ring[(i + 1) % p.ring.length]);
+            return !!hit && hit.t > 0.02 && hit.t < 0.98;
+          })
+      ),
+    near = lines.search(boxOf(polygon, PLOT_OPEN_REACH_METERS)).map(item => item.points);
+  let best: { from: Point; to: Point; distance: number } | undefined;
+  polygon.forEach((a, i) => {
+    const b = polygon[(i + 1) % polygon.length],
+      from: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    for (const points of near) {
+      const hit = nearestOnPolyline(from, points);
+      if (hit.dist > PLOT_OPEN_REACH_METERS || (best && hit.dist >= best.distance) || crosses(from, hit.point))
+        continue;
+      best = { from, to: hit.point, distance: hit.dist };
+    }
+  });
+  return best;
+}
+
 export function placeVectorPerimeterHouses(
   doc: VectorCityDocument,
   plan: VectorPerimeterPlan,
@@ -1137,6 +1363,9 @@ export function placeVectorPerimeterHouses(
         return { ...boxOf(points), points };
       })
   ]);
+  const plotsOf = new Map(
+    plan.districts.flatMap(d => d.cells.flatMap(c => (c.plots?.length ? [[c.id, c.plots] as const] : [])))
+  );
   const adopted = new Map<
     string,
     { ring: number[]; storeys: number; dwellings: number; entrance: number[]; draw: number }[]
@@ -1219,9 +1448,15 @@ export function placeVectorPerimeterHouses(
           site = squareSite;
         }
       }
-      // The entrance faces the nearest lane, street or road. Never an access drawn across another plot.
-      let best: { from: Point; to: Point; distance: number } | undefined;
-      const lines = lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
+      // On a burgage plot the door is the plot's: a front house opens onto its street, a house behind it onto the
+      // court towards the front, reached through the front house or the plot's side passage. Elsewhere the entrance
+      // faces the nearest lane, street or road.
+      let best: { from: Point; to: Point; distance: number } | undefined = plotEntrance(
+        polygon,
+        plotsOf.get(house.cellId),
+        lineIndex
+      );
+      const lines = best ? [] : lineIndex.search(boxOf(polygon, 12)).map(item => item.points);
       for (let i = 0; i < polygon.length; i++) {
         const a = polygon[i],
           b = polygon[(i + 1) % polygon.length],

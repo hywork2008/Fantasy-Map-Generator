@@ -1,15 +1,21 @@
 import type * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import type { BuildingAppearanceProfile } from "../../../buildings/appearance/types";
+import { regionalHouseSite } from "../../../city3d/three/regionalHouseMeshes";
+import type { BuildingLot } from "../../generators/buildingLots.types";
 import { defaultGenerationSettings } from "../../generators/generation/settings";
 import { pointInPolygon } from "../../generators/geom";
 import { defaultPopulationSettings } from "../../generators/populationPlan";
+import { fabricCellHash } from "../../generators/vector/fabric/hash";
 import { vectorInputFromEditor } from "../../generators/vector/generation/editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
+import { vectorUrbanFingerprint } from "../../generators/vector/generation/urbanState";
 import { vectorWallChoice } from "../../generators/vector/generation/wallShape";
 import { regionArea, regionBoolean } from "../../generators/vector/geometry/regions";
+import type { Point } from "../../types/primitives";
 import type { VectorCityDocument } from "../../types/vector/document";
+import { fabricDoorFrontage } from "./fabricDoors";
 import { vectorRenderData } from "./renderData";
 import { createVectorScene } from "./scene3d";
 
@@ -100,6 +106,47 @@ describe("burgage plots drawn in 2D and 3D (docs/plan/ce-burgage-plot-fabric.md 
     expect(trees.length).toBeGreaterThan(20);
     const houses = data.surfaces.filter(s => s.houses).flatMap(s => s.polygons.map(p => p.outer));
     for (const tree of trees) expect(houses.some(h => pointInPolygon(tree.point, h))).toBe(false);
+  });
+
+  it("opens no house's door onto a plot wall, even from entrances saved before they followed the plots", () => {
+    const doc = town("atlantic");
+    // A city saved before v64: every entrance pointing away from its plot's front.
+    for (const cell of Object.values(doc.fabric!.cells)) {
+      cell.houses.entrances = cell.houses.entrances.map(v => -v);
+      cell.hash = fabricCellHash(cell);
+    }
+    doc.urban!.adoptedFingerprint = vectorUrbanFingerprint(doc);
+    const data = vectorRenderData(doc, "housing"),
+      walls = data.surfaces.filter(s => s.pieceRole === "plot-wall").flatMap(s => s.polygons.map(p => p.outer));
+    let houses = 0,
+      blocked = 0;
+    for (const s of data.surfaces) {
+      const h = s.houses;
+      if (!h?.massing || !s.id.includes(":cell:")) continue;
+      s.polygons.forEach((polygon, i) => {
+        const lot = {
+            faceId: s.id,
+            landmark: false,
+            polygon: polygon.outer,
+            massing: h.massing![i],
+            appearance: h.appearance?.[i]
+          } as BuildingLot,
+          site = regionalHouseSite(
+            lot,
+            i,
+            0,
+            "standard",
+            fabricDoorFrontage(() => h.doors?.[i])
+          );
+        if (!site) return;
+        houses++;
+        const { door, normal } = site.frontage,
+          ahead = [0.05, 0.2, 0.4, 0.7, 1].map((d): Point => [door[0] + normal[0] * d, door[1] + normal[1] * d]);
+        if (ahead.some(p => walls.some(w => pointInPolygon(p, w)))) blocked++;
+      });
+    }
+    expect(houses).toBeGreaterThan(100);
+    expect(blocked).toBe(0);
   });
 
   it("draws a binaire block's venelles and gives its house plots no yard", () => {

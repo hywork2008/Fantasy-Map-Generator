@@ -2,7 +2,7 @@ import { placementFootprint } from "../../../../buildings/placementModels";
 import { type BurialCultureProfile, getBurialCulturePreset } from "../../../../data/burialCultures";
 import type { HistoricalPeriod } from "../../../../types/historicalPeriod";
 import type { Point } from "../../../types/primitives";
-import type { VectorCityDocument } from "../../../types/vector/document";
+import type { CurveAnchor, VectorCityDocument } from "../../../types/vector/document";
 import type { VectorFeature } from "../../../types/vector/environment";
 import type { VectorPolygon } from "../../../types/vector/generation";
 import { layoutCultureCemeteryOnSite } from "../../cultureCemeteryLayout";
@@ -54,6 +54,14 @@ export function vectorBurial(
           : "churchyard"
   };
 }
+/** The church's precinct, the plaza and the churchyard stand one lane apart, and that lane is laid between them
+ * (`connectVectorCivicCentre`): the street blocks round them laid a lane along each, two lanes side by side in the
+ * gap. As wide as the town's lanes. The church precinct's box reaches 2 m past the building, hence the offset. */
+const CIVIC_LANE_METERS = 2.4;
+const CHURCH_OFFSET_METERS = CIVIC_LANE_METERS + 2;
+/** The plaza lane is carried on to a street at most this far beyond the plaza (the plaza stands 8 m off the centre). */
+const CIVIC_LANE_REACH_METERS = 16;
+
 /** Plaza, church and churchyard around the site centre, from the target population alone. */
 export function vectorCivicLayout(population: number, options: CivicOptions) {
   // Sized by the target population: the map window says nothing about how large the town is.
@@ -62,7 +70,7 @@ export function vectorCivicLayout(population: number, options: CivicOptions) {
     church = civic.temple,
     graveDepth = church.tier === 1 ? 20 : church.tier === 2 ? 30 : 40;
   const plazaCenter: Point = [0, -side / 2 - 8],
-    churchCenter: Point = [-side / 2 - 8 - church.length / 2, plazaCenter[1]];
+    churchCenter: Point = [-side / 2 - CHURCH_OFFSET_METERS - church.length / 2, plazaCenter[1]];
   const specs: { id: string; kind: VectorFeature["kind"]; boundary: ReturnType<typeof box>; center: Point }[] = [];
   if (options.plaza)
     specs.push({
@@ -80,11 +88,16 @@ export function vectorCivicLayout(population: number, options: CivicOptions) {
     });
   // A churchyard is laid out with the civic centre; a cemetery outside the town or on a bank is sited later.
   if (options.temple && (options.burial ?? "churchyard") === "churchyard") {
-    const center: Point = [churchCenter[0], churchCenter[1] - church.width / 2 - 8 - graveDepth / 2];
+    // Below the church, its east side in line with the church precinct's, so one lane passes both on the plaza side.
+    const length = Math.max(church.length, 20),
+      center: Point = [
+        churchCenter[0] + church.length / 2 + 2 - length / 2,
+        churchCenter[1] - church.width / 2 - CHURCH_OFFSET_METERS - graveDepth / 2
+      ];
     specs.push({
       id: "feature:civic-cemetery",
       kind: "cemetery",
-      boundary: box(center, Math.max(church.length, 20), graveDepth),
+      boundary: box(center, length, graveDepth),
       center
     });
   }
@@ -261,6 +274,8 @@ export function seedVectorCivicCentre(
 export function connectVectorCivicCentre(doc: VectorCityDocument) {
   const features = Object.values(doc.environment?.features ?? {}).filter(f => f.id.startsWith("feature:civic-"));
   if (!features.length) return;
+  // The lanes between the precincts first: a churchyard's gate opens onto the lane by the church.
+  const lanes = layCivicLanes(doc);
   const roads = Object.values(doc.paths).filter(p => p.role === "road");
   for (const f of features) {
     const center = polygonCentroid(f.boundary.outer);
@@ -288,11 +303,95 @@ export function connectVectorCivicCentre(doc: VectorCityDocument) {
         source: curveSource(f.connector, "polyline", false),
         width: { leftMeters: 1.2, rightMeters: 1.2, stations: [] }
       };
-      f.pathIds = [pathId];
+      f.pathIds = [pathId, ...f.pathIds.filter(id => lanes.includes(id))];
       joinVectorGenerationAnchors(doc, [best.access, { pathId, segmentId: "segment:0", t: 1 }]);
     }
   }
   rebuildRoadGraph(doc);
+}
+
+/**
+ * The lanes in the gaps `vectorCivicLayout` leaves: between the church (and its churchyard) and the plaza, and between
+ * the church and the churchyard. Each fills its gap, so no street block lies in it. A churchyard sited elsewhere, or a
+ * centre without a church, has none.
+ */
+function layCivicLanes(doc: VectorCityDocument): string[] {
+  const features = doc.environment?.features ?? {},
+    church = features["feature:civic-church"],
+    plaza = features["feature:civic-plaza"],
+    cemetery = features["feature:civic-cemetery"];
+  if (!church) return [];
+  const bounds = (f: VectorFeature) => {
+      const xs = f.boundary.outer.map(p => p[0]),
+        ys = f.boundary.outer.map(p => p[1]);
+      return { x0: Math.min(...xs), x1: Math.max(...xs), y0: Math.min(...ys), y1: Math.max(...ys) };
+    },
+    gap = (a: number, b: number) => Math.abs(b - a - CIVIC_LANE_METERS) < 0.01,
+    c = bounds(church),
+    lanes: [Point, Point][] = [];
+  let east: number | undefined;
+  if (plaza) {
+    const p = bounds(plaza);
+    if (gap(c.x1, p.x0)) {
+      east = c.x1 + CIVIC_LANE_METERS / 2;
+      lanes.push([
+        [east, p.y1],
+        [east, p.y0]
+      ]);
+    }
+  }
+  if (cemetery) {
+    const y = bounds(cemetery);
+    if (gap(y.y1, c.y0)) {
+      const mid = c.y0 - CIVIC_LANE_METERS / 2;
+      lanes.push([
+        [Math.min(c.x0, y.x0), mid],
+        [east ?? Math.max(c.x1, y.x1), mid]
+      ]);
+    }
+  }
+  // The lane along the plaza runs on to the nearest street beyond the plaza's end, so it is part of the town's network.
+  const streets = Object.values(doc.paths).filter(p => p.role === "road");
+  let link: { anchor: CurveAnchor; target: Point } | undefined;
+  if (east !== undefined && lanes.length) {
+    const end = lanes[0][0],
+      best = streets
+        .map(road => {
+          const anchor = nearestRoadAnchor(road, end),
+            target = evaluateAnchor(road, anchor);
+          return { anchor, target, distance: Math.hypot(target[0] - end[0], target[1] - end[1]) };
+        })
+        .sort((a, b) => a.distance - b.distance)[0];
+    if (best && best.distance <= CIVIC_LANE_REACH_METERS) link = best;
+  }
+  const ids = lanes.map((line, i) => {
+    const id = `${church.id}:lane:${i}`,
+      points: Point[] = i === 0 && link ? [link.target, ...line] : line;
+    doc.paths[id] = {
+      id,
+      role: "road",
+      revision: 0,
+      origin: "automatic",
+      editPolicy: "editable",
+      source: curveSource(points, "polyline", false),
+      width: { leftMeters: CIVIC_LANE_METERS / 2, rightMeters: CIVIC_LANE_METERS / 2, stations: [] }
+    };
+    church.pathIds.push(id);
+    return id;
+  });
+  if (link) joinVectorGenerationAnchors(doc, [link.anchor, { pathId: ids[0], segmentId: "segment:0", t: 0 }]);
+  // The lane between church and churchyard ends on the one along the plaza.
+  if (lanes.length === 2 && east !== undefined) {
+    const vertical = doc.paths[`${church.id}:lane:0`],
+      [[, top], [, bottom]] = lanes[0],
+      mid = lanes[1][0][1];
+    if (mid < top && mid > bottom)
+      joinVectorGenerationAnchors(doc, [
+        nearestRoadAnchor(vertical, [east, mid]),
+        { pathId: `${church.id}:lane:1`, segmentId: "segment:0", t: 1 }
+      ]);
+  }
+  return ids;
 }
 
 /** Clear of every road surface, the water and the other civic land, by this much. */

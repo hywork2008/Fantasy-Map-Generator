@@ -615,6 +615,95 @@ B5 の「裏の棟」は、同じ区画の奥に建つ建物（Freiburg の Hint
   - 2,000 人の施設のある町で、施設の 75% 以上が置けること、壁の中で施設のある街区には家もあること。
 - 実行して成功: burgage（2 ファイル）、burgagePlots、burgagePlots3d、renderData、sceneLayers、picking、validation/fabric、validation/document、documentCodec、share、perimeter、facilityLots、urban、wards、parks、VectorGenerationPanel、architecture（17 ファイル・97 件）。`tsc --noEmit` と `scripts/lint-architecture.ts` も成功した。`compact` の SHA-256 は変わらなかった。
 
+### 8.8 区画の奥の家と、家の入口（2026-11-22）
+
+ユーザーの指摘（2026-11-22、`burgage-dense` の町）:
+
+- 裏庭のある短冊形の区画に 3 つの建物が建ち、真ん中の家が道に面していない（接道していない）ことが多い。
+- 道に面しているのに、道の側に入口が無く、裏庭にだけ繋がる家も多い。
+- このような立地が中世ヨーロッパの街並みとして正しいか確かめる。入口の向きは 3D で見るまで見えないので、後の段階に回してもよい。
+
+#### 史料の確認
+
+道に面さない奥の家は、中世の都市で普通にあった。ただし、必ず区画の中を通る通路で道とつながっていた。
+
+- **Lübeck の Gänge と Buden**: 区画の奥（中庭）に Buden と呼ぶ小さな住まいを建て、表の家に開けたトンネル状の狭い通路（Gang）から入った。表の家で働く人の住まいで、17 世紀には約 180 の Gänge と Höfe があった（今も約 90）。
+- **南ドイツ・スイスの Vorderhaus と Hinterhaus**: 表の家、中庭、裏の家（翼屋）で区画を埋めた。裏の家へは、表の家の中の中庭への通路や、ヴォールトの通路を通った（Basel・Freiburg 周辺の建物調査）。§8.6 の Freiburg（Löbbecke S. 13）と同じ形である。
+- **スコットランド・イングランドの backland**: 区画の奥（backland）に建物が増え、16 世紀初めの Edinburgh では 1 筆の奥に 3〜4 棟の大きな建物が建つことが多かった。奥へは区画の中の通路（後の close・vennel）や、2 筆の境の共有の通路、表の家の下のアーチを通った。
+
+したがって、
+
+- **真ん中の家**（区画の奥の棟）: 道に面さないのは正しい。入口は区画の中庭に向き、表の家の通路か区画の脇の通路を通って区画の前の道に出るのが正しい。隣の区画を横切って別の道に出るのは誤り。
+- **道に面する家の入口が裏庭にだけ向く**: 誤り。表の家（とくに店を兼ねる家）は道に戸口を開く。
+
+#### 原因
+
+家の入口（`houses.entrances`。家の辺の中点と、その先の道の上の点）は、区画を見ずに「家の辺のうち、どれかの道・小路に一番近いもの」で決めていた（[perimeter.ts](../../src/city-editor/generators/vector/generation/perimeter.ts) `placeVectorPerimeterHouses`）。そのため、
+
+- 奥の棟は、隣の区画を横切って近くの小路へ出ていた。
+- 表の家も、区画の奥の小路や横の小路の方が近ければ、そちらに入口を開いていた。
+
+#### 変えたこと
+
+区画（`burgage`・`burgage-dense`）の家の入口を、その家の区画から決める（`plotEntrance`）。
+
+- **表の家**（区画の前の辺に接する家）: 区画の前の辺に向いた側に入口を開き、区画の前の道へまっすぐ出る。
+- **奥の家**: 区画の前の辺に一番近い側（中庭の側）に入口を開く。道への出口は区画の前の道の、区画の前の辺の中ほどとする。表の家の通路か、区画の脇の通路（間口 5 m 以上の区画の 1.2 m）を通る形である。
+- **前の辺に道が無い区画**（前の辺の中ほどから 6 m 以内に道・小路が無い区画。広場の前や、区画の作り方が道の無い辺を前にした所）: 家のどの辺からでも、他の区画を横切らずに一番早く道・小路に届く向きに開く。
+- `compact` の家は変えない。3D の家の形は入口を使わないので、見た目は変わらない。家の情報欄と、家を配置物に切り離す時の入口が変わる。
+
+生成の版: `burgage` v64、`burgage-dense` v65（`compact` と `compact-medium` は変わらない）。
+
+#### 結果
+
+`burgage-dense`、施設モード、5,000 人、種 `d1`・`d2`。
+
+| | 前 | 後 |
+| --- | --- | --- |
+| 入口から道までの線が、別の区画の家を横切る家 | 24 / 33 | 0 / 1 |
+| 住めない人 | 0 / 0 | 0 / 0 |
+
+#### 試験
+
+- [burgagePlots.test.ts](../../src/city-editor/generators/vector/generation/burgagePlots.test.ts): `burgage-dense` の 3,000 人の町で、区画の家の入口から道までの線が、別の区画の家を横切らないこと（前は 48 軒）。
+
+#### 残したこと
+
+- 表の家の通路（Gang）と、区画の脇の通路は、2D・3D に描いていない（§8.7 と同じく形として残すだけ）。
+- 区画の作り方（`stripCell`）が、道の無い辺を区画の前にすることがある（種 `burgage-plots`、3,000 人の町の、2 つの区画の列の間の隙間）。区画の作り方の不具合として別に直す。
+
+#### 出典
+
+- Lübeck の Gänge: [ADAC「Höfe und Gänge Tour Lübeck」](https://maps.adac.de/angebot/hoefe-und-gaenge-tour-luebeck)、[touristik-aktuell「Lübeck: Marzipan und Hinterhofidylle」](https://www.touristik-aktuell.de/reportagen/europa/luebeck-marzipan-und-hinterhofidylle/)、[Hansestadt Lübeck の告示](https://bekanntmachungen.luebeck.de/dokumente/d/735/inline)。専門書は Scheftel『Gänge, Buden und Wohnkeller in Lübeck』（1988）。
+- スコットランドの burgage と backland: [Proceedings of the Society of Antiquaries of Scotland](https://journals.socantscot.org/index.php/psas/article/download/9608/9575/9560)、[Framework and form: burgage plots, street lines and domestic architecture in early urban Scotland (Urban History)](https://cambridge.org/core/services/aop-cambridge-core/content/view/4FC18665945BC7A9144C4C9165838A5A/S0963926814000789a.pdf/framework_and_form_burgage_plots_street_lines_and_domestic_architecture_in_early_urban_scotland.pdf)。
+- イングランド: [Northumberland Archives「What is a burgage?」](https://northumberlandarchives.com/?p=21640)。
+- 南ドイツ・スイスの表の家と裏の家: [Basel の発掘調査年報](https://eterna.unibas.ch/bodenforschungjb/article/download/343/560/1060)、[Baden-Württemberg の建物調査（Haus zum langen Spieß）](https://www.bauforschung-bw.de/objekt/pdf/122846549821/haus-zum-langen-spiess-haus-a.pdf)。
+
+### 8.9 3D の家の戸口の向き（2026-11-22）
+
+ユーザーの指摘（2026-11-22）: 元からある不具合として、裏の家の庭の塀で戸口の前が塞がれている家が多い。
+
+原因:
+
+- メッシュなしの 3D は、生成した家の戸口の向きを決める手がかりを渡していなかった（[scene3d.ts](../../src/city-editor/renderers/vector/scene3d.ts) が `createTownRegionalHouseLod` に `frontage` を渡さない）。地域の家のモデルは、棟の向きから決まる最初の候補（片方の妻側）に戸口を付けた。道の側か、区画の奥（隣の区画との塀の側）かは偶然だった。
+- 簡易表示の外壁の細部（`facadeDetails`）も、地上階の一番短い壁に戸口を付けていた。
+
+変えたこと:
+
+- 描画データの生成した家に、記録した入口（家の壁の上の戸口と、道の上の行き先。§8.8）を渡す（`houses.doors`、[renderData.ts](../../src/city-editor/renderers/vector/renderData.ts)）。
+- 3D の地域の家は、モデルの戸口の候補（妻側・平側の表裏）のうち、行き先を向き、記録した戸口に一番近いものを選ぶ（[fabricDoors.ts](../../src/city-editor/renderers/vector/fabricDoors.ts)）。表の家は道に、奥の家は中庭（区画の前の方）に戸口を開く。
+- 簡易表示の外壁の細部も、記録した戸口に一番近い壁に戸口を付ける（[facadeDetails.ts](../../src/city3d/core/facadeDetails.ts)、引数は省略可能でメッシュありの CE は変わらない）。
+- 生成の結果は変わらないので、生成の版は上げていない。
+
+試験: [fabricDoors.test.ts](../../src/city-editor/renderers/vector/fabricDoors.test.ts)（記録した入口の向きの候補を選ぶこと、入口の無い家は今までの候補のままであること）。
+
+追記（同日、ユーザーの再指摘「直っていないように見える」、`district:dbc92332b16cec06:cell:b9ccb5a0b9f69e3c#18`）:
+
+- その家は区画の奥の端の棟で、区画の奥の辺に塀がある。区画の前は反対側（北）にある。保存した入口が区画の奥（塀の外の空き地の先の道）を向いていたため、上の変更はその向きのまま戸口を塀の前に置いた。入口を区画から決める §8.8 より前（v64・v65 より前）に生成した入口が、文書に保存されて残る。
+- 3D の戸口は、保存した入口ではなく区画から決めるようにした（[renderData.ts](../../src/city-editor/renderers/vector/renderData.ts) `plotDoorOf`）。家の、区画の前の辺に一番近い側に戸口を置き、区画の前の方へ開く。区画に無い家だけ、保存した入口を使う。
+- 計測（`burgage-dense`、施設モード、5,000 人、種 `d1`・`d2`）: 戸口の前 1 m 以内に区画の塀がある地域の家は、前 119 / 132 軒、後 0 / 0 軒。
+- 試験: [burgagePlots3d.test.ts](../../src/city-editor/renderers/vector/burgagePlots3d.test.ts)。保存した入口をすべて反対に向けた町でも、戸口の前 1 m 以内に塀のある家が 0 軒であること（区画から決めない場合は 26 軒）。
+
 ## 9. 受入の指標
 
 生成ごとに次の値を報告（`VectorUrbanReport`）に出し、`compact` と比べる。

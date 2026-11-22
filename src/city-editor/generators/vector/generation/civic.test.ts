@@ -10,6 +10,7 @@ import { defaultGenerationSettings } from "../../generation/settings";
 import { polygonArea } from "../../geom";
 import { defaultPopulationSettings, planPopulation } from "../../populationPlan";
 import { featureReservations } from "../environmentState";
+import { unpackLine } from "../fabric/pack";
 import { evaluateAnchor } from "../geometry/curves";
 import { containsRegion, regionArea, regionBoolean } from "../geometry/regions";
 import { sampledClosedRing } from "../geometry/routing";
@@ -95,10 +96,42 @@ describe("default standalone civic land and city envelope", () => {
     expect(houses.length).toBe(city.urban!.report.housingBuildings);
     expect(regionBoolean(houses, reserved, "intersection").reduce((n, p) => n + regionArea(p), 0)).toBeLessThan(1e-5);
     for (const feature of Object.values(city.environment!.features)) {
-      expect(feature.pathIds.length).toBe(1);
+      // Its access; the church also has the lanes between it, the plaza and the churchyard.
+      expect(feature.pathIds.filter(id => id === `${feature.id}:access`)).toHaveLength(1);
       const end = evaluateAnchor(city.paths[feature.access.pathId], feature.access);
       expect(feature.connector.at(-1)).toEqual(end);
     }
+    // One lane, not a street block's lane along each side, between the church and the plaza and churchyard: no
+    // fabric line lies in either gap.
+    const features = city.environment!.features,
+      box = (id: string) => {
+        const outer = features[id].boundary.outer;
+        return {
+          x0: Math.min(...outer.map(p => p[0])),
+          x1: Math.max(...outer.map(p => p[0])),
+          y0: Math.min(...outer.map(p => p[1])),
+          y1: Math.max(...outer.map(p => p[1]))
+        };
+      },
+      church = box("feature:civic-church"),
+      plaza = box("feature:civic-plaza"),
+      yard = box("feature:civic-cemetery"),
+      gaps = [
+        { x0: church.x1, x1: plaza.x0, y0: plaza.y0, y1: plaza.y1 },
+        { x0: church.x0, x1: church.x1, y0: yard.y1, y1: church.y0 }
+      ];
+    expect(features["feature:civic-church"].pathIds.filter(id => id.includes(":lane:"))).toHaveLength(2);
+    for (const g of gaps) expect(g.x1 - g.x0 < 3 || g.y1 - g.y0 < 3).toBe(true);
+    const lines = [
+      ...Object.values(city.fabric!.districts).flatMap(d =>
+        d.streets.offsets.map((_, i) => unpackLine(d.streets, i, d.origin))
+      ),
+      ...Object.values(city.fabric!.cells).flatMap(c => c.lanes.offsets.map((_, i) => unpackLine(c.lanes, i, c.origin)))
+    ];
+    const inGap = lines.filter(l =>
+      l.some(p => gaps.some(g => p[0] > g.x0 + 0.1 && p[0] < g.x1 - 0.1 && p[1] > g.y0 + 0.1 && p[1] < g.y1 - 0.1))
+    );
+    expect(inGap).toEqual([]);
     const saved = serializeVectorDocument(city);
     expect(parseVectorDocument(saved)).toEqual(city);
     if (process.env.CE_CIVIC_ACCEPTANCE_OUT) {

@@ -108,6 +108,22 @@ export interface HarborSite {
   cargoWater: (shore: HarborShore) => boolean;
   waterField: () => HarborWaterField;
   warehouse?: { queuedSlots: number; capacitySlots: number };
+  /** Quays that touch form one quayside, which serves as a street: one cart path, the shortest, links all of it,
+   * and a quay with no path of its own is kept when its quayside has one. Each landId must belong to one shore. */
+  sharedQuayAccess?: boolean;
+}
+
+/** Gap under which two quays' spaces count as one quayside. */
+const QUAYSIDE_GAP_METERS = 1;
+
+/** The smallest distance between two polygons' outlines, 0 when one holds a vertex of the other. */
+function polygonGap(a: Point[], b: Point[]): number {
+  if (a.some(p => pointInPolygon(p, b)) || b.some(p => pointInPolygon(p, a))) return 0;
+  const ringOf = (r: Point[]) => [...r, r[0]];
+  return Math.min(
+    ...a.map(p => nearestOnPolyline(p, ringOf(b)).dist),
+    ...b.map(p => nearestOnPolyline(p, ringOf(a)).dist)
+  );
 }
 
 /** One plan supplies both cargo access and the visible piers. Inland river ports
@@ -353,6 +369,8 @@ export function planHarborOnShores(site: HarborSite): HarborPlan {
   const berthByWater = new Map<Id, HarborShore>();
   const berthCandidates = new Map<Id, HarborShore[]>();
   const usableShores: { shore: HarborShore; midpoint: Point; stripWidth: number; qA: Point; qB: Point }[] = [];
+  // With a shared quay access: each usable shore's strip frontage and its own cart path, if it found one.
+  const quaysides = new Map<Id, { strip: ParcelFrontage; path?: ParcelFrontage }>();
   const period = site.period;
   const isExplorationOrLater = [
     "ageOfExploration",
@@ -434,13 +452,21 @@ export function planHarborOnShores(site: HarborSite): HarborPlan {
         });
       });
     });
-    if (!connection) continue;
+    if (!connection && !site.sharedQuayAccess) continue;
     const usableStrip =
       Math.hypot(qB[0] - qA[0], qB[1] - qA[1]) >= 4 &&
       plan.spaces.some(s => s.kind === "quay" && s.faceId === shore.landId && pointInPolygon(midpoint, s.polygon));
     if (!usableStrip) continue;
-    plan.frontages.push({ a: qA, b: qB, widthMeters: stripWidth, cargo: true });
-    plan.frontages.push({ a: midpoint, b: connection.hit.point, widthMeters: 3, cargo: true });
+    const quay: ParcelFrontage = { a: qA, b: qB, widthMeters: stripWidth, cargo: true },
+      path: ParcelFrontage | undefined = connection && {
+        a: midpoint,
+        b: connection.hit.point,
+        widthMeters: 3,
+        cargo: true
+      };
+    plan.frontages.push(quay);
+    if (site.sharedQuayAccess) quaysides.set(shore.id, { strip: quay, ...(path ? { path } : {}) });
+    else if (path) plan.frontages.push(path);
     // Larger hubs get local aprons; a small port still keeps its strip and path.
     const minYardLength = isExplorationOrLater ? 16 : 24;
     const yardWidth = isExplorationOrLater ? (preset === "warehouse" ? 18 : 14) : preset === "warehouse" ? 14 : 10;
@@ -460,6 +486,8 @@ export function planHarborOnShores(site: HarborSite): HarborPlan {
     }
     usableShores.push({ shore, midpoint, stripWidth, qA, qB });
   }
+
+  if (site.sharedQuayAccess) linkQuaysides(plan, usableShores, quaysides);
 
   // Select primary berths for cranes (1 or 2 cranes max per harbor, prioritized by berth quality)
   // Cranes and dedicated loading yards are for trading/commercial ports, not small fishing landings.
@@ -802,6 +830,41 @@ export function planHarborOnShores(site: HarborSite): HarborPlan {
       });
     }
   }
+}
+
+/**
+ * Quays whose spaces touch form one quayside, which is a street of its own: it keeps only its shortest cart path to
+ * a town street. A quayside with no path at all is given up, spaces and all. Mutates `plan` and `usable`.
+ */
+function linkQuaysides(
+  plan: HarborPlan,
+  usable: { shore: HarborShore }[],
+  quaysides: Map<Id, { strip: ParcelFrontage; path?: ParcelFrontage }>
+) {
+  const spacesOf = (shore: HarborShore) => plan.spaces.filter(s => s.faceId === shore.landId).map(s => s.polygon),
+    spaces = usable.map(u => spacesOf(u.shore)),
+    parent = usable.map((_, i) => i),
+    root = (i: number): number => {
+      while (parent[i] !== i) i = parent[i];
+      return i;
+    };
+  for (let i = 0; i < usable.length; i++)
+    for (let j = i + 1; j < usable.length; j++)
+      if (spaces[i].some(a => spaces[j].some(b => polygonGap(a, b) <= QUAYSIDE_GAP_METERS))) parent[root(j)] = root(i);
+  const length = (f: ParcelFrontage) => distance(f.a, f.b),
+    dropped = new Set<Id>();
+  for (const group of new Set(usable.map((_, i) => root(i)))) {
+    const members = usable.filter((_, i) => root(i) === group).map(u => u.shore),
+      best = members.flatMap(s => quaysides.get(s.id)?.path ?? []).sort((a, b) => length(a) - length(b))[0];
+    if (best) plan.frontages.push(best);
+    else for (const s of members) dropped.add(s.id);
+  }
+  if (!dropped.size) return;
+  const lands = new Set(usable.filter(u => dropped.has(u.shore.id)).map(u => u.shore.landId)),
+    strips = new Set([...dropped].map(id => quaysides.get(id)?.strip));
+  plan.spaces = plan.spaces.filter(s => !lands.has(s.faceId));
+  plan.frontages = plan.frontages.filter(f => !strips.has(f));
+  usable.splice(0, usable.length, ...usable.filter(u => !dropped.has(u.shore.id)));
 }
 
 /** Points inside a yard on a grid, the nearest its middle first. */

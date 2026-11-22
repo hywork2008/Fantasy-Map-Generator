@@ -117,8 +117,9 @@ export type VectorHarborOutcome = { document: VectorCityDocument } | { failure: 
  * A sea harbour raised by the mesh editor's harbour and ship planners (`planHarborOnShores`, `planShipsAtPiers`) on
  * the meshless coast, instead of the harbour ward's cells (P5b): the coast within the town is cut into straight
  * shores of a harbour cell's length, each with the land behind it; the planner lays quays, yards, cranes, crane
- * quays, cargo piles and piers on them and links each quay to the nearest street, and ships moor at the piers, at
- * an anchorage and under the cranes. The plan is kept only when it validates as a fixed harbour.
+ * quays, cargo piles and piers on them and links each quayside (quays that touch) to the nearest street, and ships
+ * moor at the piers, at an anchorage and under the cranes. The plan is kept only when it validates as a fixed
+ * harbour.
  */
 export function raiseVectorHarbor(
   doc: VectorCityDocument,
@@ -315,7 +316,10 @@ function raise(
     waterBelowQuay: WATER_BELOW_QUAY_METERS,
     // Sea-going ships unload at a crane on the sea, not on the river.
     cargoWater: shore => !shore.riverId,
-    waterField: () => (field ??= waterField())
+    waterField: () => (field ??= waterField()),
+    // Touching quays are one quayside, a street in itself: one cart path links it to the town's streets, so no
+    // row of parallel paths runs inland from each quay (every shore here has its own land).
+    sharedQuayAccess: true
   });
 
   // The quay paths that end on a street are the harbour's accesses.
