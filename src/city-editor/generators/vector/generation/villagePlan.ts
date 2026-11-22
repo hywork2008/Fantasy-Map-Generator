@@ -113,6 +113,8 @@ const COTTAGE_WIDTH_METERS: readonly [number, number] = [3.5, 5];
 /** No source gives a barn's size: a game adjustment between the cottage and the longhouse. */
 const BARN_LENGTH_METERS: readonly [number, number] = [6, 10];
 const BARN_WIDTH_METERS: readonly [number, number] = [4, 5];
+/** The yard between the house's line and the barn. */
+const BARN_YARD_METERS: readonly [number, number] = [3, 6];
 /** Back from the road, and the gap the buildings keep to the toft's sides (the passage to the yard is wider). */
 const SETBACK_METERS: readonly [number, number] = [0.5, 2.5];
 const SIDE_GAP_METERS = 0.8;
@@ -150,12 +152,13 @@ export function villageFarmstead(plot: BurgagePlot, seed: string): VillageBuildi
   }
   const length = rng.range(...COTTAGE_LENGTH_METERS),
     width = rng.range(...COTTAGE_WIDTH_METERS),
-    barnLength = Math.min(rng.range(...BARN_LENGTH_METERS), plot.depthMeters / 2),
     barnWidth = rng.range(...BARN_WIDTH_METERS),
     s0 = left ? SIDE_GAP_METERS : f - SIDE_GAP_METERS - length,
-    // The barn on the other side, end on to the road, its front behind the cottage's.
+    // The barn stands in the yard behind the cottage's line, on the other side, at right angles to it: the street
+    // sees the house, not the barn's blank gable (the barn's doors open on the yard).
     b0 = left ? f - SIDE_GAP_METERS - barnWidth : SIDE_GAP_METERS,
-    t0 = setback + rng.range(1, 4);
+    t0 = setback + width + rng.range(...BARN_YARD_METERS),
+    barnLength = Math.max(4, Math.min(rng.range(...BARN_LENGTH_METERS), plot.depthMeters - t0 - 2));
   return [
     { polygon: box(s0, s0 + length, setback, setback + width) },
     { polygon: box(b0, b0 + barnWidth, t0, t0 + barnLength), outbuilding: true }

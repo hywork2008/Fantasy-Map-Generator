@@ -1,6 +1,6 @@
 import type { VillageHouseKind, VillageHouseProfile } from "../../../buildings/medieval/opusVillageHouses";
 import { growthRandom } from "../../../utils/urbanMorphology";
-import { polygonCentroid } from "../../generators/geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../generators/geom";
 import { cellHouseCount, cellHouseRing, unpackPoints } from "../../generators/vector/fabric/pack";
 import type { Point } from "../../types/primitives";
 import type { VectorCityDocument } from "../../types/vector/document";
@@ -63,19 +63,36 @@ export function villageHouse3d(
     }
     towards = best ? [best[0] - center[0], best[1] - center[1]] : [0, 0];
   } else {
-    const [, access] = unpackPoints(cell.houses.entrances, cell.origin, 2 * index, 2 * index + 2);
-    towards = [access[0] - center[0], access[1] - center[1]];
+    // The home faces its toft's street front (Thorpe 1949: each homestead was entered off the street or green), not
+    // the nearest line its recorded entrance reached: a toft at a block's end lies beside a cross lane.
+    const front = plotFront(cell, center);
+    if (front) {
+      const hit = nearestOnPolyline(center, front).point;
+      towards = [hit[0] - center[0], hit[1] - center[1]];
+    } else {
+      const [, access] = unpackPoints(cell.houses.entrances, cell.origin, 2 * index, 2 * index + 2);
+      towards = [access[0] - center[0], access[1] - center[1]];
+    }
   }
   let angle = Math.atan2(long[1], long[0]);
+  // A home standing end on to its street (its long side running back from it, on a narrow plot) takes its door in
+  // the street gable, the model's +x end; any other faces the street with its eaves side, the model's +z.
+  const along = Math.abs(long[0] * towards[0] + long[1] * towards[1]) / (length || 1),
+    across = Math.abs(short[0] * towards[0] + short[1] * towards[1]) / (width || 1),
+    gable = !barn && along > across;
+  if (gable) {
+    if (Math.cos(angle) * towards[0] + Math.sin(angle) * towards[1] < 0) angle += Math.PI;
+  }
   // The model's front (+z) lies at (sin, -cos) of its angle in the CE frame.
-  if (Math.sin(angle) * towards[0] - Math.cos(angle) * towards[1] < 0) angle += Math.PI;
+  else if (Math.sin(angle) * towards[0] - Math.cos(angle) * towards[1] < 0) angle += Math.PI;
   return {
     spec: {
       kind,
       profile,
       length: step(length),
       width: step(width),
-      variant: growthRandom(id) < 0.5 ? 0 : 1
+      variant: growthRandom(id) < 0.5 ? 0 : 1,
+      ...(gable ? { entrance: "gable" as const } : {})
     },
     center,
     angle
@@ -114,9 +131,26 @@ export function villageWorkshop3d(
       profile,
       length: step(length),
       width: step(width),
-      variant: growthRandom(`${center[0].toFixed(2)},${center[1].toFixed(2)}`) < 0.5 ? 0 : 1
+      variant: growthRandom(`${center[0].toFixed(2)},${center[1].toFixed(2)}`) < 0.5 ? 0 : 1,
+      ...(!alongFront && !rearWorks ? { entrance: "gable" as const } : {})
     },
     center,
-    angle: alongFront ? angle : angle + Math.PI / 2
+    // End on to the street: the +x gable, with its door, turned to the street front, (sin, -cos) of the facing.
+    angle: alongFront ? angle : angle - Math.PI / 2
   };
+}
+
+/** The street front of the cell's plot that holds `point`: its two corners on the street. */
+function plotFront(cell: VectorFabricCell, point: Point): Point[] | undefined {
+  const plots = cell.plots;
+  if (!plots) return;
+  for (let k = 0; k < plots.offsets.length; k++) {
+    const ring = unpackPoints(
+      plots.coords,
+      cell.origin,
+      plots.offsets[k],
+      plots.offsets[k + 1] ?? plots.coords.length / 2
+    );
+    if (pointInPolygon(point, ring)) return unpackPoints(plots.fronts, cell.origin, 2 * k, 2 * k + 2);
+  }
 }

@@ -1,9 +1,9 @@
 import type * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { defaultGenerationSettings } from "../../generators/generation/settings";
-import { pointInPolygon } from "../../generators/geom";
+import { nearestOnPolyline, pointInPolygon } from "../../generators/geom";
 import { defaultPopulationSettings } from "../../generators/populationPlan";
-import { cellHouseRing, fabricHouseId } from "../../generators/vector/fabric/pack";
+import { cellHouseRing, fabricHouseId, unpackPoints } from "../../generators/vector/fabric/pack";
 import { vectorInputFromEditor } from "../../generators/vector/generation/editorInput";
 import { DEFAULT_VECTOR_GENERATION, generateVectorSkeleton } from "../../generators/vector/generation/pipeline";
 import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "../../generators/vector/generation/urban";
@@ -57,6 +57,26 @@ describe("roadside village in 3D (plan V4)", () => {
         const house = houses.find(h => h.id === fabricHouseId(cell.id, i))!;
         expect(house.spec.kind === "barn").toBe(dwellings === 0);
         expect(pointInPolygon(house.center as Point, cellHouseRing(cell, i))).toBe(true);
+        // Every home's door faces its toft's street front: in its eaves side, or in its gable when it stands end on
+        // to the street (2026-11-22: end-on houses showed the street a blank gable; a toft beside a cross lane turned
+        // its door to the lane).
+        if (dwellings === 0) return;
+        const plots = cell.plots!,
+          k = plots.offsets.findIndex((start, j) =>
+            pointInPolygon(
+              house.center as Point,
+              unpackPoints(plots.coords, cell.origin, start, plots.offsets[j + 1] ?? plots.coords.length / 2)
+            )
+          ),
+          [a, b] = unpackPoints(plots.fronts, cell.origin, 2 * k, 2 * k + 2),
+          street = nearestOnPolyline(house.center as Point, [a, b]).point,
+          to = [street[0] - house.center[0], street[1] - house.center[1]],
+          front =
+            house.spec.entrance === "gable"
+              ? [Math.cos(house.angle), Math.sin(house.angle)]
+              : [Math.sin(house.angle), -Math.cos(house.angle)],
+          facing = (front[0] * to[0] + front[1] * to[1]) / Math.hypot(to[0], to[1]);
+        expect(facing).toBeGreaterThan(0.7);
       });
     const scene = createVectorScene(data, { quality: "low" });
     try {

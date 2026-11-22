@@ -68,7 +68,8 @@ function specOf(kind: VillageHouseKind, values: Readonly<Record<string, string>>
     profile: (values.profile as VillageHouseProfile | undefined) ?? "atlantic",
     length: values.length ? Number(values.length) : preset.length,
     width: values.width ? Number(values.width) : preset.width,
-    variant: values.end === "left" ? 1 : 0
+    variant: values.end === "left" ? 1 : 0,
+    ...(values.entrance === "gable" && kind !== "barn" ? { entrance: "gable" as const } : {})
   };
 }
 
@@ -117,6 +118,20 @@ export const models: MedievalModel[] = KINDS.map(({ kind, name, size, lengths, w
             .sort((a, b) => a - b)
             .map(w => ({ id: String(w), label: `${w} m` }))
         },
+        // A house end on to its street on a narrow plot opens in its gable (plan V7).
+        ...(kind === "barn"
+          ? []
+          : [
+              {
+                id: "entrance",
+                label: "Street door",
+                default: "eave",
+                options: [
+                  { id: "eave", label: "In the long side (eaves to the street)" },
+                  { id: "gable", label: "In the gable (end on to the street)" }
+                ]
+              }
+            ]),
         {
           id: "end",
           label: kind === "barn" ? "Hand" : "Home end",

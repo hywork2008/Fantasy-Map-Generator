@@ -33,6 +33,9 @@ export interface VillageHouseSpec {
   width: number;
   /** Which end the dwelling, door and smoke hole take. */
   variant: 0 | 1 | 2;
+  /** `gable`: the door in the +x gable end, the street side of a house standing end on to it on a narrow plot (a
+   * house deeper than its frontage). The eaves side (+z) otherwise. Not for a barn, whose doors open on its yard. */
+  entrance?: "eave" | "gable";
 }
 
 /** The plan's sizes (§14.2): Hangleton 12 × 6 m longhouses and buildings under 9 m, Herefordshire 5 × 3.5 m cots. */
@@ -107,7 +110,14 @@ const THATCH_METERS = 0.35;
 const clamp = (v: number, [min, max]: readonly [number, number]) => Math.min(max, Math.max(min, v));
 
 export function villageHouseSpecKey(spec: VillageHouseSpec): string {
-  return [spec.kind, spec.profile, spec.length.toFixed(2), spec.width.toFixed(2), spec.variant].join("|");
+  return [
+    spec.kind,
+    spec.profile,
+    spec.length.toFixed(2),
+    spec.width.toFixed(2),
+    spec.variant,
+    spec.entrance === "gable" ? "gable" : "eave"
+  ].join("|");
 }
 
 /** The pitched roof as a solid of its thickness, ridge along x, with the gable walls closing its ends. */
@@ -216,6 +226,20 @@ function door(k: ModelKit, x: number, z: number, wide: number, tall: number, hig
       k.box("door-strap", [x, y, z + face * 0.08], [wide - 0.12, 0.06, 0.02], "iron");
 }
 
+/** A door in the +x gable end wall, at `z` across it. */
+function gableDoor(k: ModelKit, x: number, z: number, wide: number, tall: number, high: boolean) {
+  k.box("doorway", [x + 0.01, (tall + 0.06) / 2, z], [0.04, tall + 0.06, wide + 0.12], "dark");
+  k.box("door-leaf", [x + 0.04, tall / 2, z], [0.06, tall, wide], "wood");
+  if (high)
+    for (const y of [0.45, tall - 0.45]) k.box("door-strap", [x + 0.08, y, z], [0.02, 0.06, wide - 0.12], "iron");
+}
+
+/** A small opening in the +x gable end wall. */
+function gableOpening(k: ModelKit, x: number, z: number, y: number, high: boolean) {
+  k.box("window-opening", [x + 0.01, y, z], [0.04, 0.5, 0.55], "dark");
+  if (high) k.box("window-sill", [x + 0.06, y - 0.28, z], [0.1, 0.06, 0.65], "wood");
+}
+
 /** A small unglazed opening with a board shutter propped beside it. */
 function opening(k: ModelKit, x: number, z: number, y: number, high: boolean) {
   k.box("window-opening", [x, y, z + 0.01], [0.55, 0.5, 0.04], "dark");
@@ -249,7 +273,23 @@ export function createOpusVillageHouse(spec: VillageHouseSpec, quality: "low" | 
   walls(k, look, length, width, eave);
   frame(k, look, length, width, eave, high);
   const { top } = roofAndGables(k, look, length, width, eave);
-  if (spec.kind === "longhouse") {
+  const gable = spec.entrance === "gable" && spec.kind !== "barn",
+    endWall = length / 2;
+  if (gable) {
+    // End on to the street: the door and a window in the street gable, the home at that end, the hearth behind it.
+    const doorZ = (spec.variant === 1 ? -1 : 1) * Math.min(width / 4, width / 2 - 0.9);
+    gableDoor(k, endWall, doorZ, spec.kind === "longhouse" ? 1 : 0.9, spec.kind === "longhouse" ? 1.8 : 1.7, high);
+    if (width > 4) gableOpening(k, endWall, -doorZ * 0.8, 1.3, high);
+    opening(k, endWall - Math.min(2.5, length / 3), front, 1.3, high);
+    smoke(k, look, endWall - Math.min(3, length / 3), top, width);
+    if (spec.kind === "longhouse") {
+      // The byre behind the home, at the far end: slit vents, and its own door to the yard on High.
+      const byre = -endWall + length / 4;
+      for (const dx of [-0.8, 0.8]) k.box("byre-vent", [byre + dx, 1.5, front + 0.01], [0.12, 0.45, 0.04], "dark");
+      if (high) door(k, byre, -front, 1.2, 1.8, high, -1);
+    }
+    if (high) k.box("door-step", [endWall + 0.17, 0.04, doorZ], [0.3, 0.08, 1.1], "stone");
+  } else if (spec.kind === "longhouse") {
     // Home at one end, byre at the other, the cross-passage between them with opposed doors (Herefordshire,
     // Dartmoor): the passage stands a third of the way from the byre end.
     const passage = end * (-length / 2 + length / 3);

@@ -734,3 +734,51 @@ V5 の画面の確認で、村の工房・店（trade workhome、shop-house、�
 - `npx vitest run src/city-editor/generators/burgage src/city-editor/generators/vector/generation/villagePlan.test.ts src/city-editor/renderers/vector src/city-editor/components/vector`: 29 ファイル（うち 2 ファイルは既定で飛ばすもの）・96 件成功。
 - `npx tsc --noEmit`: 誤りなし。
 
+## 20. 道に背を向ける家の修正（2026-11-22）
+
+### 20.1 起きていたこと
+
+ユーザーの画面の確認で、道に対して横向きになり、道との繋がりを無視した建物が多く見つかった。妻（切妻の三角の壁）を道に向け、扉は隣の家の方を向いていた。
+
+- **割った屋敷地の小屋**: 間口が狭い区画（割った区画、2 段目）では、小屋の通り沿いの長さが間口で抑えられ（5〜9 m の範囲から、間口 − 1.6 m まで）、奥行き（3.5〜5 m）より短くなることがある。3D は家の長い辺をモデルの長い辺に合わせ、扉を長い辺（軒側）に置くので、奥に長い家は妻を道に向け、扉は横を向いた。
+- **村の施設**: 工房・店の敷地は奥に長いことが多い。V7 の `villageWorkshop3d` は、奥に長い敷地では建物を 90° 回し、表（扉）を横に向けていた。
+
+### 20.2 直したこと
+
+| ファイル | 内容 |
+| --- | --- |
+| [opusVillageHouses.ts](../../src/buildings/medieval/opusVillageHouses.ts) | spec に `entrance`（`eave`／`gable`）を加えた。`gable` の家は、扉と窓を +x の妻壁に置き、住まいをその端に、煙出しをその奥に置く。長い家は奥の端を家畜の部屋にし、High では家畜の部屋の扉を裏（中庭）側に付ける。納屋は扉が中庭に向くので、いつも `eave` |
+| [62-village-housesModels.ts](../../src/buildings/medieval/62-village-housesModels.ts) | MV の長い家と小屋に「Street door」（長い辺／妻）を選ぶ欄を加えた |
+| [villageHouses.ts](../../src/city-editor/renderers/vector/villageHouses.ts) | 家の入口の先の通りの向きと、家の長い辺の向きを比べ、長い辺が通りに向かって伸びる家（奥に長い家）は `gable` にして、+x の妻を通りに向ける。それ以外は今までどおり軒側を通りに向ける。村の施設も、奥に長い敷地では `gable` にして妻を通りに向ける（rear works の納屋は除く） |
+
+狭い町の区画で、家が妻を通りに向けて妻に入口を持つ形は、町の短冊形区画の家にも広く見られる形である（参考画像の Manor Lords の家もこの形）。生成の結果（家の外形・位置）は変えていない。3D の描き方だけを変えた。
+
+### 20.3 テスト
+
+- [villageHouses3d.test.ts](../../src/city-editor/renderers/vector/villageHouses3d.test.ts): 300 人の村のすべての家で、扉のある面（軒側、または `gable` の妻）の向きと、家の中心から入口の先の通りへの向きの余弦が 0.7 を超えることを加えた。
+- [opusVillageHouses.test.ts](../../src/buildings/medieval/opusVillageHouses.test.ts): 地面に立ち外形に収まることを、`eave`・`gable` の両方で確かめるようにした。
+- `MEDIEVAL_MODEL_TASK=62 npx vitest run src/buildings/medieval/modelContracts.test.ts`: 8 件成功。
+- `npx vitest run src/city-editor/renderers/vector src/buildings/medieval/opusVillageHouses.test.ts src/buildings/catalogueFacets.test.ts src/model-viewer src/city-editor/generators/vector/generation/villagePlan.test.ts`: 26 ファイル・69 件成功。
+- `npx tsc --noEmit`: 誤りなし。
+
+### 20.4 道沿いの納屋（追加の修正）
+
+修正の後も、道に扉の無い妻を向けた建物が残った。これは家ではなく、小屋に添う離れの納屋だった。
+
+- 納屋は小屋と反対の側に、通りに妻を向けて建て、扉は中庭に向けている（§15.1）。ところが、通りからの距離が 1〜4 m（小屋の奥行きより手前）だったため、小屋と並んで通りの正面に立ち、扉の無い妻を通りに見せていた。
+- [villagePlan.ts](../../src/city-editor/generators/vector/generation/villagePlan.ts) の `villageFarmstead`: 納屋を、小屋の奥の線から 3〜6 m 下げた中庭に置くことにした（`BARN_YARD_METERS`）。納屋の長さは、屋敷地の奥から 2 m 手前までに収める。通りから見えるのは家で、納屋はその後ろの中庭に立つ。
+
+この修正は村の家の外形（生成の結果）を変える。開発中の `burgage-village`（v66）だけの変更で、ほかの Plot pattern には関わらない。
+
+[villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) に、すべての納屋が、同じ屋敷地の家より奥（屋敷地の正面からの最も近い点が、家の最も遠い点より奥）に立つことを加えた。`npx vitest run src/city-editor/generators/vector/generation/villagePlan.test.ts src/city-editor/renderers/vector/villageHouses3d.test.ts src/city-editor/generators/burgage`: 成功。
+
+### 20.5 横の小路に扉を向ける家（追加の修正）
+
+さらに、通りに軒を向けながら、扉を横の妻（横の小路の側）に付けた家が残った（ユーザーの報告: `arm:input-road:2:left:t1:0#3`、街区の端の屋敷地）。
+
+- 3D は、家の記録した入口（`entrances`。家を建てるときに、正面から近い線へ引いた入口）の先を「通り」として向きを決めていた。入口は、区画の正面から 6 m 以内に道の線が無いと、いちばん近い線へ引かれる（`openPlotEntrance`）。村の屋敷地の正面は道の中心線から 4〜7.5 m 以上離れているので、街区の端の屋敷地では、横の小路の方が近く、入口が小路へ引かれていた。その先を「通り」とみなして、扉を小路の側の妻に向けていた。
+- [villageHouses.ts](../../src/city-editor/renderers/vector/villageHouses.ts): 家の向きは、記録した入口ではなく、家の立つ屋敷地の正面（通りに面した辺）から決めるようにした。屋敷地が無い家だけ、記録した入口を使う。
+- [villageHouses3d.test.ts](../../src/city-editor/renderers/vector/villageHouses3d.test.ts): 扉の向きを、屋敷地の正面への向きと比べるようにした。修正の前のコードでは、この検査は余弦 −1.0（真後ろ）で失敗する。
+
+記録した入口（2D・保存）は変えていない。村の家の 3D は入口を使わないので、見た目には関わらない。
+

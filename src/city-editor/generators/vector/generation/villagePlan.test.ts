@@ -3,7 +3,7 @@ import { parseVectorDocument, serializeVectorDocument } from "../../../services/
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import { defaultGenerationSettings } from "../../generation/settings";
-import { pointInPolygon, polygonCentroid } from "../../geom";
+import { nearestOnPolyline, pointInPolygon, polygonCentroid } from "../../geom";
 import { defaultPopulationSettings } from "../../populationPlan";
 import { unpackPoints } from "../fabric/pack";
 import { regionArea } from "../geometry/regions";
@@ -82,6 +82,21 @@ describe("roadside village (docs/plan/ce-meshless-roadside-burgage-village.md V2
     const dwellings = cells.flatMap(c => c.houses.dwellings);
     expect(dwellings.filter(n => n === 1).length).toBe(doc.urban!.report.requiredDwellings);
     expect(dwellings.some(n => n === 0)).toBe(true);
+    // A barn stands in its toft's yard behind the house's line, not on the street front with its blank gable.
+    for (const cell of cells) {
+      const plots = rings(cell.plots!.coords, cell.plots!.offsets, cell.origin),
+        fronts = plots.map((_, k) => unpackPoints(cell.plots!.fronts, cell.origin, 2 * k, 2 * k + 2)),
+        houses = rings(cell.houses.coords, cell.houses.offsets, cell.origin);
+      const reach = (ring: Point[], k: number) => ring.map(p => nearestOnPolyline(p, fronts[k]).dist);
+      cell.houses.dwellings.forEach((d, i) => {
+        if (d !== 0) return;
+        const k = plots.findIndex(plot => pointInPolygon(polygonCentroid(houses[i]), plot)),
+          home = houses.findIndex(
+            (h, j) => cell.houses.dwellings[j] === 1 && pointInPolygon(polygonCentroid(h), plots[k])
+          );
+        expect(Math.min(...reach(houses[i], k))).toBeGreaterThan(Math.max(...reach(houses[home], k)));
+      });
+    }
     // Every district's lanes join a road.
     for (const district of Object.values(doc.fabric!.districts)) expect(district.mouths.length).toBeGreaterThan(0);
     expect(parseVectorDocument(serializeVectorDocument(doc))?.fabric).toEqual(doc.fabric);
