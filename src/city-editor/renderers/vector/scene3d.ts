@@ -21,6 +21,7 @@ import { createTownRoads } from "../../../city3d/three/roadMeshes";
 import { createTownShips } from "../../../city3d/three/shipMeshes";
 import { createStructureMassing } from "../../../city3d/three/structureMeshes";
 import { createTownWallParts } from "../../../city3d/three/townWallMeshes";
+import { createTownVillageHouses, type VillageHouseSite } from "../../../city3d/three/villageHouseMeshes";
 import { createTownWaterParts } from "../../../city3d/three/waterMeshes";
 import { createTownWells } from "../../../city3d/three/wellMeshes";
 import { treeSeason } from "../../../city3d/treeSeason";
@@ -528,7 +529,8 @@ export function createVectorScene(
       }[] = [];
     // Generated houses share one mesh per colour, height and tile: draw calls grow with area, not houses.
     const houseBatches = new Map<string, HouseBatch>();
-    const massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
+    const villageHouses: VillageHouseSite[] = [],
+      massingLots: { polygon: Point[]; massing: BuildingMassing; appearance?: BuildingAppearance }[] = [],
       massingIds: string[] = [],
       massingElevations: number[] = [],
       massingDoors: ([Point, Point] | undefined)[] = [];
@@ -597,6 +599,20 @@ export function createVectorScene(
       if (surface.pieceRole === "pier" && data.piers?.some(p => p.id === surface.id) && !data.terrain) continue;
       if (surface.pieceRole === "landscape-tree" || (surface.pieceRole === "bv-well" && data.wells?.length)) continue;
       if ((surface.kind === "wall" || surface.kind === "bridge") && massed.has(surface.id)) continue;
+      // A roadside village's buildings take the Opus village models (ce-meshless-roadside-burgage-village.md V4).
+      if (surface.houses?.village) {
+        const { ids, elevationsMeters, village } = surface.houses;
+        village.forEach((house, i) => {
+          villageHouses.push({
+            id: ids[i],
+            spec: house.spec,
+            center: house.center,
+            angle: house.angle,
+            elevation: elevationsMeters[i] - datum
+          });
+        });
+        continue;
+      }
       if (surface.houses?.massing && surface.houses.massing.length === surface.houses.ids.length) {
         const { ids, elevationsMeters, massing, appearance, doors } = surface.houses;
         surface.polygons.forEach((polygon, i) => {
@@ -835,6 +851,21 @@ export function createVectorScene(
         group.add(owner);
       }
     }
+    if (villageHouses.length)
+      layer("village-houses", [villageHouses], () => {
+        const houses = createTownVillageHouses(villageHouses, harborCache, placementQuality),
+          holder = new THREE.Group();
+        holder.position.set(-data.center[0], 0, data.center[1]);
+        holder.add(houses.group);
+        for (const mesh of houses.pickables)
+          mesh.userData = {
+            ...mesh.userData,
+            kind: "building",
+            buildingKind: "housing",
+            representation: "village-houses"
+          };
+        return { object: holder, dispose: () => houses.dispose(), resolve: hit => houses.resolve(hit)?.id };
+      });
     if (massingLots.length) {
       // Houses use the mesh editor's walls and roofs. Each lot's triangles are contiguous, so the same house table
       // as the prism batches maps a hit back to its house id.

@@ -2,7 +2,7 @@
 
 作成: 2026-11-22
 更新: 2026-11-22（V0: 村の区画の間口・奥行き、裏小路、村の通りと広場、南欧の村の史料を調べ、§2.4 に採用値を確定した。§4.2・§5 をそれに合わせて改めた。V1: 区画の型 `village-toft` と純関数 `planRoadsideBlocks` を作った。§5.6 の費用を「重み × 距離 ＋ 基準」に改め、設定・UI・検証は V2 に回した（§12）。V2: `burgage-village` を生成に接続し、v66 とした（§13））
-状態: V0〜V3 完了。2026-11-22 に村の家と人口の上限を見直し（§14）、V3 以降の段階を組み直した。次は V4。
+状態: V0〜V4 完了。2026-11-22 に村の家と人口の上限を見直し（§14）、V3 以降の段階を組み直した。次は V5。
 対象: メッシュなし CE（skeleton-first）の、FMG と連携しない単独の都市生成（合成入力）。FMG から開いた都市、メッシュあり CE、廃止予定の CG は対象外。
 関連: [ce-burgage-plot-fabric.md](ce-burgage-plot-fabric.md)（区画の型と寸法）、[ce-meshless-growth-generation.md](ce-meshless-growth-generation.md)（成長型の生成。未実装）、[ce-meshless-gate-ribbon-growth.md](ce-meshless-gate-ribbon-growth.md)（市壁の外の街道沿いの帯）、[ce-rural-field-layout.md](ce-rural-field-layout.md)（郊外の耕地）、[bridge-skew-policy.md](bridge-skew-policy.md)
 
@@ -248,7 +248,7 @@
 | V1 | `village-toft` の型（§4.2）。純関数 `planRoadsideBlocks(roads, centre, need, profile, obstacles)` を作り、1 段目の街区・区画の分割・横の小路・裏小路・2 段目の街区を、§5.6 の順序で返す | 単体テスト: 直線と曲がる街道で、街区がすべて四角形であり、互いに重ならず、街道との距離が揃うこと。§5.6 の目安（交差点の村の 3,000 人が上限に収まり、腕 1 本の村は未収容を報告する）が成り立つこと。**完了（2026-11-22）**。§12 |
 | V2 | `PlotFabric` の `burgage-village`・UI・多言語化・検証（V1 から移した。§12.1）。生成に接続する。円形の敷地を作らない流れ、大きさの見積もり（§5.6）、描画範囲、2 段目の街区、v66、保存と読込 | 200・500・1,000・2,000 人（川なし・川 1 本）で未収容 0。斜めに切られた区画が 0。ほかの Plot pattern の固定入力で、直列化した文書の SHA-256 が変わらない。**完了（2026-11-22）**。§13 |
 | V3 | 村の家（§14.2）: 1 階建て・1 軒 1 世帯、屋敷地の型ごとの家（長い家・小屋）と離れの納屋。人口の上限（§14.3）: 生成の検証、UI、未収容の理由。戸数の見込みを 1 軒 1 世帯に改める | 50・200・500・1,000 人で未収容 0、家はすべて 1 階・1 世帯。1,001 人以上は生成せず理由を返す。ほかの Plot pattern の出力が変わらない。**完了（2026-11-22）**。§15 |
-| V4 | MV に村の家のモデルを作る（§14.4）: 長い家（住まいと牛舎）、小屋、納屋。地域の型ごとの壁と屋根。CE の 3D で村の家をそのモデルで描く | MV で一覧に出て、寸法が §14.2 の範囲にある。CE の 3D で村の家が 1 階・草葺き（地域による）で、区画の通り側に建つ |
+| V4 | MV に村の家のモデルを作る（§14.4）: 長い家（住まいと牛舎）、小屋、納屋。地域の型ごとの壁と屋根。CE の 3D で村の家をそのモデルで描く | MV で一覧に出て、寸法が §14.2 の範囲にある。CE の 3D で村の家が 1 階・草葺き（地域による）で、区画の通り側に建つ。**完了（2026-11-22）**。§16 |
 | V5 | 村の中心（交差点の角、教会、広場、細長い広場）、施設（`placeFacilitiesOnPlots`）、tanners' row の判定の置き換え（旧 V3） | 施設のある 1,000 人の村で、施設の 8 割以上が置ける。中心の角に三角の街区がない |
 | V6 | 土地利用と耕区。村の土地の外を耕地にし、裏小路に接する耕区の向きを判断する（旧 V4） | 村の土地と耕地の間に 400 m² を超える空き地が残らない |
 | V7 | ブラウザで 2D・3D を確かめ、見た目の不自然さを直す。市の設定パネルの Walls などの入力を、村では無効にする（旧 V5） | 画面での確認の記録を本書に書く |
@@ -277,7 +277,7 @@
 
 ## 10. 次に進める作業
 
-V4 に進む。始めに、MV のモデルの作り手と、既存の `RegionalHouseSpec` に 1 階・草葺きの型を足すだけで足りるかを決める（§14.4）。そのうえで、長い家・小屋・離れの納屋のモデルを MV に作り、CE の 3D で村の家（戸数 1）と離れ（戸数 0）をそれぞれのモデルで描く。
+V5 に進む。村の中心（交差点の角、教会、広場、細長い広場）を整え、施設のある村（`medieval-facilities`）で施設を区画に置く。V4 の画面の確認で、施設のある 400 人の村は施設が 13 のうち 1 しか置けていなかった（§16.3）。`urban.ts` の `core`（円の 0.65 倍）を村の土地に置き換え、tanners' row の判定を直す。
 
 ## 11. V0 の記録（2026-11-22）
 
@@ -537,4 +537,40 @@ CE の 3D では、村の家の外形（区画の通り側に建てた長方形�
 - `npx vitest run src/city-editor/generators/burgage src/city-editor/generators/vector/generation/{villagePlan,burgagePlots,perimeter,urban}.test.ts src/city-editor/components/vector/VectorGenerationPanel.test.ts src/city-editor/generators/vector/validation`: 79 件成功。
 - `npx tsc --noEmit`: 誤りなし。
 - [villagePlan.test.ts](../../src/city-editor/generators/vector/generation/villagePlan.test.ts) に加えたこと: 1,000 人の村で、家がすべて 1 階、戸数は 0 か 1、戸数 1 の家の数が必要戸数と同じ、離れがある。1,001 人の村は `urban-village-population` で止まる。
+
+## 16. V4 の記録（2026-11-22）
+
+### 16.1 決めたこと
+
+- **作り手**: ユーザーの指示で Claude Opus 5.5 とした（`author: "Claude Opus 5.5"`）。
+- **既存の `RegionalHouseSpec` に足すか、新しいモデルにするか**: 新しいモデルにした。地域の家（`RegionalHouseSpec`）は町の家（2 階以上、張り出し、店の間口）を前提にしていて、長い家の通り抜けの土間・家畜の部屋・脱穀の納屋の向かい合う扉を持てないためである。
+- **CE への載せ方**: 村の家は fabric の家のまま保存し、3D でだけ、家の外形の長さ・幅に合わせた Opus のモデルで描く。モデルは寸法を 0.25 m 刻みに丸め、同じ寸法・地域・向きの家は 1 つのモデルを instancing で共有する。保存形式と生成の結果は変えない。
+
+### 16.2 作ったもの
+
+| ファイル | 内容 |
+| --- | --- |
+| [opusVillageHouses.ts](../../src/buildings/medieval/opusVillageHouses.ts) | `createOpusVillageHouse(spec, quality)`: 長い家・小屋・納屋。spec は種類・地域・長さ・幅・向き（住まいの端が左か右か）。長い辺を x、表（通り、納屋は中庭）を +z、原点を中心にした。壁は外形どおり、屋根は 0.35 m 張り出す。壁の高さは 2.0〜2.1 m（納屋 2.8 m）。長い家は通り抜けの土間と向かい合う扉、住まいの端の窓 1〜2 と煙出し、家畜の端の換気の細窓（High では排水口と土間の踏み石）。小屋は扉 1 と窓 1〜2 と煙出し。納屋は長い辺の中央に向かい合う大扉。地域ごとの壁と屋根: `atlantic` 編み枝と土壁＋木骨・草葺き 50°、`northern-wooded` 丸太・板葺き 38°（High で丸太の段）、`northern-urban` 木骨の Wohnstallhaus・草葺き 48°、`stone-upland` 石積み・草葺き 45°、`mediterranean` 石積み・瓦 22°・石の煙突。`villageHouseDefinition`: spec と品質ごとに 1 つの定義（instancing 用） |
+| [62-village-housesModels.ts](../../src/buildings/medieval/62-village-housesModels.ts) | MV の task 62「Village Houses」: `village-house.longhouse`・`village-house.cottage`・`village-house.barn`。Low・High。MV で地域・長さ・幅・向きを選べる |
+| [medievalVariants.ts](../../src/buildings/medieval/medievalVariants.ts)、[catalogueFacets.ts](../../src/buildings/catalogueFacets.ts)、[wikipedia.ts](../../src/model-viewer/wikipedia.ts) | 登録、絞り込みの属性（中世〜、ヨーロッパ、住まい・農業）、Wikipedia の項目（Longhouse、Cottage、Barn） |
+| [villageHouses.ts](../../src/city-editor/renderers/vector/villageHouses.ts) | fabric の家から spec と置き方を求める。戸数 0 は納屋、長い辺 11.5 m 以上は長い家、それ以外は小屋。家の表は入口の先の通りへ、納屋の表は同じ屋敷地の家の側（中庭）へ向ける。地域は町の住まいの文化（自動の場合も含む。`legacy` は `atlantic`） |
+| [renderData.ts](../../src/city-editor/renderers/vector/renderData.ts)、[houseAppearance.ts](../../src/city-editor/renderers/vector/houseAppearance.ts) | `burgage-village` の街区の家は、massing の代わりに `houses.village`（spec・中心・向き）を持つ。2D の描画は変えない |
+| [villageHouseMeshes.ts](../../src/city3d/three/villageHouseMeshes.ts)、[scene3d.ts](../../src/city-editor/renderers/vector/scene3d.ts) | 3D の層 `village-houses`: 村の家を Opus のモデルで instancing して描く。家を選ぶと fabric の家の id が返る |
+
+### 16.3 画面での確認
+
+開発サーバーで確かめた。
+
+- MV の「Village Houses」に 3 つのモデルが出て、Low・High と地域・寸法・向きを切り替えられた。最初の版は、軒の近くで壁の角が屋根を突き抜けていた（屋根の下面の傾きが妻壁と合っていなかった）。屋根の下面を妻壁の傾きに揃えて直した。
+- CE で Meshless・「街道沿いの村」・400 人を生成し、3D で見た。家は 1 階で、屋敷地の通り側に軒を通りに向けて並び、納屋は妻を通りに向けて屋敷地の脇に建った。屋敷地の裏の畑・川・橋・教会と合わせて、村の形になっている。この町の自動の住まいの文化は `northern-wooded` で、丸太と板葺きの濃い茶色の家だった。
+- 2D・3D の投影図（MV の Front elevation・Top view）に、妻壁の端が細い三角に見えるところがある。3D の表示では見えないので、そのままにした。
+- 施設のある村（既定の `medieval-facilities`）では、施設が 13 のうち 1 しか置けなかった（V5 で扱う）。
+
+### 16.4 テスト
+
+- [opusVillageHouses.test.ts](../../src/buildings/medieval/opusVillageHouses.test.ts) 2 件: 3 種類 × 5 地域 × Low・High × 3 寸法で、モデルが地面に立ち、外形以上・外形＋0.8 m 以下に収まり、中心が原点で、高さが 1 階の範囲にある。同じ spec と品質で定義を共有する。
+- [villageHouses3d.test.ts](../../src/city-editor/renderers/vector/villageHouses3d.test.ts) 1 件: 300 人の村で、すべての家が村のモデルで描かれ（massing は無い）、長い家・小屋・納屋がそろい、納屋はちょうど戸数 0 の建物で、モデルの中心が家の外形の中にあり、3D で全部の家を選べる。
+- `MEDIEVAL_MODEL_TASK=62 npx vitest run src/buildings/medieval/modelContracts.test.ts`: 8 件成功。
+- `npx vitest run src/city-editor/renderers/vector src/buildings/medieval/opusVillageHouses.test.ts src/buildings/catalogueFacets.test.ts src/model-viewer src/city-editor/generators/vector/generation/villagePlan.test.ts`: 26 ファイル・65 件成功。
+- `npx tsc --noEmit`: 誤りなし。
 

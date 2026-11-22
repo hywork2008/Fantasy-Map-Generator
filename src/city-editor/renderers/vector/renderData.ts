@@ -2,6 +2,7 @@ import { normalizeBuildingAppearanceContext } from "../../../buildings/appearanc
 import type { BuildingAppearance, BuildingAppearanceProfile } from "../../../buildings/appearance/types";
 import { TREE_SPECIES, type TreeSpecies, treeLodProfile } from "../../../buildings/landscape/trees";
 import { packedMarketPitch } from "../../../buildings/medieval/marketPresentation";
+import type { VillageHouseSpec } from "../../../buildings/medieval/opusVillageHouses";
 import type { FacilityPlans } from "../../../city3d/three/facilityMeshes";
 import { growthRandom } from "../../../utils/urbanMorphology";
 import { lotMassing, massingContext } from "../../generators/buildingMassing";
@@ -51,6 +52,7 @@ import { vectorLandscapeSurfaces } from "./landscape";
 import { vectorMonasterySurfaces } from "./monastery";
 import { vectorRoadRibbons } from "./roadRibbons";
 import { vectorStructures } from "./structureMassing";
+import { vectorVillageProfile, villageHouse3d } from "./villageHouses";
 export type VectorSurfaceKind =
   | "region"
   | "block"
@@ -91,7 +93,18 @@ export interface VectorRenderSurface {
     /** Each house's door on its wall and the point it reaches on its street (the fabric entrance), parallel to `ids`:
      * the 3D house turns its door there. */
     doors?: [Point, Point][];
+    /** A roadside village's buildings, parallel to `ids` in place of `massing`: the Opus village model each one takes
+     * (docs/plan/ce-meshless-roadside-burgage-village.md V4). */
+    village?: VillageHouse3d[];
   };
+}
+/** A village building drawn by its Opus model, fitted to its footprint: its centre, and the turn that brings the
+ * model's long side along the footprint's and its front to the road (a barn's to its yard). */
+export interface VillageHouse3d {
+  spec: VillageHouseSpec;
+  center: Point;
+  /** Radians, CE frame: the model's +x along the footprint's long side. */
+  angle: number;
 }
 /** Storey height of generated houses. */
 export const FABRIC_STOREY_METERS = 3.2;
@@ -779,7 +792,9 @@ export function vectorRenderData(
         seed: doc.recipe.seed
       }),
       heights = vectorHousingHeights(doc),
-      appearance = vectorHouseAppearance(doc);
+      appearance = vectorHouseAppearance(doc),
+      // A roadside village draws its single-storey buildings with the Opus village models (plan V4).
+      villageProfile = doc.urban?.settings.plotFabric === "burgage-village" ? vectorVillageProfile(doc) : undefined;
     for (const district of Object.values(doc.fabric.districts))
       lines(district.id, "s", district.streets, district.origin, district.detachedLines);
     const facilitySites = Object.values(doc.placements).flatMap(p =>
@@ -810,6 +825,7 @@ export function vectorRenderData(
         },
         plain: { id: string; massing: BuildingMassing }[] = [];
       const plotDoor = plotDoorOf(cell);
+      if (villageProfile) houses.village = [];
       for (let i = 0; i < cellHouseCount(cell); i++) {
         if (detached.has(i)) continue;
         const id = fabricHouseId(cell.id, i),
@@ -825,6 +841,10 @@ export function vectorRenderData(
           houses.doors!.push([door, access]);
           houses.heightsMeters.push(cell.houses.storeys[i] * FABRIC_STOREY_METERS);
           houses.elevationsMeters.push(elevation);
+          if (houses.village) {
+            houses.village.push(villageHouse3d(cell, i, villageProfile!, id));
+            continue;
+          }
           const storeys = cell.houses.storeys[i];
           plain.push({
             id,
