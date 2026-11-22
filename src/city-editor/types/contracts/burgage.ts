@@ -49,3 +49,41 @@ export interface BurgageCellPlan {
   /** Land of the block left as garden or open ground: backland, slivers and corners no plot fits. */
   open: Point[][];
 }
+
+/** A road out of a village centre, from the centre outward (docs/plan/ce-meshless-roadside-burgage-village.md §5.1).
+ * A road through the centre is two arms. */
+export interface RoadsideArm {
+  id: string;
+  points: Point[];
+}
+
+/** A street block of a roadside village (plan §5.3, §5.5): a rectangle on one side of an arm, fronting the road
+ * (tier 1) or the back lane behind the first row (tier 2). */
+export interface RoadsideBlock {
+  id: string;
+  armId: string;
+  side: "left" | "right";
+  tier: 1 | 2;
+  ring: Point[];
+  /** The block's edge on the road or back lane it fronts. */
+  front: [Point, Point];
+  depthMeters: number;
+  plots: BurgagePlot[];
+}
+
+export interface RoadsideLane extends BurgageLane {
+  id: string;
+  armId: string;
+  side: "left" | "right";
+}
+
+export interface RoadsideVillagePlan {
+  blocks: RoadsideBlock[];
+  /** `back`: behind a run of tier-1 blocks. `cross`: from the road to the back lane, before every tier-1 block. */
+  lanes: RoadsideLane[];
+  /** Plots laid out, against `plotsNeeded`. */
+  plots: number;
+  /** Plots the roads could not take within their reach (plan §5.6). */
+  shortfall: number;
+  reasons: "village-capacity"[];
+}

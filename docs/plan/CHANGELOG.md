@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-11-22
+
+- docs/plan/ce-meshless-roadside-burgage-village.md - 市壁のない短冊形区画の村を、円形の下地を使わず、街道に張り付く四角形の街区・隙間の小路・裏小路・2段目の街区・周りの畑の順に作る（Plot pattern に `burgage-village` を加える）
+
 2026-11-20
 
 - docs/plan/ce-meshless-geometry-foundation-performance.md - CE meshless の生成を、ステージ構成は変えずに共通の幾何処理（多角形演算・占有判定・検証）を作り直して速くする
