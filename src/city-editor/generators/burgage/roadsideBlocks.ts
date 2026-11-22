@@ -8,7 +8,7 @@ import type {
 import type { Point } from "../../types/geometry";
 import { nearestOnPolyline, pointInPolygon, polygonArea, simplifyPolyline } from "../geom";
 import { makeRng, type Rng } from "../prng";
-import { drawIn, fillLength } from "./frame";
+import { drawIn, fillLength, LANE_CLEARANCE_METERS } from "./frame";
 import { VILLAGE_PERCH_METERS, VILLAGE_TOFT_PROFILE, type VillageToftProfile } from "./profiles";
 
 /**
@@ -30,6 +30,11 @@ export interface RoadsideVillageInput {
   obstacles?: readonly Point[][];
   /** Blocks keep within this distance of the centre on either axis (the map's edge). */
   halfExtentMeters?: number;
+  /** A street green (plan §5.2, V-R11): the road widens to this width between the plot fronts along the first
+   * `lengthMeters` of one arm; the tofts face the green across it. */
+  green?: { armId: string; widthMeters: number; lengthMeters: number };
+  /** Half the road's own width: the green's lawns start this far from its centre line. */
+  roadHalfWidthMeters?: number;
   profile?: VillageToftProfile;
 }
 
@@ -65,6 +70,8 @@ interface Potential {
   crossLane: number;
   widths: number[];
   parent?: Potential;
+  /** Tier 1 on a green: its lawn runs from the road's edge to its front. */
+  green?: { from: number; to: number };
 }
 
 interface Candidate {
@@ -77,6 +84,11 @@ interface Candidate {
 }
 
 const EPS = 1e-6;
+/** A green's lawn keeps this far off the road's edge; a path runs along the plot fronts across it, as tracks ran
+ * along the homesteads on a green (Thorpe 1949: each homestead was entered directly off the green). */
+const GREEN_PATH_METERS = 2;
+const GREEN_ROAD_MARGIN_METERS = 0.5;
+const GREEN_FRONT_MARGIN_METERS = GREEN_PATH_METERS + 2 * LANE_CLEARANCE_METERS;
 /** Steps a blocked block takes: shallower first, then further out. */
 const DEPTH_STEP_METERS = 2.5;
 const ADVANCE_STEP_METERS = 4;
@@ -127,6 +139,33 @@ function pointSegment(p: Point, a: Point, b: Point): number {
     l2 = dx * dx + dy * dy,
     k = l2 > 0 ? Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2)) : 0;
   return Math.hypot(p[0] - a[0] - k * dx, p[1] - a[1] - k * dy);
+}
+
+/**
+ * Where the road crosses the frame's line `s = at`, nearest the front: a cross lane runs square to its block from
+ * there, so it neither cuts a corner of a plot nor stops short of the road. The nearest point of the road when the
+ * line misses it.
+ */
+function roadAcross(f: Frame, at: number, front: number, road: readonly Point[]): Point {
+  const local = road.map(p => {
+    const x = p[0] - f.origin[0],
+      y = p[1] - f.origin[1];
+    return [x * f.u[0] + y * f.u[1], x * f.v[0] + y * f.v[1]] as const;
+  });
+  let best: number | undefined;
+  for (let i = 1; i < local.length; i++) {
+    const [s0, t0] = local[i - 1],
+      [s1, t1] = local[i];
+    if ((s0 - at) * (s1 - at) > 0 || s0 === s1) continue;
+    const t = t0 + ((t1 - t0) * (at - s0)) / (s1 - s0);
+    if (best === undefined || Math.abs(front - t) < Math.abs(front - best)) best = t;
+  }
+  return best === undefined
+    ? nearestOnPolyline(
+        [f.origin[0] + f.u[0] * at + f.v[0] * front, f.origin[1] + f.u[1] * at + f.v[1] * front],
+        road as Point[]
+      ).point
+    : [f.origin[0] + f.u[0] * at + f.v[0] * best, f.origin[1] + f.u[1] * at + f.v[1] * best];
 }
 
 const edges = (ring: Point[]) => ring.map((p, i) => [p, ring[(i + 1) % ring.length]] as const);
@@ -181,7 +220,8 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
     obstacles = (input.obstacles ?? []).map(ring => ({ ring, box: box(ring) })),
     bound = input.halfExtentMeters ?? Infinity,
     centre = arms[0]?.points[0] ?? [0, 0],
-    dwellingsOf = input.dwellingsOf ?? (() => 1);
+    dwellingsOf = input.dwellingsOf ?? (() => 1),
+    roadHalf = input.roadHalfWidthMeters ?? 2.5;
 
   const free = (ring: Point[]) => {
     const b = box(ring);
@@ -249,8 +289,9 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
       c.chordDepth = undefined;
       return true;
     };
-    const cross = drawIn(c.rng, profile.crossLane.widthMeters),
-      lane = c.lane,
+    // The lanes' strips keep the plots a hair off their surfaces, as a burgage block's do (`LANE_CLEARANCE_METERS`).
+    const cross = drawIn(c.rng, profile.crossLane.widthMeters) + 2 * LANE_CLEARANCE_METERS,
+      lane = c.lane + 2 * LANE_CLEARANCE_METERS,
       length = drawIn(c.rng, profile.crossLane.spacingMeters);
     for (let s0 = c.s + cross; s0 + shortestToft <= chord.length; s0 += ADVANCE_STEP_METERS) {
       let s1 = Math.min(chord.length, s0 + length);
@@ -267,7 +308,8 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
           .filter(([s]) => s >= s0 - cross - EPS && s <= s1 + EPS)
           .map(([, t]) => t)
       );
-      const t0 = half.get(c.arm.id)! + stray;
+      const onGreen = input.green?.armId === c.arm.id && chord.along + s0 < input.green.lengthMeters,
+        t0 = Math.max(half.get(c.arm.id)! + stray, onGreen ? input.green!.widthMeters / 2 : 0);
       for (
         let depth = c.chordDepth;
         depth >= Math.max(dMin, c.chordDepth * (1 - profile.rowDepthStep)) - EPS;
@@ -294,7 +336,10 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
           depth,
           backLane: lane,
           crossLane: cross,
-          widths: widths.map(w => w.width)
+          widths: widths.map(w => w.width),
+          ...(onGreen
+            ? { green: { from: roadHalf + stray + GREEN_ROAD_MARGIN_METERS, to: t0 - GREEN_FRONT_MARGIN_METERS } }
+            : {})
         });
         c.depth = depth;
         c.s = s1;
@@ -425,7 +470,8 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
     placed += c.gain;
   }
 
-  const blocks: RoadsideBlock[] = [],
+  const greens: Point[][] = [],
+    blocks: RoadsideBlock[] = [],
     lanes: RoadsideLane[] = [];
   for (const p of [...tier1, ...tier2]) {
     const count = taken.get(p) ?? 0;
@@ -450,6 +496,18 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
           undivided: n === 1
         });
     }
+    if (p.green) {
+      if (p.green.to > p.green.from + 1) greens.push(quad(f, p.s0 - p.crossLane, s1, p.green.from, p.green.to));
+      const path = p.t0 - LANE_CLEARANCE_METERS - GREEN_PATH_METERS / 2;
+      lanes.push({
+        id: `${p.id}:front`,
+        armId: p.armId,
+        side: p.side,
+        kind: "front",
+        widthMeters: GREEN_PATH_METERS,
+        points: [at(f, p.s0 - p.crossLane, path), at(f, s1, path)]
+      });
+    }
     blocks.push({
       id: p.id,
       armId: p.armId,
@@ -468,10 +526,10 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
         armId: p.armId,
         side: p.side,
         kind: "cross",
-        widthMeters: p.crossLane,
+        widthMeters: p.crossLane - 2 * LANE_CLEARANCE_METERS,
         // From the road's centre line, where it joins the road, to the back lane's far side.
         points: [
-          nearestOnPolyline(at(f, crossAt, p.t0), arms.find(a => a.id === p.armId)!.points as Point[]).point,
+          roadAcross(f, crossAt, p.t0, arms.find(a => a.id === p.armId)!.points as Point[]),
           at(f, crossAt, p.t0 + p.depth + p.backLane)
         ]
       });
@@ -481,7 +539,7 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
         armId: p.armId,
         side: p.side,
         kind: "back",
-        widthMeters: p.backLane,
+        widthMeters: p.backLane - 2 * LANE_CLEARANCE_METERS,
         points: [at(f, p.s0 - p.crossLane, back), at(f, s1, back)]
       });
     }
@@ -493,6 +551,7 @@ export function planRoadsideBlocks(input: RoadsideVillageInput): RoadsideVillage
     plots: blocks.reduce((n, b) => n + b.plots.length, 0),
     dwellings: placed,
     shortfall,
-    reasons: shortfall ? ["village-capacity"] : []
+    reasons: shortfall ? ["village-capacity"] : [],
+    greens
   };
 }

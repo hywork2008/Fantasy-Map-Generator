@@ -39,8 +39,9 @@ export interface BurgageLane {
   points: Point[];
   widthMeters: number;
   /** `back`: back lane behind a single row. `cross`: lane between plots or blocks to the back. `transverse`: a
-   * binaire lane across an over-long block. `venelle`: the binaire block's axial drain, not walked. */
-  kind: "back" | "cross" | "transverse" | "venelle";
+   * binaire lane across an over-long block. `venelle`: the binaire block's axial drain, not walked. `front`: a path along a roadside village's tofts
+   * across its green (docs/plan/ce-meshless-roadside-burgage-village.md V5). */
+  kind: "back" | "cross" | "transverse" | "venelle" | "front";
 }
 
 export interface BurgageCellPlan {
@@ -89,4 +90,6 @@ export interface RoadsideVillagePlan {
   /** Dwellings the roads could not take within their reach (plan §5.6). */
   shortfall: number;
   reasons: "village-capacity"[];
+  /** Lawns of the street green before the tofts that face it. */
+  greens: Point[][];
 }

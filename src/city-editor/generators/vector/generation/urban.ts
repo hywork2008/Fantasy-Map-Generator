@@ -24,7 +24,7 @@ import { allVectorWater } from "../geometry/water";
 import { assertVectorDocument, VECTOR_DOCUMENT_LIMITS } from "../validation/document";
 import { vectorUrbanStages } from "../validation/urban";
 import { reserveEdgeWorks } from "./edgeWorks";
-import { placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
+import { isWetTannery, placeFacilitiesOnLots, refitRetainedFacilities, reserveTanneryRow } from "./facilityLots";
 import { placeFacilitiesOnPlots } from "./facilityPlots";
 import { vectorHousingCulture, vectorTownCulture, vectorTownProfile } from "./housingCulture";
 import { raiseVectorLandUse } from "./landUse";
@@ -58,7 +58,14 @@ import {
   waterDistance
 } from "./urbanPacking";
 import { matchesVectorUrbanFingerprint, vectorUrbanAlgorithm, vectorUrbanFingerprint } from "./urbanState";
-import { planVillagePerimeter, VILLAGE_MAX_POPULATION, type VillagePerimeter } from "./villagePlan";
+import {
+  planVillagePerimeter,
+  VILLAGE_CORE_SHARE,
+  VILLAGE_FACILITY_ROOM,
+  VILLAGE_MAX_POPULATION,
+  type VillagePerimeter,
+  villageReachMeters
+} from "./villagePlan";
 import { assignVectorWards, streetBlockOf, wardHeightKind } from "./wards";
 import { layoutVectorWells } from "./wells";
 import { dressWorkhomes } from "./workhomeExteriors";
@@ -385,8 +392,14 @@ function* vectorUrbanSteps(
       .flatMap(p => p.outer)
       .map(p => Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]))
   );
+  // A roadside village has no round site: its core reaches part way out along its roads, first as the plan expects
+  // them to run, then as they were laid (ce-meshless-roadside-burgage-village.md V5).
+  let villageCore = villageFabric ? VILLAGE_CORE_SHARE * villageReachMeters(required) : 0;
   const core = (p: Point) =>
-    walls.length ? inside(p) : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) < radius * 0.65;
+    walls.length
+      ? inside(p)
+      : Math.hypot(p[0] - sourceSite.center[0], p[1] - sourceSite.center[1]) <
+        (villageFabric ? villageCore : radius * 0.65);
   timed("programme-and-domain/domain-and-walls");
   // The tanners' row is reserved on the bank below the town before the street plan, so streets and lots keep off it.
   const tanneryRow =
@@ -597,7 +610,26 @@ function* vectorUrbanSteps(
   const facilityFabric = organicMode && settings.mode === "medieval-facilities";
   let organic: VectorPerimeterPlan | undefined, village: VillagePerimeter | undefined;
   if (organicMode && villageFabric) {
-    village = planVillagePerimeter(doc, required, { lotOccupancy: settings.lotOccupancy ?? 1, protectedRegions });
+    village = planVillagePerimeter(doc, required, {
+      lotOccupancy: settings.lotOccupancy ?? 1,
+      protectedRegions,
+      // Workshops take tofts of their own: one each, two for a large hall or inn (plan §5.5). No row gives them more
+      // than half its tofts, so half as many again are laid for the rows to hold them.
+      facilityPlots:
+        requests
+          .filter(
+            r =>
+              !isWetTannery(r) &&
+              !tanneryRow.unplaced.some(u => u.id === r.id) &&
+              !ropewalks.placed.includes(`urban:${r.id}`) &&
+              !edgeWorks.placed.includes(`urban:${r.id}`)
+          )
+          .reduce((n, r) => n + (/:(guild|inn|hall)/.test(r.id) ? 2 : 1), 0) * VILLAGE_FACILITY_ROOM
+    });
+    villageCore = VILLAGE_CORE_SHARE * village.reach;
+    // The town's land is the village's own: its workshops stand on its tofts, beyond the centre's small site.
+    // Kept as separate pieces: their union may touch itself where two blocks meet at a corner.
+    domain.push(...structuredClone(village.land));
     organic = { ...joinPerimeterPlan(doc, village.districts, settings), plotFabric: "burgage-village", village: true };
   } else if (organicMode) {
     const { context, jobs } = perimeterJobs(doc, blocks, settings);
@@ -750,7 +782,7 @@ function* vectorUrbanSteps(
       core,
       tanneryRow.placed,
       // A park ward stays a lawn (P7c); its lots never take a facility.
-      id => wards.get(id)?.ward === "park"
+      id => !villageFabric && wards.get(id)?.ward === "park"
     );
     unplacedFacilities.push(...tanneryRow.unplaced, ...ropewalks.unplaced, ...edgeWorks.offMap);
     ownedPlacements.push(...lots.placed);
@@ -808,7 +840,8 @@ function* vectorUrbanSteps(
       // A park ward holds no house while the rest of the town houses the demand; its block becomes the park's
       // lawn (P7c). A town short of room builds on it in the second pass instead.
       (id, polygon, residential) =>
-        (residential || wards.get(id)?.ward !== "park") && suburbanLots(id, polygon, residential),
+        // A village's tofts are all homes; its green is its open space (ce-meshless-roadside-burgage-village.md V5).
+        (residential || villageFabric || wards.get(id)?.ward !== "park") && suburbanLots(id, polygon, residential),
       facilityCells
     );
     reattachFabricEntrances(doc);
@@ -850,10 +883,14 @@ function* vectorUrbanSteps(
   );
   checkpoint("housing", all);
   const parks = organic
-    ? layoutVectorParks(doc, districts, id => {
-        const c = doc.fabric?.cells[id];
-        return !facilityCells.has(id) && (!c || c.houses.offsets.length === c.detached.length);
-      })
+    ? village
+      ? village.green
+        ? [village.green]
+        : []
+      : layoutVectorParks(doc, districts, id => {
+          const c = doc.fabric?.cells[id];
+          return !facilityCells.has(id) && (!c || c.houses.offsets.length === c.detached.length);
+        })
     : [];
   timed("parks");
   // Water points stand after the houses, the market and the parks: none takes a dwelling or a street (P7d).
@@ -896,7 +933,7 @@ function* vectorUrbanSteps(
   doc.site = sourceSite;
   doc.context.targetPopulation = settings.population;
   // The open land by use round the finished town and its suburbs (U5b).
-  const used = raiseVectorLandUse(doc, [...domain, ...(village?.land ?? [])]).environment?.landUse;
+  const used = raiseVectorLandUse(doc, domain).environment?.landUse;
   if (used) doc.environment = { features: {}, hidden: [], ...doc.environment, landUse: used };
   timed("land-use");
   doc.revision++;

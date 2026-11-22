@@ -12,9 +12,17 @@ import { DEFAULT_VECTOR_URBAN, generateVectorUrban } from "./urban";
 import { vectorWallChoice } from "./wallShape";
 
 /** A standalone village; the walls asked for are ignored (plan §4.3). */
-function village(population: number, river: boolean): VectorCityDocument {
-  const seed = "roadside-village",
-    settings = { ...defaultGenerationSettings(), plotFabric: "burgage-village" as const };
+function village(
+  population: number,
+  river: boolean,
+  options: { seed?: string; facilities?: boolean } = {}
+): VectorCityDocument {
+  const seed = options.seed ?? "roadside-village",
+    settings = {
+      ...defaultGenerationSettings(),
+      plotFabric: "burgage-village" as const,
+      ...(options.facilities ? { facilityLayout: "population" as const } : {})
+    };
   settings.config = {
     ...settings.config,
     ...(river ? {} : { rivers: [] }),
@@ -31,7 +39,7 @@ function village(population: number, river: boolean): VectorCityDocument {
     skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed, ...wall }).document;
   return generateVectorUrban(skeleton, {
     ...DEFAULT_VECTOR_URBAN,
-    mode: "medieval",
+    mode: options.facilities ? "medieval-facilities" : "medieval",
     population,
     plotFabric: "burgage-village"
   });
@@ -87,6 +95,32 @@ describe("roadside village (docs/plan/ce-meshless-roadside-burgage-village.md V2
       expect(unpackPoints(cell.ring, cell.origin).every(p => Math.abs(p[0]) < half && Math.abs(p[1]) < half)).toBe(
         true
       );
+  });
+
+  // Plan V5: the village's workshops stand on its tofts, its smiths at its ends, its tanners by the river.
+  it("puts a village's workshops on its tofts", () => {
+    const doc = village(1000, true, { facilities: true }),
+      report = doc.urban!.report;
+    expect(report.unplacedDwellings).toBe(0);
+    expect(report.placedFacilities).toBeGreaterThanOrEqual(0.8 * report.requiredFacilities);
+    const facilities = doc
+      .urban!.ownedPlacements.map(id => doc.placements[id])
+      .filter(p => p?.building?.kind === "facility");
+    expect(facilities.some(p => p.modelId.includes("tannery"))).toBe(true);
+    // Each workshop stands on the tofts of one roadside block.
+    const plots = Object.values(doc.fabric!.cells).flatMap(c => rings(c.plots!.coords, c.plots!.offsets, c.origin));
+    for (const p of facilities.filter(p => !p.modelId.includes("tannery")))
+      expect(plots.some(plot => pointInPolygon(p.position, plot))).toBe(true);
+  });
+
+  it("lays a street green on one road of some villages, its lawns before the tofts", () => {
+    const doc = village(500, false, { seed: "green-village" }),
+      green = doc.urban!.parks?.find(p => p.id === "village-green");
+    expect(green?.lawns.length).toBeGreaterThan(0);
+    const plots = Object.values(doc.fabric!.cells).flatMap(c => rings(c.plots!.coords, c.plots!.offsets, c.origin));
+    for (const lawn of green!.lawns)
+      expect(plots.some(plot => pointInPolygon(polygonCentroid(lawn as Point[]), plot))).toBe(false);
+    expect(doc.urban!.report.unplacedDwellings).toBe(0);
   });
 
   it("refuses a village of more than 1,000 people: it is a town", () => {

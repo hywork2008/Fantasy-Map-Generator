@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { RoadsideArm, RoadsideVillagePlan } from "../../types/contracts/burgage";
 import type { Point } from "../../types/geometry";
 import { nearestOnPolyline, pointInPolygon } from "../geom";
+import { LANE_CLEARANCE_METERS } from "./frame";
 import { VILLAGE_TOFT_PROFILE } from "./profiles";
 import { planRoadsideBlocks } from "./roadsideBlocks";
 
@@ -71,7 +72,10 @@ describe("planRoadsideBlocks", () => {
         cx = block.ring.reduce((n, p) => n + p[0], 0) / 4,
         cy = block.ring.reduce((n, p) => n + p[1], 0) / 4,
         rear: Point = [2 * cx - (a[0] + b[0]) / 2, 2 * cy - (a[1] + b[1]) / 2];
-      expect(back.some(l => nearestOnPolyline(rear, l.points).dist <= l.widthMeters / 2 + 1e-6)).toBe(true);
+      // The lane keeps a hair off the plots (`LANE_CLEARANCE_METERS`).
+      expect(
+        back.some(l => nearestOnPolyline(rear, l.points).dist <= l.widthMeters / 2 + LANE_CLEARANCE_METERS + 1e-6)
+      ).toBe(true);
     }
     expect(planRoadsideBlocks({ seed: "v1-through", arms: through, need: 24 })).toEqual(plan);
   });

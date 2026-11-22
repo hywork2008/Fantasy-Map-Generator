@@ -3,9 +3,10 @@ import type { BurgagePlot, RoadsideArm, RoadsideVillagePlan } from "../../../typ
 import type { Point } from "../../../types/primitives";
 import type { VectorCityDocument } from "../../../types/vector/document";
 import type { VectorBlock, VectorPolygon } from "../../../types/vector/generation";
+import type { VectorPark } from "../../../types/vector/urban";
 import { tidyRing } from "../../burgage/frame";
 import { planRoadsideBlocks } from "../../burgage/roadsideBlocks";
-import { convexHull, polygonCentroid } from "../../geom";
+import { convexHull, nearestOnPolyline, polygonCentroid } from "../../geom";
 import { makeRng } from "../../prng";
 import { featureReservations } from "../environmentState";
 import { regionArea } from "../geometry/regions";
@@ -166,6 +167,10 @@ export interface VillagePerimeter {
   plan: RoadsideVillagePlan;
   /** The village's ground (its blocks and lanes' strips), the town land round which the fields lie. */
   land: VectorPolygon[];
+  /** How far the tofts reach from the centre: the farthest corner of a laid block. */
+  reach: number;
+  /** The street green's lawns, drawn as a park's (plan V5); absent when the village has none. */
+  green?: VectorPark;
 }
 
 /** The roadside village for `required` dwellings as CE perimeter districts. */
@@ -174,6 +179,8 @@ export function planVillagePerimeter(
   required: number,
   options: {
     lotOccupancy: number;
+    /** Tofts the village's workshops will take besides its houses (plan V5). */
+    facilityPlots?: number;
     /** Ground the plan keeps off besides the document's own (the tanners' row). */
     protectedRegions?: VectorPolygon[];
   }
@@ -194,8 +201,10 @@ export function planVillagePerimeter(
     ];
   // Houses drawn at or above the occupancy stay unbuilt (CE lot occupancy), so the plan lays that many more.
   const occupancy = Math.min(1, Math.max(0.1, options.lotOccupancy)),
-    need = Math.ceil((required * VILLAGE_NEED_MARGIN) / occupancy);
+    need = Math.ceil((required * VILLAGE_NEED_MARGIN) / occupancy) + (options.facilityPlots ?? 0);
+  const green = villageGreen(doc.recipe.seed, arms);
   const plan = planRoadsideBlocks({
+    ...(green ? { green } : {}),
     seed: doc.recipe.seed,
     arms,
     need,
@@ -209,7 +218,7 @@ export function planVillagePerimeter(
   const districts: PerimeterDistrictResult[] = [];
   for (const block of plan.blocks.filter(b => b.tier === 1)) {
     const behind = plan.blocks.find(b => b.tier === 2 && b.id === block.id.replace(":t1:", ":t2:")),
-      lanes = plan.lanes.filter(l => l.id === `${block.id}:cross` || l.id === `${block.id}:back`),
+      lanes = plan.lanes.filter(l => [":cross", ":back", ":front"].some(k => l.id === `${block.id}${k}`)),
       id = `village:${block.id}`;
     // The district takes the block, its lanes' strips and the block behind: a hull of their corners.
     const outline = villageOutline([
@@ -265,7 +274,61 @@ export function planVillagePerimeter(
       houses: cells.flatMap(c => c.houses)
     });
   }
-  return { districts, plan, land: districts.map(d => ({ outer: d.district.outline, holes: [] })) };
+  const centre = doc.site?.center ?? [0, 0];
+  const lawns = plan.greens
+    .map(ring => ring.map((p): [number, number] => [Math.round(p[0] * 100) / 100, Math.round(p[1] * 100) / 100]))
+    .filter(ring => simpleContour(ring, true));
+  return {
+    ...(lawns.length ? { green: { id: "village-green", lawns, paths: [], tufts: [], trees: [] } } : {}),
+    districts,
+    plan,
+    land: [
+      ...districts.map(d => ({ outer: d.district.outline, holes: [] })),
+      // The blocks themselves as laid, widened a hair: the outlines are rounded to the centimetre and may shave a
+      // plot's edge, and a plot rounded to the centimetre must stay within the town's land.
+      ...plan.blocks.map(b => ({
+        outer: grown(b.ring, LAND_MARGIN_METERS),
+        holes: []
+      })),
+      // The street before each roadside block, out to the road's centre line: a workshop's door and its approach
+      // stand there.
+      ...plan.blocks
+        .filter(b => b.tier === 1)
+        .flatMap(b => {
+          const road = arms.find(a => a.id === b.armId)?.points as Point[] | undefined;
+          if (!road) return [];
+          const [f0, f1] = b.front,
+            r0 = nearestOnPolyline(f0, road).point,
+            r1 = nearestOnPolyline(f1, road).point,
+            outer = tidyRing([f0, f1, r1, r0]);
+          return outer.length >= 3 && simpleContour(outer, true) ? [{ outer, holes: [] }] : [];
+        })
+    ],
+    reach: Math.max(0, ...plan.blocks.flatMap(b => b.ring.map(p => Math.hypot(p[0] - centre[0], p[1] - centre[1]))))
+  };
+}
+
+/** Share of villages laid round a street green, on their longest road out of the centre: the plan has no rule for
+ * which villages had one (§5.2), so the seed decides. */
+const GREEN_SHARE = 0.5;
+/** Street green (§2.4, Thorpe 1949): 20–45 m between the plot fronts, four to eight times as long. */
+const GREEN_WIDTH_METERS: readonly [number, number] = [20, 45];
+const GREEN_LENGTH_RATIO: readonly [number, number] = [4, 8];
+/** A green ends this far short of its road's end, and no longer than the plan's first reach of a road (175 m). */
+const GREEN_MAX_METERS = 175;
+
+function villageGreen(seed: string, arms: readonly RoadsideArm[]) {
+  const rng = makeRng(`${seed}:village-green`);
+  if (!arms.length || rng() >= GREEN_SHARE) return undefined;
+  const length = (a: RoadsideArm) =>
+      a.points.slice(1).reduce((n, p, i) => n + Math.hypot(p[0] - a.points[i][0], p[1] - a.points[i][1]), 0),
+    arm = arms.reduce((best, a) => (length(a) > length(best) ? a : best)),
+    widthMeters = rng.range(...GREEN_WIDTH_METERS);
+  return {
+    armId: arm.id,
+    widthMeters,
+    lengthMeters: Math.min(GREEN_MAX_METERS, length(arm) - 20, widthMeters * rng.range(...GREEN_LENGTH_RATIO))
+  };
 }
 
 /** A convex outline round `points` that keeps its shape at the fabric's centimetre: points on a line or a few
@@ -284,11 +347,42 @@ function villageOutline(points: Point[]): Point[] {
 const VILLAGE_NEED_MARGIN = 1.05;
 /** A settlement larger than this is a town, not a village (plan §14.3). */
 export const VILLAGE_MAX_POPULATION = 1000;
+/** A convex ring moved out by `d` on every side (mitred corners). */
+function grown(ring: Point[], d: number): Point[] {
+  const c = polygonCentroid(ring),
+    n = ring.length,
+    normal = (a: Point, b: Point): Point => {
+      const l = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1,
+        v: Point = [(b[1] - a[1]) / l, -(b[0] - a[0]) / l];
+      // Away from the centre, whichever way the ring winds.
+      return v[0] * ((a[0] + b[0]) / 2 - c[0]) + v[1] * ((a[1] + b[1]) / 2 - c[1]) < 0 ? [-v[0], -v[1]] : v;
+    };
+  return ring.map((p, i) => {
+    const n0 = normal(ring[(i + n - 1) % n], p),
+      n1 = normal(p, ring[(i + 1) % n]),
+      k = d / Math.max(0.2, 1 + n0[0] * n1[0] + n0[1] * n1[1]);
+    return [p[0] + (n0[0] + n1[0]) * k, p[1] + (n0[1] + n1[1]) * k];
+  });
+}
+
+/** The town's land reaches this far beyond the blocks laid. */
+const LAND_MARGIN_METERS = 0.05;
 /** Blocks keep this far inside the map's edge. */
 const FRAME_MARGIN_METERS = 10;
 
 /** Half the map a village of `dwellings` needs (plan §5.1): its roads' reach, the deepest blocks behind it, and the
  * fields' margin. An estimate on three approaches; the plan reports what the map cannot take. */
 export function villageHalfExtentMeters(dwellings: number): number {
-  return Math.min(750, 120 + dwellings * 1.6) + 150 + 60;
+  return villageReachMeters(dwellings) + 150 + 60;
 }
+
+/** How far a village of `dwellings` is expected to reach along its roads, before its plan is laid. */
+export function villageReachMeters(dwellings: number): number {
+  return Math.min(750, 120 + dwellings * 1.6);
+}
+
+/** The village's core (its market trades, the tanners' "below the town") reaches this share of its tofts' reach; the
+ * smiths and the other trades kept out of a town take the tofts beyond it, at the village's ends (plan V5). */
+export const VILLAGE_CORE_SHARE = 0.6;
+/** Tofts laid per toft a workshop takes: a row keeps half its tofts for houses (`placeFacilitiesOnPlots`). */
+export const VILLAGE_FACILITY_ROOM = 1.5;
