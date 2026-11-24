@@ -1972,27 +1972,35 @@ function showTrireme(author: string = authorSelect.value): void {
     ),
     fact(
       "Dimensions",
-      multiTier
-        ? `${info.length} m ram to aphlaston × ${info.beam} m over the outriggers (${(opus ? OPUS_TRIREME : GEMINI_TRIREME).hullBeam} m hull); ${info.height} m to the main truck; ${info.draft} m draught`
-        : `${info.length} m overall × ${info.beam} m beam over the outrigger; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
+      gemini
+        ? `${info.length} m ram to aphlaston × ${info.beam} m over the outriggers (${GEMINI_TRIREME.hullBeam} m hull, ${GEMINI_TRIREME.canopyBeam} m canopy deck); ${info.height} m to the main truck; ${info.draft} m draught`
+        : opus
+          ? `${info.length} m ram to aphlaston × ${info.beam} m over the outriggers (${OPUS_TRIREME.hullBeam} m hull); ${info.height} m to the main truck; ${info.draft} m draught`
+          : `${info.length} m overall × ${info.beam} m beam over the outrigger; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
     ),
     fact(
       "Ram",
-      multiTier
-        ? "Three-finned bronze ram on the waterline, with a bronze-capped proembolion above"
-        : "Bronze bow ram on the waterline"
+      gemini
+        ? "Cast Piraeus-type three-bladed bronze ram straddling the waterline (no proembolion)"
+        : opus
+          ? "Three-finned bronze ram on the waterline, with a bronze-capped proembolion above"
+          : "Bronze bow ram on the waterline"
     ),
     fact(
       "Oarsmen",
-      multiTier
-        ? "170 oars on one 0.888 m room: 62 thranites on the outrigger, 54 zygites on the gunwale, 54 thalamites through leather-sleeved ports"
-        : "170 oars in three banks: 62 thranite, 54 zygite, 54 thalamite"
+      gemini
+        ? "170 sculpted 4.0–4.2 m oars on one 0.888 m room: 62 thranites on the framed parexeiresia, 54 zygites on the gunwale, 54 thalamites through askomata ports"
+        : opus
+          ? "170 oars on one 0.888 m room: 62 thranites on the outrigger, 54 zygites on the gunwale, 54 thalamites through leather-sleeved ports"
+          : "170 oars in three banks: 62 thranite, 54 zygite, 54 thalamite"
     ),
     fact(
       "Rig",
-      multiTier
-        ? "Brailed square main sail and a raked boat sail (akateion); the main mast strikes onto deck crutches for battle"
-        : "Two square sails, main and fore"
+      gemini
+        ? "13 m arched main yard with ~95 m² brailed square sail and raked ~24 m² akateion; main mast strikes onto deck crutches for battle"
+        : opus
+          ? "Brailed square main sail and a raked boat sail (akateion); the main mast strikes onto deck crutches for battle"
+          : "Two square sails, main and fore"
     ),
     fact("Note", info.note, "Olympias (trireme)")
   );

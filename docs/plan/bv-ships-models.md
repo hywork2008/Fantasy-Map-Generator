@@ -357,17 +357,17 @@ BVのShipsへ、作者 `Grok 4.7` の三段櫂船Highを追加した。系統は
 
 ## 18. Gemini 4 Neon の三段櫂船オリンピアス（2026-11-25）
 
-ユーザー指示で、MV（Model Viewer）の「Trireme · Olympias」に作者 `Gemini 4 Neon` の版を追加した。`src/buildings/authors.ts` の `AUTHORS` に `"Gemini 4 Neon"` を登録し、Grok 4.7 版・Claude Opus 5.5 版の流用ではなく船体線図・内部骨格・櫂配置・帆装を独立に実装した。実装は [geminiTrireme.ts](../../src/buildings/ships/geminiTrireme.ts)。版idは `ship.trireme@high#gemini-4-neon` と `ship.trireme@low#gemini-4-neon`。`ship.trireme@low` に複数版が並ぶため、`CE_ADOPTION` の `ship.trireme` に `high`（Grok 4.7 維持）に加えて `low`（Claude Opus 5.5 記録）を明示した。CEの手動配置の見た目は変わらない。MVでは作者欄（Created by）で Grok 4.7（既定）・Claude Opus 5.5・Gemini 4 Neon を切り替えられ、Gemini 4 Neon 版は High と Low を選べる。
+ユーザー指示で、MV（Model Viewer）の「Trireme · Olympias」に作者 `Gemini 4 Neon` の版を追加した。`src/buildings/authors.ts` の `AUTHORS` に `"Gemini 4 Neon"` を登録し、Grok 4.7 版・Claude Opus 5.5 版の流用ではなく、1987年復元船 HS Olympias（John Coates・John Morrison 設計）の実構造に基づきゼロから独立実装した。実装は [geminiTrireme.ts](../../src/buildings/ships/geminiTrireme.ts)。版idは `ship.trireme@high#gemini-4-neon` と `ship.trireme@low#gemini-4-neon`。`ship.trireme@low` に複数版が並ぶため、`CE_ADOPTION` の `ship.trireme` に `high`（Grok 4.7 維持）に加えて `low`（Claude Opus 5.5 記録）を明示した。CEの手動配置の見た目は変わらない。MVでは作者欄（Created by）で Grok 4.7（既定）・Claude Opus 5.5・Gemini 4 Neon を切り替えられ、Gemini 4 Neon 版は High と Low を選べる。
 
-基準は1987年の復元船オリンピアス。ラム先端からアプラストンまで36.9 m、アウトリガー外幅5.45 m、船体幅3.85 m、主檣トラック高12.2 m、喫水1.1 m。櫂は170本（上段スラニタイ62・中段ジギタイ54・下段サラミタイ54）で部屋間隔0.888 m、3段を約1/3部屋ずつ千鳥配置する。水線下は黒瀝青、船首の頬はミルトス赤土と三層構造の大理石の目（白目・青虹彩・黒瞳）。三叉青銅ラム（縦リブと補強カラー付き）と青銅冠のプロエンボリオン、エポティデス、7本羽根の扇形アプラストン（Lowは3本）、船尾の四分の一舵2本と舵柄、スティリスと無地の赤い吹流し、石ストック付き木製錨2基と係船ビット・巻き綱コイル。開放された舷側の内側に肋骨フレーム、中央通路、3段の漕座、ハイポゾマ（船尾ウィンチと船首ビット）、戦闘甲板の板目・縁材・昇降梯子を造形した。
+実船 HS Olympias の主要特徴を反映している。ラム先端からアプラストンまで 36.9 m、アウトリガー外幅 5.45 m、細身の船体幅 3.65 m、幅広キャノピー甲板 4.5 m、主檣トラック高 12.1 m、喫水 1.1 m。外板はニス塗りの松材色＋水線下の黒瀝青、船首の青銅ラムへ収束する上下2本の太いウェール、実船通りプロエンボリオンを持たないピレウス型の三叉青銅ラム、扁平断面で優雅に反り上がる船首材（akrostolion）、白い大理石と青い虹彩の目（ophthalmoi）。外側のアウトリガー（parexeiresia）は側板・上下縦梁・船体へ接地する斜め控え・前端の三角形エポティデス・後端の舵受け枠から成る枠組み構造で、支柱の上に幅 4.5 m のキャノピー甲板（katastroma）と一段低い中央通路（central gangway）が乗る。船尾はキール底から約 6.5 m まで優雅に立ち上がり前方へC字に巻き込む多層リブのアプラストン、アウトリガー後端の舵受け枠から約 38° 後傾させた2本の四分の一舵（pedalia、先細り翼形ブレードと連動ティラー）、スティリスと無地の赤い吹流しを備える。主帆は 13.0 m の弓なり複合ヤードに張る約 95 m² の低アスペクト比横帆、前檣は前傾 16° のアカテイオン（約 24 m²）。170本の櫂（62・54・54、部屋間隔 0.888 m）は実長 4.0–4.2 m で後方へ 7° スイープし、先細りの木製オールブレードを造形した。
 
 | 状態 | 既定 | 切り替え |
 | --- | --- | --- |
 | 帆 `sails` | 展帆 `set` | `furled` はブレイルでヤード直下に束ねる。`struck`（戦闘態勢）は主檣と主ヤードを甲板上の3組のクラッチへ倒して縛り、小帆（アカテイオン）は立てたまま束ねる |
-| 櫂 `oars` | 出 `out` | 3段とも中間ストロークで水線付近へ揃う。格納は引き込んで後方へ倒し、舷側沿いに収める |
+| 櫂 `oars` | 出 `out` | 3段とも中間ストロークで後方へ約 7° スイープして水線へ揃う。格納は引き込んで舷側沿いに水平に収める |
 
-部品は10（hull、interior、decks、outrigger、fittings、spars、rigging、main-sail、fore-sail、oars）。固定5部品は6状態で形状署名が変わらない。
+部品は10（hull、interior、outrigger、decks、fittings、spars、rigging、main-sail、fore-sail、oars）。固定5部品は6状態で形状署名が変わらない。
 
-外接箱は x が -18.39 から 18.42（36.81 m）、y が -1.09 から 12.14、z は展帆・櫂出で ±5.22。マスト倒し・櫂格納では高さ 7.73 m、幅 ±2.94 m。三角形は High が展帆・櫂出で67,312（12メッシュ）、畳帆・櫂格納で60,560、マスト倒しで59,176。Low はそれぞれ14,994（10メッシュ）、15,930、15,810。
+外接箱は x が -18.32 から 18.42（36.74 m）、y が -1.07 から 12.01、z は展帆・櫂出で ±6.50（主ヤード 13.0 m）。マスト倒し・櫂格納では高さ 7.34 m、幅 ±3.45 m。三角形は High が展帆・櫂出で 75,230（12メッシュ）、畳帆・櫂格納で 67,894、マスト倒しで 66,442。Low はそれぞれ 22,276（11メッシュ）、23,212、23,044。
 
-関連テストは `geminiTrireme.test.ts`（7件）・`opusTrireme.test.ts`（7件）・`grokTrireme.test.ts`（10件）・`adoption.test.ts`（3件）の計27件成功。`biome check`・`tsc --noEmit` も通過。Chrome DevTools 未接続のため実ブラウザ目視は未実施で、幾何学的な接触・範囲・全10部品単体生成をスクリプトで検証した。
+関連テストは `geminiTrireme.test.ts`（7件）・`opusTrireme.test.ts`（7件）・`grokTrireme.test.ts`（10件）・`adoption.test.ts`（3件）の計27件成功。`biome check`・`tsc --noEmit` も通過。ヘッドレス Chromium 上の実 MV で High（展帆・畳帆・マスト倒し・船首・船尾）と Low をレンダリング確認し、コンソール／ページエラー 0、確認用の一時画像はリポジトリ外のみで使用した。
