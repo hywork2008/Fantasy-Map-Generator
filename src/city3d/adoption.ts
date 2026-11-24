@@ -166,7 +166,12 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
     high: {
       variant: "ship.trireme@high#grok-4.7",
       since: "2026-11-19",
-      note: "Claude Opus 5.5 High and Low are BV comparison editions. CE keeps the Grok 4.7 High it was sized on."
+      note: "Claude Opus 5.5 and Gemini 4 Neon High/Low are BV comparison editions. CE keeps the Grok 4.7 High it was sized on."
+    },
+    low: {
+      variant: "ship.trireme@low#claude-opus-5.5",
+      since: "2026-11-25",
+      note: "BV comparison tier; CE places only the High tier."
     }
   },
   "medieval.harbor-treadwheel-crane": {

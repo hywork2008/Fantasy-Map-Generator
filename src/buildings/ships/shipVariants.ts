@@ -7,6 +7,7 @@ import { createFerrySmackModel } from "./ferrySmack";
 import { createFordCarrierModel } from "./fordCarrier";
 import { createGalleon } from "./galleon";
 import type { GalleonState } from "./galleonArmament";
+import { createGeminiTrireme } from "./geminiTrireme";
 import { createGrokGalleon } from "./grokGalleon";
 import { createGrokGalley } from "./grokGalley";
 import { createGrokShipOfTheLine } from "./grokShipOfTheLine";
@@ -121,6 +122,13 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     level,
     author: "Claude Opus 5.5" as const,
     create: (state?: GalleonState) => createOpusTrireme(level, state)
+  })),
+  ...(["high", "low"] as const).map(level => ({
+    id: variantId("ship.trireme", level, "Gemini 4 Neon"),
+    family: "ship.trireme",
+    level,
+    author: "Gemini 4 Neon" as const,
+    create: (state?: GalleonState) => createGeminiTrireme(level, state)
   })),
   ...(["default", "low", "high"] as const).map(level => ({
     id: variantId("ship.carrier", level, "Claude Opus 5.5"),

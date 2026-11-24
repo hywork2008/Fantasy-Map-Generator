@@ -1,5 +1,12 @@
 /** AI models credited for BV models. These names are the only accepted author spellings. */
-export const AUTHORS = ["Codex GPT-6.1 Sol", "Claude Opus 5.5", "Claude Sonnet 5.5", "Grok", "Grok 4.7"] as const;
+export const AUTHORS = [
+  "Codex GPT-6.1 Sol",
+  "Claude Opus 5.5",
+  "Claude Sonnet 5.5",
+  "Grok",
+  "Grok 4.7",
+  "Gemini 4 Neon"
+] as const;
 export type Author = (typeof AUTHORS)[number];
 
 /** Credited for every BV model that records no author: all of them were made with Codex. */

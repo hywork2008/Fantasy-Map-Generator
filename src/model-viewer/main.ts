@@ -60,6 +60,12 @@ import { CARRACK, createCarrack } from "../buildings/ships/carrack";
 import { createFerryNachen, FERRY_NACHEN } from "../buildings/ships/ferryNachen";
 import { createFerrySmack, FERRY_SMACK } from "../buildings/ships/ferrySmack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import {
+  createGeminiTrireme,
+  GEMINI_TRIREME,
+  type GeminiTriremeQuality,
+  geminiTriremeParts
+} from "../buildings/ships/geminiTrireme";
 import { createGrokGalleon, GROK_GALLEON, grokGalleonParts } from "../buildings/ships/grokGalleon";
 import { createGrokGalley, GROK_GALLEY, grokGalleyParts } from "../buildings/ships/grokGalley";
 import {
@@ -1846,21 +1852,23 @@ const triremeState: { sails: "set" | "furled" | "struck"; oars: "out" | "stowed"
 };
 AUTHORED_VARIANTS.trireme = {
   author: GROK_TRIREME.author,
-  authors: [GROK_TRIREME.author, OPUS_TRIREME.author],
+  authors: [GROK_TRIREME.author, OPUS_TRIREME.author, GEMINI_TRIREME.author],
   primary: true,
   quality: true,
   show: () => showTrireme()
 };
-const triremePartSelected = { grok: "all", opus: "all" };
+const triremePartSelected = { grok: "all", opus: "all", gemini: "all" };
 function showTrireme(author: string = authorSelect.value): void {
   const opus = author === OPUS_TRIREME.author;
-  const key = opus ? "opus" : "grok";
-  // Grok 4.7 prepared High only; the Opus edition also has a light Low tier.
-  for (const option of qualitySelect.options) option.disabled = !opus && option.value !== "high";
-  if (!opus && qualitySelect.value !== "high") qualitySelect.value = "high";
-  const quality = (opus ? qualitySelect.value : "high") as OpusTriremeQuality;
-  // Only the Opus edition can strike the main mast.
-  if (!opus && triremeState.sails === "struck") triremeState.sails = "furled";
+  const gemini = author === GEMINI_TRIREME.author;
+  const multiTier = opus || gemini;
+  const key = opus ? "opus" : gemini ? "gemini" : "grok";
+  // Grok 4.7 prepared High only; the Opus and Gemini editions also have a light Low tier.
+  for (const option of qualitySelect.options) option.disabled = !multiTier && option.value !== "high";
+  if (!multiTier && qualitySelect.value !== "high") qualitySelect.value = "high";
+  const quality = (multiTier ? qualitySelect.value : "high") as OpusTriremeQuality | GeminiTriremeQuality;
+  // The Opus and Gemini editions can strike the main mast for battle trim.
+  if (!multiTier && triremeState.sails === "struck") triremeState.sails = "furled";
   selection++;
   for (const button of list.querySelectorAll("button"))
     button.setAttribute("aria-current", button === triremeButton ? "true" : "false");
@@ -1873,26 +1881,30 @@ function showTrireme(author: string = authorSelect.value): void {
   showQuality(true);
   const parts = opus
     ? opusTriremeParts(quality, triremeState)
-    : grokTriremeParts({
-        sails: triremeState.sails === "struck" ? "furled" : triremeState.sails,
-        oars: triremeState.oars
-      });
+    : gemini
+      ? geminiTriremeParts(quality, triremeState)
+      : grokTriremeParts({
+          sails: triremeState.sails === "struck" ? "furled" : triremeState.sails,
+          oars: triremeState.oars
+        });
   if (!parts.some(entry => entry.id === triremePartSelected[key])) triremePartSelected[key] = "all";
   const chosen = parts.find(entry => entry.id === triremePartSelected[key]);
   const model = chosen
     ? assembleSailingParts("trireme-part", [chosen])
     : opus
       ? createOpusTrireme(quality, triremeState)
-      : createGrokTrireme({
-          sails: triremeState.sails === "struck" ? "furled" : triremeState.sails,
-          oars: triremeState.oars
-        });
+      : gemini
+        ? createGeminiTrireme(quality, triremeState)
+        : createGrokTrireme({
+            sails: triremeState.sails === "struck" ? "furled" : triremeState.sails,
+            oars: triremeState.oars
+          });
   comparisonModel = { path: null, quality, viewOnly: true };
   for (const [label, field, options] of [
     [
       "Sails",
       "sails",
-      opus
+      multiTier
         ? [
             ["Set", "set"],
             ["Brailed up · moored", "furled"],
@@ -1940,7 +1952,7 @@ function showTrireme(author: string = authorSelect.value): void {
   modelOptions.hidden = false;
   massing = model;
   scene.add(model.group);
-  const info = opus ? OPUS_TRIREME : GROK_TRIREME;
+  const info = opus ? OPUS_TRIREME : gemini ? GEMINI_TRIREME : GROK_TRIREME;
   frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
   camera.position.set(info.length * 0.95, info.height * 0.62, info.length * 0.85);
   controls.target.set(0, 1.15, 0);
@@ -1949,36 +1961,36 @@ function showTrireme(author: string = authorSelect.value): void {
   mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
     fact("Model", info.name),
-    fact("Quality", opus ? (quality === "high" ? "High" : "Low") : "High — the only prepared resolution"),
+    fact("Quality", multiTier ? (quality === "high" ? "High" : "Low") : "High — the only prepared resolution"),
     fact("Sails", triremeState.sails),
     fact("Oars", triremeState.oars),
     fact(
       "CE adoption",
-      opus
+      multiTier
         ? "BV-only comparison; CE places the Grok 4.7 High"
         : "Placed by hand in CE (Model ships); the adopted High edition"
     ),
     fact(
       "Dimensions",
-      opus
-        ? `${info.length} m ram to aphlaston × ${info.beam} m over the outriggers (${OPUS_TRIREME.hullBeam} m hull); ${info.height} m to the main truck; ${info.draft} m draught`
+      multiTier
+        ? `${info.length} m ram to aphlaston × ${info.beam} m over the outriggers (${(opus ? OPUS_TRIREME : GEMINI_TRIREME).hullBeam} m hull); ${info.height} m to the main truck; ${info.draft} m draught`
         : `${info.length} m overall × ${info.beam} m beam over the outrigger; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
     ),
     fact(
       "Ram",
-      opus
+      multiTier
         ? "Three-finned bronze ram on the waterline, with a bronze-capped proembolion above"
         : "Bronze bow ram on the waterline"
     ),
     fact(
       "Oarsmen",
-      opus
+      multiTier
         ? "170 oars on one 0.888 m room: 62 thranites on the outrigger, 54 zygites on the gunwale, 54 thalamites through leather-sleeved ports"
         : "170 oars in three banks: 62 thranite, 54 zygite, 54 thalamite"
     ),
     fact(
       "Rig",
-      opus
+      multiTier
         ? "Brailed square main sail and a raked boat sail (akateion); the main mast strikes onto deck crutches for battle"
         : "Two square sails, main and fore"
     ),

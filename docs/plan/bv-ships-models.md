@@ -354,3 +354,20 @@ BVのShipsへ、作者 `Grok 4.7` の三段櫂船Highを追加した。系統は
 外接箱は x が -18.32 から 18.40（36.72 m）、y が -1.09 から 12.04、z は櫂出・展帆で ±5.20（主ヤード端）。マストを倒すと最高点は小帆の檣頭 7.72 m、幅は ±2.93。三角形は High が展帆・櫂出で52,564、畳帆・櫂格納で47,212、マスト倒しで46,140。Low はそれぞれ14,968、15,904、15,856。
 
 関連テストは `npx vitest run src/buildings/ships/opusTrireme.test.ts src/buildings/ships/grokTrireme.test.ts src/city3d/adoption.test.ts` の20件（Opus版7件）。両品質の外接箱と170本の櫂、ラムが水線をまたいで最前部にあること、アウトリガーが公表幅にあること、6状態で固定部品が不変であること、3段の高さの順序と出し櫂・格納櫂の範囲、ブレイルとマスト倒し、LowがHighの6割未満であることと資源の一度きりの解放、版の登録とCEの採用がGrokのままであることを確認した。Grok版のテストは作者で絞るよう直した。実BVでClaude Opus 5.5を選び、展帆・櫂出、マスト倒し・櫂格納、Lowを視認した。ページ例外は無かった。確認PNGはリポジトリに置かない。
+
+## 18. Gemini 4 Neon の三段櫂船オリンピアス（2026-11-25）
+
+ユーザー指示で、MV（Model Viewer）の「Trireme · Olympias」に作者 `Gemini 4 Neon` の版を追加した。`src/buildings/authors.ts` の `AUTHORS` に `"Gemini 4 Neon"` を登録し、Grok 4.7 版・Claude Opus 5.5 版の流用ではなく船体線図・内部骨格・櫂配置・帆装を独立に実装した。実装は [geminiTrireme.ts](../../src/buildings/ships/geminiTrireme.ts)。版idは `ship.trireme@high#gemini-4-neon` と `ship.trireme@low#gemini-4-neon`。`ship.trireme@low` に複数版が並ぶため、`CE_ADOPTION` の `ship.trireme` に `high`（Grok 4.7 維持）に加えて `low`（Claude Opus 5.5 記録）を明示した。CEの手動配置の見た目は変わらない。MVでは作者欄（Created by）で Grok 4.7（既定）・Claude Opus 5.5・Gemini 4 Neon を切り替えられ、Gemini 4 Neon 版は High と Low を選べる。
+
+基準は1987年の復元船オリンピアス。ラム先端からアプラストンまで36.9 m、アウトリガー外幅5.45 m、船体幅3.85 m、主檣トラック高12.2 m、喫水1.1 m。櫂は170本（上段スラニタイ62・中段ジギタイ54・下段サラミタイ54）で部屋間隔0.888 m、3段を約1/3部屋ずつ千鳥配置する。水線下は黒瀝青、船首の頬はミルトス赤土と三層構造の大理石の目（白目・青虹彩・黒瞳）。三叉青銅ラム（縦リブと補強カラー付き）と青銅冠のプロエンボリオン、エポティデス、7本羽根の扇形アプラストン（Lowは3本）、船尾の四分の一舵2本と舵柄、スティリスと無地の赤い吹流し、石ストック付き木製錨2基と係船ビット・巻き綱コイル。開放された舷側の内側に肋骨フレーム、中央通路、3段の漕座、ハイポゾマ（船尾ウィンチと船首ビット）、戦闘甲板の板目・縁材・昇降梯子を造形した。
+
+| 状態 | 既定 | 切り替え |
+| --- | --- | --- |
+| 帆 `sails` | 展帆 `set` | `furled` はブレイルでヤード直下に束ねる。`struck`（戦闘態勢）は主檣と主ヤードを甲板上の3組のクラッチへ倒して縛り、小帆（アカテイオン）は立てたまま束ねる |
+| 櫂 `oars` | 出 `out` | 3段とも中間ストロークで水線付近へ揃う。格納は引き込んで後方へ倒し、舷側沿いに収める |
+
+部品は10（hull、interior、decks、outrigger、fittings、spars、rigging、main-sail、fore-sail、oars）。固定5部品は6状態で形状署名が変わらない。
+
+外接箱は x が -18.39 から 18.42（36.81 m）、y が -1.09 から 12.14、z は展帆・櫂出で ±5.22。マスト倒し・櫂格納では高さ 7.73 m、幅 ±2.94 m。三角形は High が展帆・櫂出で67,312（12メッシュ）、畳帆・櫂格納で60,560、マスト倒しで59,176。Low はそれぞれ14,994（10メッシュ）、15,930、15,810。
+
+関連テストは `geminiTrireme.test.ts`（7件）・`opusTrireme.test.ts`（7件）・`grokTrireme.test.ts`（10件）・`adoption.test.ts`（3件）の計27件成功。`biome check`・`tsc --noEmit` も通過。Chrome DevTools 未接続のため実ブラウザ目視は未実施で、幾何学的な接触・範囲・全10部品単体生成をスクリプトで検証した。
