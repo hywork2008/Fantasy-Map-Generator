@@ -285,6 +285,26 @@ export function createVectorScene(
     }
     return m;
   };
+  /** Ground surfaces on relief: pulled toward the camera in depth instead of lifted off the ground. */
+  const groundMaterial = (color: string, order: number) => {
+    // Stacked ground surfaces (land use, then furlongs, yards…) keep their plan order by their elevation; all ride
+    // 0.12 m over the coarser ground lattice, whose chords would otherwise poke through them.
+    const units = -4 - Math.round(order * 1000),
+      key = `ground:${color}:${units}`;
+    let m = materials.get(key);
+    if (!m) {
+      m = new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.9,
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: units / 2,
+        polygonOffsetUnits: units
+      });
+      materials.set(key, m);
+    }
+    return m;
+  };
   const cameraUpdates: CameraUpdate[] = [],
     houseResolvers: ((hit: THREE.Intersection) => string | undefined)[] = [],
     bvOwners = new Set<string>(),
@@ -421,30 +441,53 @@ export function createVectorScene(
         const trees = createVectorLandscapeTrees(data.landscapeTrees!, data.center, datum, season);
         return { object: trees.group, dispose: () => trees.dispose() };
       });
-    // Stone plinths: each building's walls carried down from its level floor below the lowest ground (P8c).
-    if (data.plinths?.length)
-      layer("plinths", [data.plinths], () => {
-        const positions: number[] = [];
-        for (const p of data.plinths!) {
-          const ring = p.ring,
-            b = p.bottom - datum,
-            t = p.top - datum;
+    // Level ground on relief (P8c): plinths, yard terraces and their walls, batched by colour, sides and tops apart.
+    if (data.prisms?.length)
+      layer("prisms", [data.prisms], () => {
+        const sides = new Map<string, number[]>(),
+          caps = new Map<string, number[]>();
+        const x = (p: Point) => p[0] - data.center[0],
+          z = (p: Point) => -p[1] + data.center[1];
+        for (const prism of data.prisms!) {
+          const { ring, bottom, top } = prism,
+            side = sides.get(prism.sideColor) ?? [];
+          sides.set(prism.sideColor, side);
           for (let i = 0; i < ring.length; i++) {
-            const a = ring[i],
-              c = ring[(i + 1) % ring.length],
-              ax = a[0] - data.center[0],
-              az = -a[1] + data.center[1],
-              cx = c[0] - data.center[0],
-              cz = -c[1] + data.center[1];
-            positions.push(ax, b, az, cx, b, cz, cx, t, cz, ax, b, az, cx, t, cz, ax, t, az);
+            const j = (i + 1) % ring.length,
+              a = ring[i],
+              c = ring[j],
+              ab = bottom[i] - datum,
+              cb = bottom[j] - datum,
+              at = top[i] - datum,
+              ct = top[j] - datum;
+            side.push(x(a), ab, z(a), x(c), cb, z(c), x(c), ct, z(c), x(a), ab, z(a), x(c), ct, z(c), x(a), at, z(a));
           }
+          if (!prism.capColor) continue;
+          const cap = caps.get(prism.capColor) ?? [];
+          caps.set(prism.capColor, cap);
+          // Over the ground surfaces (blocks, districts), which ride 0.12 m over the ground they follow.
+          for (const [a, b, c] of THREE.ShapeUtils.triangulateShape(
+            ring.map(p => new THREE.Vector2(...p)),
+            []
+          ))
+            for (const k of [a, b, c]) cap.push(x(ring[k]), top[k] - datum + 0.14, z(ring[k]));
         }
-        const geometry = new THREE.BufferGeometry();
-        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-        geometry.computeVertexNormals();
-        const mesh = new THREE.Mesh(geometry, material("#a39a8a"));
-        mesh.userData = { kind: "plinths" };
-        return { object: mesh, dispose: () => geometry.dispose() };
+        const holder = new THREE.Group(),
+          geometries: THREE.BufferGeometry[] = [];
+        for (const [color, positions] of [...sides, ...caps]) {
+          const geometry = new THREE.BufferGeometry();
+          geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+          geometry.computeVertexNormals();
+          geometries.push(geometry);
+          holder.add(new THREE.Mesh(geometry, material(color)));
+        }
+        holder.userData = { kind: "relief-prisms" };
+        return {
+          object: holder,
+          dispose: () => {
+            for (const g of geometries) g.dispose();
+          }
+        };
       });
     // The mesh editor's parts stand on the relief through its height and foundation functions (P8b).
     const onRelief = data.ground
@@ -962,15 +1005,22 @@ export function createVectorScene(
             original.dispose();
           }
         }
-        const mesh = new THREE.Mesh(geometry, material(surface.color));
+        // Ground surfaces on relief are drawn over the ground by depth offset, not lifted off it.
+        const onGround = !!(surface.heightAt && data.ground && surface.heightMeters === 0);
+        const mesh = new THREE.Mesh(
+          geometry,
+          onGround ? groundMaterial(surface.color, surface.elevationMeters) : material(surface.color)
+        );
         // Hidden meshes are not drawn or exported, but the pick ray still finds them.
-        if ((roadsDrawn && surface.kind === "road") || (waterParts.length && surface.kind === "river"))
+        if (
+          (roadsDrawn && surface.kind === "road") ||
+          (waterParts.length && surface.kind === "river") ||
+          surface.hidden3d
+        )
           mesh.visible = false;
         mesh.position.y = surface.elevations
           ? 0
-          : surface.elevationMeters -
-            (surface.heightAt ? 0 : datum) +
-            (surface.heightAt && data.ground ? 0.1 + surface.elevationMeters * 40 : 0);
+          : surface.elevationMeters - (surface.heightAt ? 0 : datum) + (surface.heightAt && data.ground ? 0.12 : 0);
         mesh.userData = {
           id: surface.id,
           kind: surface.kind,

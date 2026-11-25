@@ -51,6 +51,7 @@ import { vectorInnSurfaces } from "./inn";
 import { vectorOpenLandmarkSurfaces } from "./landmark";
 import { vectorLandscapeSurfaces } from "./landscape";
 import { vectorMonasterySurfaces } from "./monastery";
+import { type ReliefCut, type ReliefPrism, reliefPlotWalls, reliefYardTerraces, STONE_COLOR } from "./reliefYards";
 import { vectorRoadRibbons } from "./roadRibbons";
 import { vectorStructures } from "./structureMassing";
 import { vectorVillageProfile, villageHouse3d } from "./villageHouses";
@@ -82,6 +83,8 @@ export interface VectorRenderSurface {
   featureKind?: string;
   pieceRole?: string;
   elevations?: { bottom: number[]; top: number[] }[];
+  /** Drawn in 3D by `prisms` instead (levelled yards and their walls on relief); kept as the pick target. */
+  hidden3d?: boolean;
   /** Generated houses of one street block, aligned with `polygons` (a clipped house may repeat its id). */
   houses?: {
     ids: string[];
@@ -124,8 +127,8 @@ export interface VectorRenderData {
   /** Wells and public basins drawn as the mesh editor's BV waterworks in 3D. */
   wells?: { id: string; point: Point; kind: "well" | "publicBasin"; elevationMeters: number }[];
   terrain?: { points: [number, number, number][]; indices: number[]; colors?: number[] };
-  /** Stone plinths under buildings on relief: from below the lowest ground up to the level floor (§5.1). */
-  plinths?: { id: string; ring: Point[]; bottom: number; top: number }[];
+  /** Level ground on relief (natural relief §5.1, §5.7): building plinths, yard terraces and their walls. */
+  prisms?: ReliefPrism[];
   /** The finished ground for the mesh editor's 3D parts on relief: absolute heights and level foundations. */
   ground?: { heightAt: (point: Point) => number; foundationAt: (ring: readonly Point[]) => number };
   /** Walls (with towers and gates) and bridges as the mesh editor's structure massing, for 3D. Only owners
@@ -326,6 +329,22 @@ export function burgagePlotSurfaces(
     elevationMeters: 0.02
   });
   return out;
+}
+
+/** A burgage street block's built plots and their fronts (no venelles). */
+function burgagePlotRings(cell: VectorFabricCell): { rings: Point[][]; fronts: [Point, Point][] } {
+  const plots = cell.plots;
+  if (!plots) return { rings: [], fronts: [] };
+  const all = plots.offsets.map((start, i) =>
+      unpackPoints(plots.coords, cell.origin, start, plots.offsets[i + 1] ?? plots.coords.length / 2)
+    ),
+    built = builtPlots(cell, all);
+  return {
+    rings: all.filter((_, i) => built[i]),
+    fronts: all
+      .map((_, i) => unpackPoints(plots.fronts, cell.origin, i * 2, i * 2 + 2) as [Point, Point])
+      .filter((_, i) => built[i])
+  };
 }
 
 /** Which of a street block's plots a house stands on (its front house or a rear one). */
@@ -550,9 +569,41 @@ export function vectorRenderData(
   );
   for (const id of hiddenPaths) hidden.add(id);
   paths = paths.filter(p => !hiddenPaths.has(p.id));
-  const plinths: NonNullable<VectorRenderData["plinths"]> = [];
+  const prisms: ReliefPrism[] = [],
+    cuts: ReliefCut[] = [];
+  // The finished ground: the natural ground, cut down where level ground (a yard terrace) lies below it. Indexed on
+  // first use, once every cut is known (natural relief §4.1, §7.1).
+  let cutIndex: Map<string, ReliefCut[]> | undefined;
+  const CUT_CELL = 24;
+  const groundAt = (p: Point): number => {
+    const natural = terrain.heightAt(p);
+    if (!cuts.length) return natural;
+    if (!cutIndex) {
+      cutIndex = new Map();
+      for (const cut of cuts) {
+        const xs = cut.ring.map(q => q[0]),
+          ys = cut.ring.map(q => q[1]);
+        for (let x = Math.floor(Math.min(...xs) / CUT_CELL); x <= Math.floor(Math.max(...xs) / CUT_CELL); x++)
+          for (let y = Math.floor(Math.min(...ys) / CUT_CELL); y <= Math.floor(Math.max(...ys) / CUT_CELL); y++) {
+            const key = `${x},${y}`;
+            cutIndex.set(key, [...(cutIndex.get(key) ?? []), cut]);
+          }
+      }
+    }
+    let h = natural;
+    for (const cut of cutIndex.get(`${Math.floor(p[0] / CUT_CELL)},${Math.floor(p[1] / CUT_CELL)}`) ?? [])
+      if (h > cut.level - 0.05 && pointInPolygon(p, cut.ring)) h = cut.level - 0.05;
+    return h;
+  };
   const plinth = (id: string, ring: Point[], level: { floor: number; low: number }) => {
-    if (level.floor - level.low > 0.05) plinths.push({ id, ring, bottom: level.low - 0.3, top: level.floor });
+    if (level.floor - level.low > 0.05)
+      prisms.push({
+        id,
+        ring,
+        bottom: ring.map(() => level.low - 0.3),
+        top: ring.map(() => level.floor),
+        sideColor: STONE_COLOR
+      });
   };
   const add = (item: VectorRenderSurface) => {
     if (hiddenPaths.has(item.id)) return;
@@ -573,7 +624,7 @@ export function vectorRenderData(
             ? p => terrain.waterAt(p) ?? terrain.heightAt(p)
             : ["road", "junction", "access"].includes(item.kind)
               ? terrain.surfaceAt
-              : terrain.heightAt;
+              : groundAt;
     }
     const clipped = regionBoolean(item.polygons, [frame], "intersection");
     if (clipped.length) surfaces.push({ ...item, polygons: clipped });
@@ -826,8 +877,46 @@ export function vectorRenderData(
     for (const cell of Object.values(doc.fabric.cells)) {
       lines(cell.id, "l", cell.lanes, cell.origin, cell.detachedLines);
       // Burgage plots (docs/plan/ce-burgage-plot-fabric.md B4): yards and their boundary walls, under the houses.
+      // On relief each house's floor is levelled first: its yard's terraces start from it (natural relief §5.7).
+      const plotDoor = plotDoorOf(cell),
+        floors = new Map<number, { floor: number; low: number; high: number }>();
+      if (terrain.relief)
+        for (let i = 0; i < cellHouseCount(cell); i++) {
+          const ring = cellHouseRing(cell, i),
+            [, access] = plotDoor(ring) ?? unpackPoints(cell.houses.entrances, cell.origin, 2 * i, 2 * i + 2);
+          floors.set(i, terrain.floorAt(ring, access));
+        }
       if (cell.plots && cellHouseCount(cell)) {
-        burgagePlotSurfaces(cell, warnings, facilitySites).forEach(add);
+        const plotSurfaces = burgagePlotSurfaces(cell, warnings, facilitySites);
+        if (terrain.relief && !cell.plots.venelles?.widths.length) {
+          const { rings, fronts } = burgagePlotRings(cell),
+            yard = plotSurfaces.find(p => p.pieceRole === "yard"),
+            wall = plotSurfaces.find(p => p.pieceRole === "plot-wall"),
+            terraces = reliefYardTerraces(
+              `${cell.id}~yards`,
+              rings,
+              fronts,
+              [...floors].map(([i, level]) => ({ ring: cellHouseRing(cell, i), floor: level.floor })),
+              terrain.heightAt,
+              yard?.color ?? "#b5b27f"
+            );
+          prisms.push(...terraces.prisms);
+          cuts.push(...terraces.cuts);
+          if (wall)
+            prisms.push(
+              ...reliefPlotWalls(
+                `${cell.id}~walls`,
+                wall.polygons,
+                terraces.levels,
+                terrain.heightAt,
+                wall.heightMeters,
+                wall.color
+              )
+            );
+          for (const surface of plotSurfaces)
+            if (surface.pieceRole === "yard" || surface.pieceRole === "plot-wall") surface.hidden3d = true;
+        }
+        plotSurfaces.forEach(add);
         // Fruit trees in the yards' back halves, clear of every house and of every facility's whole site (B5).
         const houseRings = Array.from({ length: cellHouseCount(cell) }, (_, i) => cellHouseRing(cell, i)),
           trees = burgageYardTrees(cell, [...houseRings, ...facilitySites]);
@@ -847,7 +936,6 @@ export function vectorRenderData(
           doors: []
         },
         plain: { id: string; massing: BuildingMassing }[] = [];
-      const plotDoor = plotDoorOf(cell);
       if (villageProfile) houses.village = [];
       for (let i = 0; i < cellHouseCount(cell); i++) {
         if (detached.has(i)) continue;
@@ -857,7 +945,7 @@ export function vectorRenderData(
             ? [{ outer: ring, holes: [] }]
             : regionBoolean([{ outer: ring, holes: [] }], [frame], "intersection"),
           [door, access] = plotDoor(ring) ?? unpackPoints(cell.houses.entrances, cell.origin, 2 * i, 2 * i + 2),
-          level = terrain.relief ? terrain.floorAt(ring, access) : undefined,
+          level = terrain.relief ? (floors.get(i) ?? terrain.floorAt(ring, access)) : undefined,
           elevation = level ? level.floor : 0.1 + (terrain.hasRelief ? terrain.foundationAt(id, ring) : 0);
         if (level) plinth(id, ring, level);
         for (const part of parts) {
@@ -1168,7 +1256,7 @@ export function vectorRenderData(
     for (let y = 0; y <= count; y++)
       for (let x = 0; x <= count; x++) {
         const p: Point = [center[0] - extent / 2 + x * step, center[1] - extent / 2 + y * step];
-        points.push([p[0], terrain.heightAt(p) - 0.01, p[1]]);
+        points.push([p[0], groundAt(p) - 0.01, p[1]]);
       }
     const at = (x: number, y: number) =>
       points[Math.min(count, Math.max(0, y)) * (count + 1) + Math.min(count, Math.max(0, x))][1];
@@ -1207,7 +1295,7 @@ export function vectorRenderData(
   if (terrain.relief)
     for (const surface of surfaces)
       if (!surface.heightAt && !surface.elevations && surface.kind !== "building" && surface.kind !== "bridge")
-        surface.heightAt = surface.kind === "river" ? p => terrain.waterAt(p) ?? terrain.heightAt(p) : terrain.heightAt;
+        surface.heightAt = surface.kind === "river" ? p => terrain.waterAt(p) ?? terrain.heightAt(p) : groundAt;
   if (doc.urban && !urban) warnings.push("stale-stages");
   const drawn = new Set(surfaces.filter(s => s.kind === "wall" || s.kind === "bridge").map(s => s.id)),
     // Fabric lines are drawn per record (`<record>~l`), or per line (`<record>~l3`) when the union fails.
@@ -1287,21 +1375,21 @@ export function vectorRenderData(
     ],
     landscapeTrees: [...(doc.environment?.landscape?.trees ?? []), ...yardTrees].map(tree => ({
       ...tree,
-      elevationMeters: terrain.heightAt(tree.point)
+      elevationMeters: groundAt(tree.point)
     })),
     // Wells and the plaza basin as the mesh editor's BV waterworks (P2d-1); cisterns (a curbed ring) and ponds stay
     // surfaces.
     wells: (doc.urban?.wells ?? []).flatMap(w =>
       w.kind === "well" || w.kind === "publicBasin"
-        ? [{ id: `urban:water:${w.id}`, point: w.center, kind: w.kind, elevationMeters: terrain.heightAt(w.center) }]
+        ? [{ id: `urban:water:${w.id}`, point: w.center, kind: w.kind, elevationMeters: groundAt(w.center) }]
         : []
     ),
     terrain: terrainMesh,
-    ...(plinths.length ? { plinths } : {}),
+    ...(prisms.length ? { prisms } : {}),
     ...(terrain.hasRelief
       ? {
           ground: {
-            heightAt: terrain.heightAt,
+            heightAt: groundAt,
             foundationAt: (ring: readonly Point[]) => terrain.foundationAt("", [...ring])
           }
         }

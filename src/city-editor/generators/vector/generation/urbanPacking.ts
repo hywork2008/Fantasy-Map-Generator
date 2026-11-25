@@ -14,7 +14,7 @@ import { pointSegmentDistance, samplePath } from "../geometry/sampling";
 import { pathSurface, simpleContour } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
-import { vectorTerrain } from "../terrain";
+import { EXPOSURE_MAX_METERS, LANDMARK_EXPOSURE_MAX_METERS, vectorTerrain } from "../terrain";
 import { reachablePaths } from "./pipeline";
 import {
   VECTOR_HOUSE_FLOOR_AREA,
@@ -255,9 +255,17 @@ export function createUrbanPacker(
           (district?.use &&
             (kind === "housing" ? district.use !== "residential" : district.use !== facilityUseOf(request))) ||
           (doc.environment?.terrain &&
+            !doc.environment.relief &&
             Math.max(...site.outer.map(vectorTerrain(doc).heightAt)) -
               Math.min(...site.outer.map(vectorTerrain(doc).heightAt)) >
               2) ||
+          // On natural relief a building stands on its plinth, not too high downhill nor on too steep ground (P8c).
+          (doc.environment?.relief &&
+            !vectorTerrain(doc).buildable(
+              site.outer,
+              undefined,
+              kind === "housing" ? EXPOSURE_MAX_METERS : LANDMARK_EXPOSURE_MAX_METERS
+            )) ||
           (request.zone === "outskirts" && inside(translation)) ||
           site.outer.some(corner => !containsRegion([block], corner)) ||
           outsideArea(blockClip.get(block.id)!, site) > 1e-5

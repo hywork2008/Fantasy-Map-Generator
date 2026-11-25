@@ -51,6 +51,7 @@ import { samplePath, simplifyFreehand } from "../geometry/sampling";
 import { pathSurface, simpleContour, surfacesOverlap } from "../geometry/surfaces";
 import { allVectorWater } from "../geometry/water";
 import { vectorOccupiedSites } from "../occupancy";
+import { vectorTerrain } from "../terrain";
 import { vectorDistrictId } from "./districtId";
 import { vectorHousingCulture } from "./housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "./housingHeights";
@@ -1446,6 +1447,7 @@ export function placeVectorPerimeterHouses(
     order = plan.houses
       .filter(h => !h.outbuilding)
       .sort((a, b) => beyond(a) - beyond(b) || rear(a) - rear(b) || rank.get(a)! - rank.get(b)! || a.draw - b.draw);
+  const relief = doc.environment?.relief ? vectorTerrain(doc) : undefined;
   /** Farmsteads whose house stands: their outbuildings follow it. */
   const farmsteads = new Set<string>();
   /** Adopts one house if its lot fits; `held` when it waits for the second pass. */
@@ -1521,6 +1523,8 @@ export function placeVectorPerimeterHouses(
       }
     }
     if (!best) return;
+    // On relief a lot whose house would stand too high downhill, or on too steep ground, stays unbuilt (P8c).
+    if (relief && !relief.buildable(polygon, best.to)) return;
     const list = adopted.get(house.cellId) ?? [];
     list.push({
       ring,

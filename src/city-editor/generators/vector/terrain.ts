@@ -22,6 +22,10 @@ export const EMBED_MAX_METERS = 2.5;
 export const PLINTH_MAX_METERS = 1.2;
 /** Most a house may stand above its lowest ground, undercroft included (§5.1). */
 export const EXPOSURE_MAX_METERS = 3.5;
+/** A castle, church or religious house may stand this high on its downhill side (§5.1). */
+export const LANDMARK_EXPOSURE_MAX_METERS = 7;
+/** Ground steeper than this under a footprint is not built on (§5.1). */
+export const UNBUILDABLE_GROUND_SLOPE = 0.35;
 
 const cache = new WeakMap<VectorCityDocument, ReturnType<typeof buildTerrain>>();
 export function vectorTerrain(doc: VectorCityDocument) {
@@ -96,7 +100,7 @@ function buildTerrain(doc: VectorCityDocument) {
                 cut = (levels: number[]) => levels.reduce((n, level, i) => n + natural[i] - level, 0);
               if (cut(reverse) < cut(bed)) bed = reverse;
             }
-            // Where the bed is cut deep, the valley sides lie back at about 1:2.5 instead of standing as a wall.
+            // Where the bed is cut deep, the valley sides lie back at about 1:6, a broad valley rather than a gorge.
             const deepest = Math.max(0, ...bed.map((level, i) => natural[i] - level));
             if (pathIsClosed(path)) {
               const level = Math.min(...bed);
@@ -112,7 +116,7 @@ function buildTerrain(doc: VectorCityDocument) {
               depthMeters: saved?.depthMeters ?? 1,
               bank: saved?.bank ?? {
                 kind: "slope" as const,
-                runMeters: relief ? Math.min(150, Math.max(3, deepest * 2.5)) : 3
+                runMeters: relief ? Math.min(300, Math.max(3, deepest * 6)) : 3
               }
             };
           })
@@ -260,7 +264,21 @@ function buildTerrain(doc: VectorCityDocument) {
     floor = Math.max(floor, high - EMBED_MAX_METERS, low + ENTRANCE_STEP_METERS);
     return { floor, low, high };
   };
+  /**
+   * Whether a building may stand here (§5.1): its downhill side no more than `exposureMax` above its lowest ground,
+   * undercroft included, and the ground under it no steeper than 35%. Level ground always fits.
+   */
+  const buildable = (ring: readonly Point[], street?: Point, exposureMax = EXPOSURE_MAX_METERS) => {
+    if (!relief) return true;
+    const { floor, low, high } = floorAt(ring, street);
+    if (floor - low > exposureMax) return false;
+    const xs = ring.map(p => p[0]),
+      ys = ring.map(p => p[1]),
+      span = Math.hypot(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+    return span <= 0 || (high - low) / span <= UNBUILDABLE_GROUND_SLOPE;
+  };
   return {
+    buildable,
     floorAt,
     groundRange,
     heightAt,
