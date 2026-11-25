@@ -1,7 +1,9 @@
 import RBush from "rbush";
 import type { InfillLane } from "../types/contracts/localInfill";
 import type { DistrictParameters, Face, Point } from "../types/document";
+import { packCompactV2Block } from "./compactV2";
 import { frontageBuildings, occupancyDrawOf } from "./frontageBuildings";
+import type { Front } from "./frontageBuildings.types";
 import {
   isSimplePolygon,
   lineLineIntersection,
@@ -31,6 +33,9 @@ export interface OrganicBlockContext {
   /** No cut runs along the block's edge closer than a house's depth for most of its length (meshless): it would
    * leave a sliver no row of houses fits, a lane beside the street. */
   noSliverCuts?: boolean;
+  /** Experimental compact-v2 improvements (docs/plan/ce-meshless-compact-block-improvements.md). Absent on legacy
+   * `compact`, `compact-medium` and mesh-first. */
+  compactV2?: { reach: number };
 }
 
 type Split = { parts: [Point[], Point[]]; path: Point[] };
@@ -246,7 +251,8 @@ function organicLayout(
         scope.boundaries,
         undefined,
         undefined,
-        sliver
+        sliver,
+        Boolean(context?.compactV2)
       );
       if (split) {
         const street = context?.streetWidthMeters ?? width;
@@ -311,13 +317,18 @@ function organicLayout(
     const long = frame.hi - frame.lo;
     // Back-to-back rows and courts share the same house depth. Their size
     // distribution belongs to each parcel, never to a district-wide strip.
-    const courtyard = rng() < 0.32;
+    const courtyard = rng() < (context?.compactV2 ? 0.25 : 0.32);
     // Keep real house depths and lane widths. A smaller town has shorter
     // frontages and smaller courts, not houses scaled down with the map.
     const shortLimit =
       (pairedSpan + (courtyard ? houseDepth * rng.range(micro ? 0.3 : 0.65, micro ? 0.8 : 1.4) : rng.range(0, 3))) *
       blockScale;
-    const longLimit = pairedSpan * rng.range(micro ? 1.4 : 1.65, micro ? 2 : 2.6) * blockScale;
+    const longLimit =
+      pairedSpan *
+      (context?.compactV2
+        ? rng.range(micro ? 1.5 : 2.0, micro ? 2.2 : 3.1)
+        : rng.range(micro ? 1.4 : 1.65, micro ? 2 : 2.6)) *
+      blockScale;
     const kernel = insetConvexKernel(
       poly,
       poly.map(() => 0)
@@ -370,6 +381,87 @@ function organicLayout(
       });
       return primary ? [i] : [];
     });
+    if (context?.compactV2) {
+      const fronts: Front[] = block
+        .map((a, i) => {
+          const b = block[(i + 1) % block.length],
+            len = distance(a, b);
+          if (len < 5) return undefined;
+          const axis: Point = [(b[0] - a[0]) / len, (b[1] - a[1]) / len],
+            inward: Point = [-sign * axis[1], sign * axis[0]];
+          return {
+            a,
+            axis,
+            inward,
+            length: len,
+            offset: dot(a, inward),
+            primary: primaryEdges.includes(i)
+          };
+        })
+        .filter((f): f is Front => f !== undefined);
+      const layoutV2 = packCompactV2Block(
+        poly,
+        block,
+        fronts,
+        {
+          hub,
+          reach: context.compactV2.reach,
+          lotArea,
+          coverage: parameters?.coverage ?? 0.9,
+          occupancy: parameters?.occupancy ?? 1,
+          rowDepth: houseDepth,
+          laneWidth: width
+        },
+        makeRng(`${seed}:compact-v2-houses:${face.id}:${JSON.stringify(block)}`)
+      );
+      const clearOf = (p: Point[], lanes: InfillLane[]) =>
+        p.length >= 4 &&
+        area(p) >= 12 &&
+        p.every(point =>
+          lanes.every(
+            lane =>
+              nearestOnPolyline(point, lane.points).dist >= lane.widthMeters / 2 + ORGANIC_LANE_FACADE_CLEARANCE / 7
+          )
+        );
+      const validEntryLanes: InfillLane[] = [];
+      for (const entry of layoutV2.entryLanes) {
+        const candidate: InfillLane = { faceId: face.id, points: entry.points, widthMeters: entry.widthMeters };
+        const clearOfBuildings = layoutV2.buildings.every(b =>
+          b.polygon.every(
+            pt => nearestOnPolyline(pt, entry.points).dist >= entry.widthMeters / 2 + ORGANIC_LANE_FACADE_CLEARANCE / 7
+          )
+        );
+        if (clearOfBuildings) {
+          addStreet(entry.points, entry.widthMeters);
+          validEntryLanes.push(candidate);
+        }
+      }
+      const allClearance = validEntryLanes.length ? [...clearance, ...validEntryLanes] : clearance;
+      for (const b of layoutV2.buildings) {
+        if (!clearOf(b.polygon, allClearance)) continue;
+        if (b.rear) {
+          fabric.rearBuildings ??= [];
+          fabric.rearBuildings.push({
+            faceId: face.id,
+            polygon: b.polygon,
+            landmark: false,
+            occupancyDraw: b.draw
+          });
+        } else {
+          fabric.buildings.push({
+            faceId: face.id,
+            polygon: b.polygon,
+            landmark: false,
+            occupancyDraw: b.draw
+          });
+        }
+      }
+      if (layoutV2.plots.length) {
+        fabric.plots ??= [];
+        fabric.plots.push(...layoutV2.plots);
+      }
+      return;
+    }
     const footprints = frontageBuildings(
       block,
       block.map((_, i) => i),
@@ -470,7 +562,9 @@ function chooseSplit(
   bend?: { hub: Point; outward: Point },
   compact?: CompactSplit,
   /** Reject a cut most of whose middle runs within this of the block's edge (0: no test). */
-  sliver = 0
+  sliver = 0,
+  /** Prefer cuts that join existing street/road boundaries end-to-end (compact-v2 through streets). */
+  throughStreet = false
 ): Split | null {
   let best: Split | null = null;
   let bestScore = Infinity;
@@ -552,7 +646,8 @@ function chooseSplit(
         junctionSkew * 0.6 +
         Math.abs(sizes[0] / area(poly) - t) +
         (length / span) * 0.035 -
-        (bend ? roadEnds * 2 : 0);
+        (bend ? roadEnds * 2 : 0) -
+        (throughStreet ? (roadEnds === 2 ? 2.2 : roadEnds === 1 ? 0.6 : 0) : 0);
       if (score < bestScore) {
         best = candidate;
         bestScore = score;

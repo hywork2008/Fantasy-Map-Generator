@@ -52,6 +52,10 @@ export const VECTOR_URBAN_DENSE_BURGAGE_ALGORITHM: VectorUrbanAlgorithm = "vecto
 export const VECTOR_URBAN_VILLAGE_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v66";
 /** Compact lots in medium-sized blocks (`compactBlockScale`). */
 export const VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v63";
+/** Experimental improved compact lots (docs/plan/ce-meshless-compact-block-improvements.md). */
+export const VECTOR_URBAN_COMPACT_V2_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v67";
+/** Experimental improved medium-block compact lots (`compactBlockScale`). */
+export const VECTOR_URBAN_COMPACT_MEDIUM_V2_ALGORITHM: VectorUrbanAlgorithm = "vector-urban-v68";
 
 /** The algorithm that generates with these settings. */
 export function vectorUrbanAlgorithm(
@@ -65,7 +69,11 @@ export function vectorUrbanAlgorithm(
         ? VECTOR_URBAN_VILLAGE_ALGORITHM
         : settings?.plotFabric === "compact-medium"
           ? VECTOR_URBAN_COMPACT_MEDIUM_ALGORITHM
-          : VECTOR_URBAN_ALGORITHM;
+          : settings?.plotFabric === "compact-v2"
+            ? VECTOR_URBAN_COMPACT_V2_ALGORITHM
+            : settings?.plotFabric === "compact-medium-v2"
+              ? VECTOR_URBAN_COMPACT_MEDIUM_V2_ALGORITHM
+              : VECTOR_URBAN_ALGORITHM;
 }
 
 /** The requested settings without the housing culture, which changes how houses look, not what was generated: it

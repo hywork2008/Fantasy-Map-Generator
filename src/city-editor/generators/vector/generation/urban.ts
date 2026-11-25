@@ -6,6 +6,7 @@ import type { VectorFabricDetachedLine } from "../../../types/vector/fabric";
 import type { VectorStage, VectorUrbanSettings } from "../../../types/vector/urban";
 import { burgageLandFactor, isBurgageFabric } from "../../burgage/profiles";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
+import { isCompactV2Fabric } from "../../compactBlocks";
 import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { pointInPolygon, polygonCentroid } from "../../geom";
@@ -769,21 +770,26 @@ function* vectorUrbanSteps(
       if (at >= 0) ownedPlacements.splice(at, 1);
     }
     // Burgage plots take facilities on whole plots (docs/plan/ce-burgage-plot-fabric.md B3); compact lots as before.
-    const lots = (organic.plotFabric ? placeFacilitiesOnPlots : placeFacilitiesOnLots)(
-      doc,
-      organic,
-      requests.filter(
+    const facilityRequests = requests.filter(
         r =>
           !ownedPlacements.includes(`urban:${r.id}`) &&
           !tanneryRow.unplaced.some(u => u.id === r.id) &&
           !ropewalks.unplaced.some(u => u.id === r.id) &&
           !edgeWorks.offMap.some(u => u.id === r.id)
       ),
-      core,
-      tanneryRow.placed,
       // A park ward stays a lawn (P7c); its lots never take a facility.
-      id => !villageFabric && wards.get(id)?.ward === "park"
-    );
+      barred = (id: string) => !villageFabric && wards.get(id)?.ward === "park",
+      lots = organic.plotFabric
+        ? placeFacilitiesOnPlots(doc, organic, facilityRequests, core, tanneryRow.placed, barred)
+        : placeFacilitiesOnLots(
+            doc,
+            organic,
+            facilityRequests,
+            core,
+            tanneryRow.placed,
+            barred,
+            isCompactV2Fabric(settings.plotFabric) ? { compactV2: true } : undefined
+          );
     unplacedFacilities.push(...tanneryRow.unplaced, ...ropewalks.unplaced, ...edgeWorks.offMap);
     ownedPlacements.push(...lots.placed);
     unplacedFacilities.push(...lots.unplaced);

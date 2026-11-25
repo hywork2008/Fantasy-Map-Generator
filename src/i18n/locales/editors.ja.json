@@ -322,11 +322,13 @@
         "plotFabricOptions": {
           "compact": "コンパクト（住宅が密集）",
           "compact-medium": "コンパクト・中型街区（コンパクトと建て詰まった短冊形区画の中間）",
+          "compact-v2": "コンパクト v2（中世街区改善・検証用）",
+          "compact-medium-v2": "コンパクト・中型街区 v2（中世街区改善・検証用）",
           "burgage": "裏庭つきの短冊形区画（村落〜小さな町）",
           "burgage-dense": "建て詰まった短冊形区画（市壁のある都市）",
           "burgage-village": "街道沿いの村、1,000人まで（1階建ての屋敷地、市壁なし）"
         },
-        "compactBlockScale": "街区の辺の長さの倍率（コンパクト・中型街区、1.1〜2.2）",
+        "compactBlockScale": "街区の辺の長さの倍率（中型街区、1.1〜2.2）",
         "develop": "小路・施設・住宅の候補を生成",
         "capacity": "住戸容量 / 必要住戸",
         "unplaced": "未収容人口",

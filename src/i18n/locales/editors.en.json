@@ -322,11 +322,13 @@
         "plotFabricOptions": {
           "compact": "Compact (dense houses)",
           "compact-medium": "Compact, medium blocks (between compact and dense burgage)",
+          "compact-v2": "Compact v2 (medieval block improvements, experimental)",
+          "compact-medium-v2": "Compact, medium blocks v2 (medieval block improvements, experimental)",
           "burgage": "Burgage plots with yards (village, small town)",
           "burgage-dense": "Dense burgage plots (walled town, yards built over)",
           "burgage-village": "Roadside village, up to 1,000 people (single-storey tofts, unwalled)"
         },
-        "compactBlockScale": "Block edge multiplier (compact-medium, 1.1–2.2)",
+        "compactBlockScale": "Block edge multiplier (medium blocks, 1.1–2.2)",
         "develop": "Preview lanes, facilities and housing",
         "capacity": "Dwelling capacity / required",
         "unplaced": "Unplaced population",

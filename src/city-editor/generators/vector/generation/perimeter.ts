@@ -19,7 +19,8 @@ import {
   burgageStreetCellMeters
 } from "../../burgage/perimeterCell";
 import { burgageProfileFor, isBurgageFabric } from "../../burgage/profiles";
-import { compactBlockScale } from "../../compactBlocks";
+import { compactBlockScale, isCompactV2Fabric } from "../../compactBlocks";
+import { withoutHolesNatural } from "../../compactV2";
 import {
   isSimplePolygon,
   nearestOnPolyline,
@@ -98,8 +99,8 @@ export interface VectorPerimeterPlan {
   laneWidthMeters: number;
   /** Street blocks laid out as burgage plots (v19). */
   plotFabric?: "burgage" | "burgage-dense" | "burgage-village";
-  /** Compact street blocks laid out with larger lane-bounded blocks (v61, `compactBlockScale`). */
-  compactFabric?: "compact-medium";
+  /** Compact street blocks with larger lane-bounded blocks (v61) or experimental v2 compact patterns (v67/v68). */
+  compactFabric?: "compact-medium" | "compact-v2" | "compact-medium-v2";
   /** A village of single-storey houses, one household each (roadside village plan §14.2). */
   village?: true;
 }
@@ -137,6 +138,8 @@ export interface PerimeterPlanContext {
   burgage?: BurgagePlanContext;
   /** Edge-length multiplier of compact lane-bounded blocks (`compactBlockScale`); absent means 1. */
   blockScale?: number;
+  /** Experimental compact-v2 improvements (docs/plan/ce-meshless-compact-block-improvements.md). */
+  compactV2?: { reach: number };
 }
 /** One reachable skeleton block without holes, with its stable district id. */
 export interface PerimeterDistrictJob {
@@ -338,9 +341,11 @@ export function perimeterJobs(
       );
       return points.slice(1).map((b, i): [Point, Point] => [points[i], b]);
     });
+  const compactV2 = isCompactV2Fabric(settings.plotFabric);
+  const splitHoles = compactV2 ? withoutHolesNatural : withoutHoles;
   const jobs: PerimeterDistrictJob[] = [],
     districtIds = new Set<string>();
-  for (const sourceBlock of blocks.flatMap(withoutHoles)) {
+  for (const sourceBlock of blocks.flatMap(splitHoles)) {
     // Blocks never coincide, but a collision must not merge two districts' random streams.
     let districtId = vectorDistrictId(sourceBlock);
     for (let n = 2; districtIds.has(districtId); n++) districtId = `${vectorDistrictId(sourceBlock)}:${n}`;
@@ -366,6 +371,10 @@ export function perimeterJobs(
     })),
     ...harborFrontages(doc)
   ];
+  const hub = doc.site!.center;
+  const compactV2Reach = compactV2
+    ? Math.max(100, ...blocks.flatMap(b => b.outer.map(p => Math.hypot(p[0] - hub[0], p[1] - hub[1]))))
+    : 0;
   return {
     context: {
       roads,
@@ -373,15 +382,16 @@ export function perimeterJobs(
       seed: doc.recipe.seed,
       laneWidthMeters: settings.laneWidthMeters,
       walls,
-      hub: doc.site!.center,
+      hub,
       extentMeters: doc.frame.extentMeters,
       ...(doc.generation?.settings.layout === "classic"
         ? { classic: true }
         : isBurgageFabric(settings.plotFabric)
           ? { burgage: burgagePlanContext(doc, settings.plotFabric === "burgage-dense") }
-          : compactBlockScale(settings) !== 1
-            ? { blockScale: compactBlockScale(settings) }
-            : {})
+          : {
+              ...(compactBlockScale(settings) !== 1 ? { blockScale: compactBlockScale(settings) } : {}),
+              ...(compactV2 ? { compactV2: { reach: compactV2Reach } } : {})
+            })
     },
     jobs
   };
@@ -431,7 +441,8 @@ const ceContext = (context: PerimeterPlanContext) => ({
   streetCellMeters: COARSE_STREET_CELL_METERS,
   streetWidthMeters: COARSE_STREET_WIDTH_METERS,
   noSliverCuts: true,
-  ...(context.blockScale ? { blockScale: context.blockScale } : {})
+  ...(context.blockScale ? { blockScale: context.blockScale } : {}),
+  ...(context.compactV2 ? { compactV2: context.compactV2 } : {})
 });
 const districtFace = (id: string): Face => ({
   id,
@@ -452,7 +463,8 @@ function planKey(context: PerimeterPlanContext): string {
       context.walls,
       !!context.classic,
       context.burgage ?? null,
-      context.blockScale ?? 1
+      context.blockScale ?? 1,
+      context.compactV2 ?? null
     ]);
     planKeys.set(context, key);
   }
@@ -689,7 +701,15 @@ function computePerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJ
     }
   });
   return {
-    cell: { id: cell.id, districtId, ring: cell.ring, lanes, attachments, mouths: [] },
+    cell: {
+      id: cell.id,
+      districtId,
+      ring: cell.ring,
+      lanes,
+      attachments,
+      mouths: [],
+      ...(local.plots?.length ? { plots: local.plots.map(p => ({ ...p, kind: "plot" as const })) } : {})
+    },
     blocks: local.blocks.map((outer, i) => ({
       id: `${cell.id}:parcel:${i}`,
       outer,
@@ -698,12 +718,21 @@ function computePerimeterCell(context: PerimeterPlanContext, job: PerimeterCellJ
       frontage: [],
       reachable: true
     })),
-    houses: local.buildings.map(b => ({
-      cellId: cell.id,
-      districtId,
-      polygon: b.polygon,
-      draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
-    }))
+    houses: [
+      ...local.buildings.map(b => ({
+        cellId: cell.id,
+        districtId,
+        polygon: b.polygon,
+        draw: b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))
+      })),
+      ...(local.rearBuildings ?? []).map(b => ({
+        cellId: cell.id,
+        districtId,
+        polygon: b.polygon,
+        draw: 0.5 + 0.5 * (b.occupancyDraw ?? growthRandom(JSON.stringify(b.polygon))),
+        rear: true as const
+      }))
+    ]
   };
 }
 
@@ -890,7 +919,9 @@ export function joinPerimeterPlan(
     blocks: districts.flatMap(d => d.blocks),
     laneWidthMeters: settings.laneWidthMeters,
     ...(isBurgageFabric(settings.plotFabric) ? { plotFabric: settings.plotFabric } : {}),
-    ...(settings.plotFabric === "compact-medium" ? { compactFabric: settings.plotFabric } : {})
+    ...(settings.plotFabric === "compact-medium" || isCompactV2Fabric(settings.plotFabric)
+      ? { compactFabric: settings.plotFabric }
+      : {})
   };
   // Street and lane ends on a main road join it through an explicit node. A short connector closes any gap.
   const joiner = createGenerationJoiner(doc);
@@ -1438,7 +1469,8 @@ export function placeVectorPerimeterHouses(
       return;
     }
     // A village house is a single-storey home of one household; its barn houses no one (plan §14.2).
-    const storeys = plan.village
+    // On compact-v2, rear outbuildings inside deep yards stay 1–2 storeys lower than the street houses.
+    const baseStoreys = plan.village
         ? 1
         : heights.storeys(
             vectorHouseHeightKey(house.cellId, rank.get(house)!),
@@ -1446,6 +1478,8 @@ export function placeVectorPerimeterHouses(
             cellInside(house.cellId),
             heightKind(house.cellId)
           ),
+      storeys =
+        house.rear && isCompactV2Fabric(plan.compactFabric) ? Math.max(1, Math.min(2, baseStoreys - 1)) : baseStoreys,
       dwellingsOf = (area: number) =>
         house.outbuilding ? 0 : plan.village ? 1 : perimeterHouseDwellings(area, storeys),
       dwellings = dwellingsOf(regionArea(site));

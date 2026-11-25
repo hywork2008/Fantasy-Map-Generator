@@ -4,7 +4,8 @@ import {
   COMPACT_BLOCK_SCALE,
   COMPACT_BLOCK_SCALE_MAX,
   COMPACT_BLOCK_SCALE_MIN,
-  compactBlockScale
+  compactBlockScale,
+  usesCompactBlockScale
 } from "../../generators/compactBlocks";
 import { randomSeed } from "../../generators/generation/settings";
 import {
@@ -384,7 +385,15 @@ export function createVectorGenerationPanel(
   // they are developed, so Generate city shows their state.
   const plotFabric = document.createElement("select");
   plotFabric.dataset.generationField = "plotFabric";
-  for (const value of ["compact", "compact-medium", "burgage", "burgage-dense", "burgage-village"] as const) {
+  for (const value of [
+    "compact",
+    "compact-medium",
+    "compact-v2",
+    "compact-medium-v2",
+    "burgage",
+    "burgage-dense",
+    "burgage-village"
+  ] as const) {
     const option = document.createElement("option");
     option.value = value;
     option.textContent = text(`plotFabricOptions.${value}`);
@@ -392,7 +401,7 @@ export function createVectorGenerationPanel(
   }
   plotFabric.value = editorInput ? (editorInput.settings.plotFabric ?? "compact") : "burgage-dense";
   field("plotFabric", plotFabric);
-  // Block edge multiplier of compact-medium (`compactBlockScale`): 1 would be plain compact, so the range starts above it.
+  // Block edge multiplier of medium-block compact patterns (`compactBlockScale`): 1 would be plain compact.
   const blockScale = document.createElement("input");
   blockScale.type = "number";
   blockScale.min = String(COMPACT_BLOCK_SCALE_MIN);
@@ -402,7 +411,7 @@ export function createVectorGenerationPanel(
   blockScale.dataset.generationField = "compactBlockScale";
   field("compactBlockScale", blockScale);
   const showBlockScale = () => {
-    blockScale.disabled = plotFabric.value !== "compact-medium";
+    blockScale.disabled = !usesCompactBlockScale(plotFabric.value as PlotFabric);
   };
   showBlockScale();
   scope.listen(plotFabric, "change", showBlockScale);
@@ -416,10 +425,10 @@ export function createVectorGenerationPanel(
   };
   showVillage();
   scope.listen(plotFabric, "change", showVillage);
-  /** The plot pattern with its block edge multiplier, which only compact-medium keeps. */
+  /** The plot pattern with its block edge multiplier, which only medium-block compact patterns keep. */
   const plotSettings = (): { plotFabric: PlotFabric; compactBlockScale?: number } => {
     const fabric = plotFabric.value as PlotFabric;
-    return fabric === "compact-medium"
+    return usesCompactBlockScale(fabric)
       ? {
           plotFabric: fabric,
           compactBlockScale: compactBlockScale({ plotFabric: fabric, compactBlockScale: Number(blockScale.value) })
@@ -708,8 +717,8 @@ export function createVectorGenerationPanel(
       expansion.checked = doc.urban?.settings.allowExpansion ?? true;
       occupancy.value = String(Math.round((doc.urban?.settings.lotOccupancy ?? 1) * 100));
       tanneryBends.value = doc.urban?.settings.tanneryBends ?? "continuous";
-      if (doc.urban?.settings.plotFabric === "compact-medium")
-        blockScale.value = String(compactBlockScale(doc.urban.settings));
+      if (usesCompactBlockScale(doc.urban?.settings.plotFabric))
+        blockScale.value = String(compactBlockScale(doc.urban!.settings));
       stage.disabled = !!doc.generation && doc.generation.inputRevision !== doc.revision;
       status.textContent = doc.generation
         ? doc.generation.inputRevision === doc.revision

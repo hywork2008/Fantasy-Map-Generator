@@ -6,10 +6,19 @@ import type { Point } from "../geometry";
  * their houses: a village or a small town. `burgage-dense` lays the same plots, halved, and builds their yards over
  * inside the wall as far as the population needs, back to back with the next row: a walled town (plan §8.7).
  * `compact-medium` is the compact layout with larger lane-bounded blocks, about halfway between compact and dense
- * burgage (`compactBlockScale`). `burgage-village` lays an unwalled village of tofts along its roads, with no round
- * site (docs/plan/ce-meshless-roadside-burgage-village.md).
+ * burgage (`compactBlockScale`). `compact-v2` and `compact-medium-v2` are experimental clones of those two patterns
+ * used to evaluate medieval block-structure improvements without changing the baseline patterns
+ * (docs/plan/ce-meshless-compact-block-improvements.md). `burgage-village` lays an unwalled village of tofts along
+ * its roads, with no round site (docs/plan/ce-meshless-roadside-burgage-village.md).
  */
-export type PlotFabric = "compact" | "compact-medium" | "burgage" | "burgage-dense" | "burgage-village";
+export type PlotFabric =
+  | "compact"
+  | "compact-medium"
+  | "compact-v2"
+  | "compact-medium-v2"
+  | "burgage"
+  | "burgage-dense"
+  | "burgage-village";
 
 /** Plot types of the burgage plot fabric (plan §2.3). */
 export type BurgageProfileId = "english-burgage" | "hofstatt" | "binaire";
