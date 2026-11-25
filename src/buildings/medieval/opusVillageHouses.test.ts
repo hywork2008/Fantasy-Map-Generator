@@ -35,8 +35,37 @@ describe("Opus village houses (roadside village plan §14.4)", () => {
             }
   });
 
+  // High details the plan Low only paints: courses, timbers, thatch and tiles, an order of magnitude more geometry.
+  it("builds High in far more detail than Low", () => {
+    for (const profile of VILLAGE_HOUSE_PROFILES) {
+      const spec = {
+          kind: "cottage",
+          profile,
+          length: 7,
+          width: 4.25,
+          variant: 0
+        } as const,
+        vertices = (quality: "low" | "high") => {
+          const model = createOpusVillageHouse(spec, quality);
+          let count = 0;
+          model.group.traverse(o => {
+            if ((o as THREE.Mesh).isMesh) count += (o as THREE.Mesh).geometry.getAttribute("position").count;
+          });
+          model.dispose();
+          return count;
+        };
+      expect(vertices("high")).toBeGreaterThan(vertices("low") * 15);
+    }
+  });
+
   it("shares one definition per spec and quality, so CE instances its houses", () => {
-    const spec = { kind: "cottage", profile: "atlantic", length: 7, width: 4.25, variant: 0 } as const;
+    const spec = {
+      kind: "cottage",
+      profile: "atlantic",
+      length: 7,
+      width: 4.25,
+      variant: 0
+    } as const;
     expect(villageHouseDefinition(spec, "low")).toBe(villageHouseDefinition({ ...spec }, "low"));
     expect(villageHouseDefinition(spec, "low")).not.toBe(villageHouseDefinition(spec, "high"));
   });
