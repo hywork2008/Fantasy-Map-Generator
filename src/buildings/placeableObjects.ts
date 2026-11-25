@@ -6,11 +6,14 @@ import { createTowerMill, TOWER_MILL } from "./mills/towerMill";
 import { createLowBankWaterMill, createWaterMill, LOW_BANK_WATER_MILLS, WATER_MILL } from "./mills/waterMill";
 import type { ModelFacets } from "./modelFacets";
 import { BATTERING_RAM, createBatteringRam } from "./siege/batteringRam";
+import { BOMBARD, createBombard } from "./siege/bombard";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createSiegeTower, SIEGE_TOWER } from "./siege/siegeTower";
+import { createTractionTrebuchet, TRACTION_TREBUCHET } from "./siege/tractionTrebuchet";
 import { createTrebuchet, TREBUCHET } from "./siege/trebuchet";
 import { B2, createB2 } from "./vehicles/b2Bomber";
 import { B29, createB29 } from "./vehicles/b29Bomber";
+import { BENZ_MOTORWAGEN, createBenzMotorwagen } from "./vehicles/benzMotorwagen";
 import { COVERED_WAGON, createCoveredWagon } from "./vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -25,6 +28,7 @@ import { createMinecart, MINECART } from "./vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "./vehicles/nobleCarriage";
 import { createTigerTank, TIGER_I } from "./vehicles/tigerTank";
 import { createWarWagon, WAR_WAGON } from "./vehicles/warWagon";
+import { createWrightFlyer, WRIGHT_FLYER } from "./vehicles/wrightFlyer";
 import { createMedievalWell, MEDIEVAL_WELL } from "./wells/medievalWell";
 import { createPublicWaterBasin } from "./wells/publicWaterBasin";
 import { PUBLIC_WATER_BASINS, WATER_BASIN_KINDS } from "./wells/publicWaterBasinSpec";
@@ -61,6 +65,13 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
     name: SIEGE_TOWER.name,
     author: SIEGE_TOWER.author,
     create: createSiegeTower
+  },
+  {
+    id: "tractionTrebuchet",
+    category: "Siege engines",
+    name: TRACTION_TREBUCHET.name,
+    author: TRACTION_TREBUCHET.author,
+    create: createTractionTrebuchet
   },
   {
     id: "hotAirBalloon",
@@ -103,6 +114,20 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
   { id: "tigerI", category: "Vehicles", name: TIGER_I.name, author: TIGER_I.author, create: createTigerTank },
   { id: "b29", category: "Vehicles", name: B29.name, author: B29.author, create: createB29 },
   { id: "b2", category: "Vehicles", name: B2.name, author: B2.author, create: createB2 },
+  {
+    id: "wrightFlyer",
+    category: "Vehicles",
+    name: WRIGHT_FLYER.name,
+    author: WRIGHT_FLYER.author,
+    create: createWrightFlyer
+  },
+  {
+    id: "benzMotorwagen",
+    category: "Vehicles",
+    name: BENZ_MOTORWAGEN.name,
+    author: BENZ_MOTORWAGEN.author,
+    create: createBenzMotorwagen
+  },
   { id: "postMill", category: "Mills", name: POST_MILL.name, author: POST_MILL.author, create: createPostMill },
   { id: "towerMill", category: "Mills", name: TOWER_MILL.name, author: TOWER_MILL.author, create: createTowerMill },
   { id: "waterMill", category: "Mills", name: WATER_MILL.name, author: WATER_MILL.author, create: createWaterMill },
@@ -120,6 +145,7 @@ export const PLACEABLE_OBJECTS: readonly PlaceableObject[] = [
     author: EARLY_FIELD_CANNON.author,
     create: createEarlyFieldCannon
   },
+  { id: "bombard", category: "Artillery", name: BOMBARD.name, author: BOMBARD.author, create: createBombard },
   {
     id: "medievalWell",
     category: "Wells",

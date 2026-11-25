@@ -2,9 +2,12 @@ import { type ModelVariant, variantId } from "../modelVariants";
 import { createBarge } from "./barge";
 import { createCaravel } from "./caravel";
 import { createCarrack } from "./carrack";
+import { createFerryNachenModel } from "./ferryNachen";
+import { createFerrySmackModel } from "./ferrySmack";
 import { createFordCarrierModel } from "./fordCarrier";
 import { createGalleon } from "./galleon";
 import type { GalleonState } from "./galleonArmament";
+import { createGeminiTrireme } from "./geminiTrireme";
 import { createGrokGalleon } from "./grokGalleon";
 import { createGrokGalley } from "./grokGalley";
 import { createGrokShipOfTheLine } from "./grokShipOfTheLine";
@@ -12,6 +15,9 @@ import { createGrokTrireme } from "./grokTrireme";
 import { createMerchantShipHigh } from "./merchantShipHigh";
 import { createOpusGalleon } from "./opusGalleon";
 import { createOpusShipOfTheLine } from "./opusShipOfTheLine";
+import { createOpusTrireme } from "./opusTrireme";
+import { createReactionFerryModel } from "./reactionFerry";
+import { createRopeFerryModel } from "./ropeFerry";
 import { createSloop } from "./sloop";
 import { createSloopHigh } from "./sloopHigh";
 
@@ -110,6 +116,20 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     author: "Grok 4.7",
     create: state => createGrokTrireme(state)
   },
+  ...(["high", "low"] as const).map(level => ({
+    id: variantId("ship.trireme", level, "Claude Opus 5.5"),
+    family: "ship.trireme",
+    level,
+    author: "Claude Opus 5.5" as const,
+    create: (state?: GalleonState) => createOpusTrireme(level, state)
+  })),
+  ...(["high", "low"] as const).map(level => ({
+    id: variantId("ship.trireme", level, "Gemini 4 Neon"),
+    family: "ship.trireme",
+    level,
+    author: "Gemini 4 Neon" as const,
+    create: (state?: GalleonState) => createGeminiTrireme(level, state)
+  })),
   ...(["default", "low", "high"] as const).map(level => ({
     id: variantId("ship.carrier", level, "Claude Opus 5.5"),
     family: "ship.carrier",
@@ -117,5 +137,37 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     author: "Claude Opus 5.5" as const,
     // CE draws the Low tier by default; a carrier has no sail or gunport state.
     create: () => createFordCarrierModel(level === "high" ? "high" : "low")
+  })),
+  ...(["default", "low", "high"] as const).map(level => ({
+    id: variantId("ship.rope-ferry", level, "Claude Opus 5.5"),
+    family: "ship.rope-ferry",
+    level,
+    author: "Claude Opus 5.5" as const,
+    // Not placed by CE yet; the default tier is Low, as for the carrier.
+    create: () => createRopeFerryModel(level === "high" ? "high" : "low")
+  })),
+  ...(["default", "low", "high"] as const).map(level => ({
+    id: variantId("ship.ferry-nachen", level, "Claude Opus 5.5"),
+    family: "ship.ferry-nachen",
+    level,
+    author: "Claude Opus 5.5" as const,
+    // Not placed by CE yet; the default tier is Low.
+    create: () => createFerryNachenModel(level === "high" ? "high" : "low")
+  })),
+  ...(["default", "low", "high"] as const).map(level => ({
+    id: variantId("ship.reaction-ferry", level, "Claude Opus 5.5"),
+    family: "ship.reaction-ferry",
+    level,
+    author: "Claude Opus 5.5" as const,
+    // Not placed by CE yet; the default tier is Low.
+    create: () => createReactionFerryModel(level === "high" ? "high" : "low")
+  })),
+  ...(["default", "low", "high"] as const).map(level => ({
+    id: variantId("ship.ferry-smack", level, "Claude Opus 5.5"),
+    family: "ship.ferry-smack",
+    level,
+    author: "Claude Opus 5.5" as const,
+    // Not placed by CE yet; the default tier is Low.
+    create: (state?: GalleonState) => createFerrySmackModel(level === "high" ? "high" : "low", state)
   }))
 ];

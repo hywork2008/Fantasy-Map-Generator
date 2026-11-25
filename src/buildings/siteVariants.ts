@@ -15,11 +15,15 @@ import {
   createMedievalContainerModel,
   MEDIEVAL_CONTAINERS
 } from "./props/medievalContainers";
+import { BOMBARD, createBombard } from "./siege/bombard";
 import { createEarlyFieldCannonModel, EARLY_FIELD_CANNON } from "./siege/earlyFieldCannon";
 import { createGrokTrebuchet, GROK_TREBUCHET } from "./siege/grokTrebuchet";
+import { createTractionTrebuchet, TRACTION_TREBUCHET } from "./siege/tractionTrebuchet";
 import { B2, createB2 } from "./vehicles/b2Bomber";
 import { B29, createB29 } from "./vehicles/b29Bomber";
+import { BENZ_MOTORWAGEN, createBenzMotorwagen } from "./vehicles/benzMotorwagen";
 import { createTigerTank, TIGER_I } from "./vehicles/tigerTank";
+import { createWrightFlyer, WRIGHT_FLYER } from "./vehicles/wrightFlyer";
 import { createMedievalWellModel, MEDIEVAL_WELL } from "./wells/medievalWell";
 import { createLowMedievalWellModel } from "./wells/medievalWellLow";
 import { createPublicWaterBasinModel } from "./wells/publicWaterBasin";
@@ -74,6 +78,38 @@ export const OBJECT_VARIANTS = [
     author: B2.author,
     credits: [{ author: B2.author, date: "2026-11-18", note: B2.highNote }],
     create: () => createB2("high")
+  },
+  {
+    id: variantId("object.wrightFlyer", "high", WRIGHT_FLYER.author),
+    family: "object.wrightFlyer",
+    level: "high",
+    author: WRIGHT_FLYER.author,
+    credits: [{ author: WRIGHT_FLYER.author, date: "2026-11-19", note: WRIGHT_FLYER.highNote }],
+    create: () => createWrightFlyer("high")
+  },
+  {
+    id: variantId("object.benzMotorwagen", "high", BENZ_MOTORWAGEN.author),
+    family: "object.benzMotorwagen",
+    level: "high",
+    author: BENZ_MOTORWAGEN.author,
+    credits: [{ author: BENZ_MOTORWAGEN.author, date: "2026-11-19", note: BENZ_MOTORWAGEN.highNote }],
+    create: () => createBenzMotorwagen("high")
+  },
+  {
+    id: variantId("object.tractionTrebuchet", "high", TRACTION_TREBUCHET.author),
+    family: "object.tractionTrebuchet",
+    level: "high",
+    author: TRACTION_TREBUCHET.author,
+    credits: [{ author: TRACTION_TREBUCHET.author, date: "2026-11-20", note: TRACTION_TREBUCHET.highNote }],
+    create: () => createTractionTrebuchet("high")
+  },
+  {
+    id: variantId("object.bombard", "high", BOMBARD.author),
+    family: "object.bombard",
+    level: "high",
+    author: BOMBARD.author,
+    credits: [{ author: BOMBARD.author, date: "2026-11-20", note: BOMBARD.highNote }],
+    create: () => createBombard("high")
   }
 ];
 

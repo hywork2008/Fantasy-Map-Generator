@@ -220,7 +220,7 @@ export function adoptedTree(species: TreeSpecies, quality = "ultra"): ModelVaria
   | `ship.galleon` | Codex（`default`）、Opus（`default`＝high、`low`）。2026-11-15に Grok 4.7 の high をBV専用で追加。Lowは無い | Codex（採用表に記録。Grok版は不採用） |
   | `ship.ship-of-the-line` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い）。2026-11-26に Claude Opus 5.5 のHMS Victory（`high`のみ）を追加 | Claude Opus 5.5（2026-11-26、ユーザー指示で採用表に記録。Grok版はBV比較版）。CEの手動配置のモデル船として描く |
   | `ship.galley` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い） | CEは配置しない。版が1つなので `adopt()` はこの版を返すが、`shipMeshes.ts` は呼ばない |
-  | `ship.trireme` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い） | CEは配置しない。版が1つなので `adopt()` はこの版を返すが、`shipMeshes.ts` は呼ばない |
+  | `ship.trireme` | Grok 4.7（`high`のみ。2026-11-15）。2026-11-19に Claude Opus 5.5 の `high`・`low`、2026-11-25に Gemini 4 Neon の `high`・`low` をBVの比較用に追加 | Grok 4.7（採用表に記録。CEの手動配置はGrokのhighを描く。Opus版・Gemini版は不採用） |
   | `town-wall.town-curtain-wall`・`town-mural-tower`・`town-gate` | Codex、Grok（BVの習作。両脇に城壁の一部が付く） | Codex（採用表に記録） |
   | `town-wall-part.wall`・`bare`・`tower`・`gate` | Codex（CEが城壁の周回に並べる部品）。`basedOn` はCodexの習作 | 版が1つなので自動 |
   | `temple.basilica` | Opus（`high`・`low`） | 版が1つなので自動 |

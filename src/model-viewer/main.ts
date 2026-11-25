@@ -1,6 +1,10 @@
 import { createFlintlockMusket, FLINTLOCK_MUSKET } from "../buildings/arms/flintlockMusket";
+import { createPavise, PAVISE } from "../buildings/arms/pavise";
 import { type Author, DEFAULT_AUTHOR } from "../buildings/authors";
 import { createPolygonHouses, POLYGON_HOUSES } from "../buildings/houses/polygonHouses";
+import { AMPHITHEATRE, createAmphitheatre } from "../buildings/roman/amphitheatre";
+import { createForumBaths, FORUM_BATHS } from "../buildings/roman/forumBaths";
+import { createInsula, INSULA } from "../buildings/roman/insula";
 import { createFordCarrier, FORD_CARRIER } from "../buildings/ships/fordCarrier";
 import type { GalleonState } from "../buildings/ships/galleonArmament";
 import { STANDARD_BIOME_DEFINITIONS } from "../data/biomeCatalog";
@@ -11,6 +15,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { BUILDING_APPEARANCE_PROFILES, type BuildingAppearanceProfile } from "../buildings/appearance/types";
 import { createPontDuGard, PONT_DU_GARD, pontDuGardElevation } from "../buildings/aqueducts/pontDuGard";
+import { createTudorLodging, TUDOR_LODGING } from "../buildings/camps/tudorLodging";
 import { contentDigest } from "../buildings/canonicalJson";
 import { createStGeorgesChapel, ST_GEORGES_CHAPEL } from "../buildings/chapels/stGeorgesChapel";
 import { CODEX_TOWN_WALL_PERIOD, CODEX_TOWN_WALLS } from "../buildings/fortifications/codexTownWalls";
@@ -52,7 +57,15 @@ import { type BuildingRecord, TRIANGLE_BUDGET } from "../buildings/record";
 import { BARGE, createBarge } from "../buildings/ships/barge";
 import { CARAVEL, createCaravel } from "../buildings/ships/caravel";
 import { CARRACK, createCarrack } from "../buildings/ships/carrack";
+import { createFerryNachen, FERRY_NACHEN } from "../buildings/ships/ferryNachen";
+import { createFerrySmack, FERRY_SMACK } from "../buildings/ships/ferrySmack";
 import { createGalleon, GALLEON } from "../buildings/ships/galleon";
+import {
+  createGeminiTrireme,
+  GEMINI_TRIREME,
+  type GeminiTriremeQuality,
+  geminiTriremeParts
+} from "../buildings/ships/geminiTrireme";
 import { createGrokGalleon, GROK_GALLEON, grokGalleonParts } from "../buildings/ships/grokGalleon";
 import { createGrokGalley, GROK_GALLEY, grokGalleyParts } from "../buildings/ships/grokGalley";
 import {
@@ -73,10 +86,19 @@ import {
   OPUS_SHIP_OF_THE_LINE,
   opusShipOfTheLineParts
 } from "../buildings/ships/opusShipOfTheLine";
+import {
+  createOpusTrireme,
+  OPUS_TRIREME,
+  type OpusTriremeQuality,
+  opusTriremeParts
+} from "../buildings/ships/opusTrireme";
+import { createReactionFerry, REACTION_FERRY } from "../buildings/ships/reactionFerry";
+import { createRopeFerry, ROPE_FERRY } from "../buildings/ships/ropeFerry";
 import { assembleSailingParts, type SailingShipState } from "../buildings/ships/sailingAssembly";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createSloopHigh, sloopHighParts } from "../buildings/ships/sloopHigh";
 import { BATTERING_RAM, createBatteringRam } from "../buildings/siege/batteringRam";
+import { BOMBARD, createBombard } from "../buildings/siege/bombard";
 import { createEarlyFieldCannon, EARLY_FIELD_CANNON } from "../buildings/siege/earlyFieldCannon";
 import {
   assembleGrokTrebuchet,
@@ -85,6 +107,7 @@ import {
   grokTrebuchetParts
 } from "../buildings/siege/grokTrebuchet";
 import { createSiegeTower, SIEGE_TOWER } from "../buildings/siege/siegeTower";
+import { createTractionTrebuchet, TRACTION_TREBUCHET } from "../buildings/siege/tractionTrebuchet";
 import { createTrebuchet, TREBUCHET } from "../buildings/siege/trebuchet";
 import {
   createHangingSign,
@@ -104,6 +127,7 @@ import { validateBuildingRecord } from "../buildings/validate";
 import { familyVariants, MODEL_VARIANTS } from "../buildings/variants";
 import { B2, createB2 } from "../buildings/vehicles/b2Bomber";
 import { B29, createB29 } from "../buildings/vehicles/b29Bomber";
+import { BENZ_MOTORWAGEN, createBenzMotorwagen } from "../buildings/vehicles/benzMotorwagen";
 import { COVERED_WAGON, createCoveredWagon } from "../buildings/vehicles/coveredWagon";
 import {
   AIRSHIP,
@@ -118,6 +142,7 @@ import { createMinecart, MINECART } from "../buildings/vehicles/minecart";
 import { createNobleCarriage, NOBLE_CARRIAGE } from "../buildings/vehicles/nobleCarriage";
 import { createTigerTank, TIGER_I } from "../buildings/vehicles/tigerTank";
 import { createWarWagon, WAR_WAGON } from "../buildings/vehicles/warWagon";
+import { createWrightFlyer, WRIGHT_FLYER } from "../buildings/vehicles/wrightFlyer";
 import { createMedievalWell, MEDIEVAL_WELL } from "../buildings/wells/medievalWell";
 import {
   createPublicWaterBasin,
@@ -1814,21 +1839,29 @@ const triremeButton = document.createElement("button");
 triremeButton.type = "button";
 triremeButton.textContent = "Trireme · Olympias";
 triremeButton.dataset.id = "trireme";
-const triremeState: { sails: "set" | "furled"; oars: "out" | "stowed"; part: string } = {
+const triremeState: { sails: "set" | "furled" | "struck"; oars: "out" | "stowed" } = {
   sails: "set",
-  oars: "out",
-  part: "all"
+  oars: "out"
 };
 AUTHORED_VARIANTS.trireme = {
   author: GROK_TRIREME.author,
+  authors: [GROK_TRIREME.author, OPUS_TRIREME.author, GEMINI_TRIREME.author],
   primary: true,
   quality: true,
-  highOnly: true,
   show: () => showTrireme()
 };
-function showTrireme(): void {
-  if (qualitySelect.value !== "high") qualitySelect.value = "high";
-  for (const option of qualitySelect.options) option.disabled = option.value !== "high";
+const triremePartSelected = { grok: "all", opus: "all", gemini: "all" };
+function showTrireme(author: string = authorSelect.value): void {
+  const opus = author === OPUS_TRIREME.author;
+  const gemini = author === GEMINI_TRIREME.author;
+  const multiTier = opus || gemini;
+  const key = opus ? "opus" : gemini ? "gemini" : "grok";
+  // Grok 4.7 prepared High only; the Opus and Gemini editions also have a light Low tier.
+  for (const option of qualitySelect.options) option.disabled = !multiTier && option.value !== "high";
+  if (!multiTier && qualitySelect.value !== "high") qualitySelect.value = "high";
+  const quality = (multiTier ? qualitySelect.value : "high") as OpusTriremeQuality | GeminiTriremeQuality;
+  // The Opus and Gemini editions can strike the main mast for battle trim.
+  if (!multiTier && triremeState.sails === "struck") triremeState.sails = "furled";
   selection++;
   for (const button of list.querySelectorAll("button"))
     button.setAttribute("aria-current", button === triremeButton ? "true" : "false");
@@ -1839,19 +1872,41 @@ function showTrireme(): void {
   roofTitle.textContent = "Ship elevation";
   levelTitle.textContent = "Deck plan";
   showQuality(true);
-  const parts = grokTriremeParts(triremeState);
-  if (!parts.some(entry => entry.id === triremeState.part)) triremeState.part = "all";
-  const chosen = parts.find(entry => entry.id === triremeState.part);
-  const model = chosen ? assembleSailingParts("trireme-part", [chosen]) : createGrokTrireme(triremeState);
-  comparisonModel = { path: null, quality: "high", viewOnly: true };
+  const parts = opus
+    ? opusTriremeParts(quality, triremeState)
+    : gemini
+      ? geminiTriremeParts(quality, triremeState)
+      : grokTriremeParts({
+          sails: triremeState.sails === "struck" ? "furled" : triremeState.sails,
+          oars: triremeState.oars
+        });
+  if (!parts.some(entry => entry.id === triremePartSelected[key])) triremePartSelected[key] = "all";
+  const chosen = parts.find(entry => entry.id === triremePartSelected[key]);
+  const model = chosen
+    ? assembleSailingParts("trireme-part", [chosen])
+    : opus
+      ? createOpusTrireme(quality, triremeState)
+      : gemini
+        ? createGeminiTrireme(quality, triremeState)
+        : createGrokTrireme({
+            sails: triremeState.sails === "struck" ? "furled" : triremeState.sails,
+            oars: triremeState.oars
+          });
+  comparisonModel = { path: null, quality, viewOnly: true };
   for (const [label, field, options] of [
     [
       "Sails",
       "sails",
-      [
-        ["Set", "set"],
-        ["Furled · moored", "furled"]
-      ]
+      multiTier
+        ? [
+            ["Set", "set"],
+            ["Brailed up · moored", "furled"],
+            ["Mast struck · battle trim", "struck"]
+          ]
+        : [
+            ["Set", "set"],
+            ["Furled · moored", "furled"]
+          ]
     ],
     [
       "Oars",
@@ -1869,7 +1924,7 @@ function showTrireme(): void {
     input.addEventListener("change", () => {
       if (field === "sails") triremeState.sails = input.value as (typeof triremeState)["sails"];
       else triremeState.oars = input.value as (typeof triremeState)["oars"];
-      showTrireme();
+      showTrireme(author);
     });
     const row = document.createElement("label");
     row.append(label, input);
@@ -1879,10 +1934,10 @@ function showTrireme(): void {
   partSelect.setAttribute("aria-label", "Assembly part");
   partSelect.add(new Option("Complete ship", "all"));
   for (const entry of parts) partSelect.add(new Option(`${entry.role} · ${entry.quality}`, entry.id));
-  partSelect.value = triremeState.part;
+  partSelect.value = triremePartSelected[key];
   partSelect.addEventListener("change", () => {
-    triremeState.part = partSelect.value;
-    showTrireme();
+    triremePartSelected[key] = partSelect.value;
+    showTrireme(author);
   });
   const partRow = document.createElement("label");
   partRow.append("Assembly part", partSelect);
@@ -1890,7 +1945,7 @@ function showTrireme(): void {
   modelOptions.hidden = false;
   massing = model;
   scene.add(model.group);
-  const info = GROK_TRIREME;
+  const info = opus ? OPUS_TRIREME : gemini ? GEMINI_TRIREME : GROK_TRIREME;
   frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
   camera.position.set(info.length * 0.95, info.height * 0.62, info.length * 0.85);
   controls.target.set(0, 1.15, 0);
@@ -1899,23 +1954,53 @@ function showTrireme(): void {
   mountPlan(levelHost, meshProjection(model, "top"));
   appendFacts(
     fact("Model", info.name),
-    fact("Quality", "High — the only prepared resolution"),
+    fact("Quality", multiTier ? (quality === "high" ? "High" : "Low") : "High — the only prepared resolution"),
     fact("Sails", triremeState.sails),
     fact("Oars", triremeState.oars),
-    fact("CE adoption", "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"),
+    fact(
+      "CE adoption",
+      multiTier
+        ? "BV-only comparison; CE places the Grok 4.7 High"
+        : "Placed by hand in CE (Model ships); the adopted High edition"
+    ),
     fact(
       "Dimensions",
-      `${info.length} m overall × ${info.beam} m beam over the outrigger; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
+      gemini
+        ? `${info.length} m ram to aphlaston × ${info.beam} m over the outriggers (${GEMINI_TRIREME.hullBeam} m hull, ${GEMINI_TRIREME.canopyBeam} m canopy deck); ${info.height} m to the main truck; ${info.draft} m draught`
+        : opus
+          ? `${info.length} m ram to aphlaston × ${info.beam} m over the outriggers (${OPUS_TRIREME.hullBeam} m hull); ${info.height} m to the main truck; ${info.draft} m draught`
+          : `${info.length} m overall × ${info.beam} m beam over the outrigger; ${info.height} m above the waterline; ${info.draft} m illustrative waterline`
     ),
-    fact("Ram", "Bronze bow ram on the waterline"),
-    fact("Oarsmen", "170 oars in three banks: 62 thranite, 54 zygite, 54 thalamite"),
-    fact("Rig", "Two square sails, main and fore"),
+    fact(
+      "Ram",
+      gemini
+        ? "Cast Piraeus-type three-bladed bronze ram straddling the waterline (no proembolion)"
+        : opus
+          ? "Three-finned bronze ram on the waterline, with a bronze-capped proembolion above"
+          : "Bronze bow ram on the waterline"
+    ),
+    fact(
+      "Oarsmen",
+      gemini
+        ? "170 sculpted 4.0–4.2 m oars on one 0.888 m room: 62 thranites on the framed parexeiresia, 54 zygites on the gunwale, 54 thalamites through askomata ports"
+        : opus
+          ? "170 oars on one 0.888 m room: 62 thranites on the outrigger, 54 zygites on the gunwale, 54 thalamites through leather-sleeved ports"
+          : "170 oars in three banks: 62 thranite, 54 zygite, 54 thalamite"
+    ),
+    fact(
+      "Rig",
+      gemini
+        ? "13 m arched main yard with ~95 m² brailed square sail and raked ~24 m² akateion; main mast strikes onto deck crutches for battle"
+        : opus
+          ? "Brailed square main sail and a raked boat sail (akateion); the main mast strikes onto deck crutches for battle"
+          : "Two square sails, main and fore"
+    ),
     fact("Note", info.note, "Olympias (trireme)")
   );
   const panel = modelPartsPanel(model.group);
   if (panel) facts.append(panel);
 }
-triremeButton.addEventListener("click", () => showTrireme());
+triremeButton.addEventListener("click", () => showTrireme(GROK_TRIREME.author));
 shipsHeading.append(triremeButton);
 
 const fordButton = document.createElement("button");
@@ -2153,6 +2238,239 @@ bargeButton.addEventListener("click", () => {
 });
 shipsHeading.append(bargeButton);
 
+const ropeFerryButton = document.createElement("button");
+ropeFerryButton.type = "button";
+ropeFerryButton.dataset.id = "rope-ferry";
+ropeFerryButton.textContent = "Rope ferry · Hand-hauled river cart ferry";
+function showRopeFerry(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === ropeFerryButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Ferry side elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createRopeFerry(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  frame({ occupancyMeters: { width: ROPE_FERRY.length, depth: ROPE_FERRY.beam } }, ROPE_FERRY.height);
+  camera.position.set(11, 7, 12);
+  controls.target.set(0, 0.8, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", ROPE_FERRY.name),
+    fact("Author", ROPE_FERRY.author),
+    fact("Period", "European river crossings, 13th to 19th century; before and beside the reaction ferry of 1657"),
+    fact(
+      "Dimensions",
+      `${ROPE_FERRY.hullLength} m hull (${ROPE_FERRY.length.toFixed(2)} m with the flaps raised) × ${ROPE_FERRY.beam} m beam; ${ROPE_FERRY.depth} m deep, ${ROPE_FERRY.draft} m light draft; ${ROPE_FERRY.laneWidth} m between the wheel kerbs`
+    ),
+    fact("Propulsion", "Hauled hand over hand along a bank-to-bank rope; poled in the shallows"),
+    fact("Load", "People, livestock, or one cart or wagon with its team, driven on at one end and off at the other"),
+    fact("CE adoption", "Not placed by CE yet; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — one-piece deck, plain flaps and guides"),
+    fact("Note", ROPE_FERRY.note, "Cable ferry"),
+    ...(quality === "high" ? [fact("High detail", ROPE_FERRY.highNote)] : [])
+  );
+}
+ropeFerryButton.addEventListener("click", () => showRopeFerry());
+shipsHeading.append(ropeFerryButton);
+AUTHORED_VARIANTS[ropeFerryButton.dataset.id] = {
+  author: ROPE_FERRY.author,
+  primary: true,
+  quality: true,
+  show: () => showRopeFerry()
+};
+
+const ferryNachenButton = document.createElement("button");
+ferryNachenButton.type = "button";
+ferryNachenButton.dataset.id = "ferry-nachen";
+ferryNachenButton.textContent = "Fährnachen · Rowed and poled river ferry boat";
+function showFerryNachen(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === ferryNachenButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Boat side elevation";
+  levelTitle.textContent = "Boat plan";
+  const model = createFerryNachen(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  frame({ occupancyMeters: { width: FERRY_NACHEN.length, depth: FERRY_NACHEN.beam } }, FERRY_NACHEN.height);
+  camera.position.set(9, 4.5, 9);
+  controls.target.set(0, 0.3, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", FERRY_NACHEN.name),
+    fact("Author", FERRY_NACHEN.author),
+    fact(
+      "Period",
+      "Rhine, Mosel and their tributaries, medieval to 19th century; size from the Sieg ferry register of 1846"
+    ),
+    fact(
+      "Dimensions",
+      `${FERRY_NACHEN.length} × ${FERRY_NACHEN.beam} × ${FERRY_NACHEN.depth} m (40 × 5 × 2¼ Prussian feet); ${FERRY_NACHEN.draft} m light draft`
+    ),
+    fact("Propulsion", "Pole and hand oars, one or two boatmen"),
+    fact(
+      "Load",
+      `Up to ${FERRY_NACHEN.passengers} passengers on five thwarts, small goods and small animals; no carts`
+    ),
+    fact("CE adoption", "Not placed by CE yet; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — hull, thwarts, oars and pole without frames or fittings"),
+    fact("Note", FERRY_NACHEN.note, "Nachen"),
+    ...(quality === "high" ? [fact("High detail", FERRY_NACHEN.highNote)] : [])
+  );
+}
+ferryNachenButton.addEventListener("click", () => showFerryNachen());
+shipsHeading.append(ferryNachenButton);
+AUTHORED_VARIANTS[ferryNachenButton.dataset.id] = {
+  author: FERRY_NACHEN.author,
+  primary: true,
+  quality: true,
+  show: () => showFerryNachen()
+};
+
+const reactionFerryButton = document.createElement("button");
+reactionFerryButton.type = "button";
+reactionFerryButton.dataset.id = "reaction-ferry";
+reactionFerryButton.textContent = "Gierponte · Rhine reaction ferry (flying bridge)";
+function showReactionFerry(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === reactionFerryButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Ferry side elevation";
+  levelTitle.textContent = "Load floor plan";
+  const model = createReactionFerry(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  frame({ occupancyMeters: { width: REACTION_FERRY.length, depth: REACTION_FERRY.width } }, REACTION_FERRY.height);
+  camera.position.set(22, 13, 24);
+  controls.target.set(0, 4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const { hull } = REACTION_FERRY;
+  appendFacts(
+    fact("Model", REACTION_FERRY.name),
+    fact("Author", REACTION_FERRY.author),
+    fact("Period", "Rhine and Waal, 1657 to the 19th century; after the St. Goar ferry of 1772"),
+    fact(
+      "Dimensions",
+      `Two ships of ${hull.length.toFixed(1)} × ${hull.beam.toFixed(2)} × ${hull.depth.toFixed(2)} m (82.5 × 12.5 × 5.2 Schuh), ${REACTION_FERRY.gap} m apart; load floor ${REACTION_FERRY.deckLength.toFixed(1)} × ${REACTION_FERRY.width.toFixed(1)} m; ${REACTION_FERRY.height.toFixed(1)} m to the bell house roof`
+    ),
+    fact("Propulsion", "The current, steered across on a rope and an anchored chain; two rudders"),
+    fact("Load", "Carts and coaches with their teams, riders, cattle and foot passengers through gates on both sides"),
+    fact("CE adoption", "Not placed by CE yet; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain rails, masts and crossbars without rigging or fittings"),
+    fact("Note", REACTION_FERRY.note, "Reaction ferry"),
+    ...(quality === "high" ? [fact("High detail", REACTION_FERRY.highNote)] : [])
+  );
+}
+reactionFerryButton.addEventListener("click", () => showReactionFerry());
+shipsHeading.append(reactionFerryButton);
+AUTHORED_VARIANTS[reactionFerryButton.dataset.id] = {
+  author: REACTION_FERRY.author,
+  primary: true,
+  quality: true,
+  show: () => showReactionFerry()
+};
+
+const ferrySmackState: { sails: "set" | "furled" } = { sails: "set" };
+const ferrySmackButton = document.createElement("button");
+ferrySmackButton.type = "button";
+ferrySmackButton.dataset.id = "ferry-smack";
+ferrySmackButton.textContent = "Ferry smack · Sail-and-oar ferry for wide water";
+function showFerrySmack(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === ferrySmackButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  const sailsSelect = document.createElement("select");
+  sailsSelect.setAttribute("aria-label", "Sails");
+  sailsSelect.add(new Option("Set", "set"));
+  sailsSelect.add(new Option("Furled · moored", "furled"));
+  sailsSelect.value = ferrySmackState.sails;
+  sailsSelect.addEventListener("change", () => {
+    ferrySmackState.sails = sailsSelect.value as "set" | "furled";
+    showFerrySmack();
+  });
+  const row = document.createElement("label");
+  row.append("Sails", sailsSelect);
+  optionFields.append(row);
+  modelOptions.hidden = false;
+  roofTitle.textContent = "Ship elevation";
+  levelTitle.textContent = "Deck plan";
+  const model = createFerrySmack(quality, ferrySmackState);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = false;
+  frame({ occupancyMeters: { width: FERRY_SMACK.length, depth: FERRY_SMACK.width } }, FERRY_SMACK.height);
+  camera.position.set(17, 10, 19);
+  controls.target.set(0, 4, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", FERRY_SMACK.name),
+    fact("Author", FERRY_SMACK.author),
+    fact("Period", "Danish belts and sounds, 16th to 18th century; Great Belt ferry privileged since the 1300s"),
+    fact(
+      "Dimensions",
+      `${FERRY_SMACK.hullLength} m hull (${FERRY_SMACK.length} m with the rudder) × ${FERRY_SMACK.beam} m beam (${FERRY_SMACK.width.toFixed(2)} m across the leeboards); ${FERRY_SMACK.depth} m deep, ${FERRY_SMACK.draft} m draft; ${FERRY_SMACK.height.toFixed(2)} m to the mast truck`
+    ),
+    fact("Propulsion", "Gaff mainsail and foresail on one mast, leeboards; sweeps in a calm"),
+    fact(
+      "Load",
+      `Passengers, cattle and up to ${FERRY_SMACK.horses} horses in four files; crossings of 15–26 km recorded`
+    ),
+    fact("Sails", ferrySmackState.sails === "furled" ? "Furled" : "Set"),
+    fact("CE adoption", "Not placed by CE yet; Model Viewer only"),
+    fact("Quality", quality === "high" ? "High" : "Low — hull, spars, sails and hold without rigging or fittings"),
+    fact("Note", FERRY_SMACK.note, "Smack (ship)"),
+    ...(quality === "high" ? [fact("High detail", FERRY_SMACK.highNote)] : [])
+  );
+}
+ferrySmackButton.addEventListener("click", () => showFerrySmack());
+shipsHeading.append(ferrySmackButton);
+AUTHORED_VARIANTS[ferrySmackButton.dataset.id] = {
+  author: FERRY_SMACK.author,
+  primary: true,
+  quality: true,
+  show: () => showFerrySmack()
+};
+
 const siegeHeading = modelCategory("Siege engines");
 const trebuchetButton = document.createElement("button");
 trebuchetButton.type = "button";
@@ -2319,6 +2637,60 @@ siegeTowerButton.addEventListener("click", () => {
 });
 siegeHeading.append(siegeTowerButton);
 
+const tractionTrebuchetButton = document.createElement("button");
+tractionTrebuchetButton.dataset.id = "tractionTrebuchet";
+tractionTrebuchetButton.type = "button";
+tractionTrebuchetButton.textContent = "Traction trebuchet · Man-powered mangonel, 6th–13th century";
+function showTractionTrebuchet(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === tractionTrebuchetButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Siege engine side elevation";
+  levelTitle.textContent = "Siege engine plan";
+  const model = createTractionTrebuchet(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(7, 4.5, 8);
+  controls.target.set(0, 1.8, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const t = TRACTION_TREBUCHET;
+  appendFacts(
+    fact("Model", t.name),
+    fact("Author", t.author),
+    fact("Period", "Byzantine, Avar, Frankish and Islamic sieges, late 6th century to the 13th"),
+    fact(
+      "Dimensions",
+      `Beam ${t.beamLength.toFixed(2)} m (16 ft) divided 6 : 1 (${t.longArm.toFixed(2)} + ${t.shortArm.toFixed(2)} m); uprights ${t.uprightHeight.toFixed(2)} m; base struts ${t.sills[0].toFixed(2)} and ${t.sills[1].toFixed(2)} m; sling ${t.slingLength.toFixed(2)} m`
+    ),
+    fact("Crew", `Twelve to twenty pullers on ${t.ropes} ropes and one shooter at the sling`),
+    fact("Performance", "2.5–4.7 kg stones to 80–105 m, a little over four shots a minute (Tarver's reconstruction)"),
+    fact("Quality", quality === "high" ? "High" : "Low — four ropes, no windings, rings or fittings"),
+    fact("Note", t.note, "Mangonel"),
+    ...(quality === "high" ? [fact("High detail", t.highNote)] : [])
+  );
+}
+tractionTrebuchetButton.addEventListener("click", () => showTractionTrebuchet());
+siegeHeading.append(tractionTrebuchetButton);
+AUTHORED_VARIANTS[tractionTrebuchetButton.dataset.id] = {
+  author: TRACTION_TREBUCHET.author,
+  primary: true,
+  quality: true,
+  show: () => showTractionTrebuchet()
+};
+
 const artilleryHeading = modelCategory("Artillery");
 const cannonButton = document.createElement("button");
 cannonButton.dataset.id = "earlyFieldCannon";
@@ -2358,6 +2730,124 @@ cannonButton.addEventListener("click", () => {
   );
 });
 artilleryHeading.append(cannonButton);
+
+const bombardButton = document.createElement("button");
+bombardButton.dataset.id = "bombard";
+bombardButton.type = "button";
+bombardButton.textContent = "Great bombard · Siege emplacement after Mons Meg, 1449";
+function showBombard(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === bombardButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Bombard side elevation";
+  levelTitle.textContent = "Emplacement plan";
+  const model = createBombard(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(8, 4.5, 9);
+  controls.target.set(0.5, 1.2, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const b = BOMBARD;
+  appendFacts(
+    fact("Model", b.name),
+    fact("Author", b.author),
+    fact("Period", "Late medieval siege artillery; gun after Mons Meg, tested at Mons for Philip the Good in 1449"),
+    fact(
+      "Gun",
+      `${b.gunLength} m overall, ${b.barrelLength} m barrel of ${b.staves} wrought-iron staves and shrunk-on hoops, screwed-in chamber; ${(b.bore * 1000).toFixed(0)} mm (20 in) bore; barrel about ${b.barrelOuter.toFixed(2)} m across (from the 6.6 t mass)`
+    ),
+    fact("Shot", `Granite ball of about ${b.ballMass.toFixed(0)} kg; one to seven shots a day under about 500 m`),
+    fact(
+      "Emplacement",
+      "Timber bed on sleepers, saddles and elevation wedge, recoil block with raking shores, pivoting plank shield raised to fire"
+    ),
+    fact("Quality", quality === "high" ? "High" : "Low — four hoops, plain shield, no lashings or kit"),
+    fact("Note", b.note, "Mons Meg"),
+    ...(quality === "high" ? [fact("High detail", b.highNote)] : [])
+  );
+}
+bombardButton.addEventListener("click", () => showBombard());
+artilleryHeading.append(bombardButton);
+AUTHORED_VARIANTS[bombardButton.dataset.id] = {
+  author: BOMBARD.author,
+  primary: true,
+  quality: true,
+  show: () => showBombard()
+};
+
+const campsHeading = modelCategory("Camps");
+const tudorLodgingButton = document.createElement("button");
+tudorLodgingButton.dataset.id = "tudor-lodging";
+tudorLodgingButton.type = "button";
+tudorLodgingButton.textContent = "Tudor royal field lodging · Hall, round house and passage (1547)";
+function showTudorLodging(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === tudorLodgingButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Lodging side elevation";
+  levelTitle.textContent = "Lodging plan";
+  const model = createTudorLodging(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model.group);
+  const size = bounds.getSize(new THREE.Vector3());
+  const centre = bounds.getCenter(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(centre.x + 16, 10, centre.z + 14);
+  controls.target.set(centre.x, 3, centre.z);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const { round, hall, passage } = TUDOR_LODGING;
+  appendFacts(
+    fact("Model", TUDOR_LODGING.name),
+    fact("Author", TUDOR_LODGING.author),
+    fact("Period", "Henry VIII's field lodgings, inventory of 1547; camps such as Boulogne 1544"),
+    fact(
+      "Round house",
+      `${round.gores} gores, roof ${round.roofDepth.toFixed(2)} m deep; ${round.breadths} wall breadths, walls ${round.wall.toFixed(2)} m; about ${(2 * round.radius).toFixed(1)} m across, peak ${round.peak.toFixed(1)} m`
+    ),
+    fact(
+      "Hall",
+      `${hall.roofBreadths} roof breadths, ${hall.goresPerEnd} gores to each end, roof ${hall.roofDepth.toFixed(2)} m deep; ${hall.wallBreadths} wall breadths; about ${(hall.straight + 2 * hall.radius).toFixed(1)} × ${(2 * hall.radius).toFixed(1)} m, ridge ${hall.ridge.toFixed(1)} m`
+    ),
+    fact("Passage", `Tresaunte of ${passage.roofBreadths} roof breadths, ${passage.length.toFixed(2)} m long`),
+    fact("Scale", "One breadth of canvas taken as about a yard, inferred from the tent drawings"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain canvas shells, valances and vanes"),
+    fact("Note", TUDOR_LODGING.note, "Field of the Cloth of Gold"),
+    ...(quality === "high" ? [fact("High detail", TUDOR_LODGING.highNote)] : [])
+  );
+}
+tudorLodgingButton.addEventListener("click", () => showTudorLodging());
+campsHeading.append(tudorLodgingButton);
+AUTHORED_VARIANTS[tudorLodgingButton.dataset.id] = {
+  author: TUDOR_LODGING.author,
+  primary: true,
+  quality: true,
+  show: () => showTudorLodging()
+};
 
 const smallArmsHeading = modelCategory("Small arms", true);
 const musketButton = document.createElement("button");
@@ -2421,6 +2911,230 @@ musketButton.addEventListener("click", () => {
   queueMicrotask(() => showFlintlockMusket());
 });
 smallArmsHeading.append(musketButton);
+
+const romanHeading = modelCategory("Roman buildings");
+const insulaButton = document.createElement("button");
+insulaButton.dataset.id = "roman-insula";
+insulaButton.type = "button";
+insulaButton.textContent = "Insula · Roman apartment block, Ostia c. AD 130";
+function showInsula(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === insulaButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Street elevation";
+  levelTitle.textContent = "Roof plan";
+  const model = createInsula(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: INSULA.length, depth: INSULA.depth } }, INSULA.ridge);
+  camera.position.set(-38, 22, -40);
+  controls.target.set(0, 7, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const i = INSULA;
+  appendFacts(
+    fact("Model", i.name),
+    fact("Author", i.author),
+    fact("Period", "Ostia, Hadrianic, about AD 130; altered into the 3rd century"),
+    fact(
+      "Dimensions",
+      `${i.length} × ${i.depth} m block round a courtyard; ${i.floors.length} storeys (${i.floors.join(" + ")} m), eaves ${i.eaves.toFixed(1)} m under Trajan's limit of ${i.heightLimit.toFixed(2)} m (60 Roman feet)`
+    ),
+    fact(
+      "Ground floor",
+      `${i.shops} shops with mezzanine windows, two passages to the courtyard, stairs from the street; walls about ${i.wall} m thick`
+    ),
+    fact("Quality", quality === "high" ? "High" : "Low — massing, openings, balcony and tiled roofs"),
+    fact("Note", i.note, "Insula (building)"),
+    ...(quality === "high" ? [fact("High detail", i.highNote)] : [])
+  );
+}
+insulaButton.addEventListener("click", () => showInsula());
+romanHeading.append(insulaButton);
+AUTHORED_VARIANTS[insulaButton.dataset.id] = {
+  author: INSULA.author,
+  primary: true,
+  quality: true,
+  show: () => showInsula()
+};
+
+const forumBathsButton = document.createElement("button");
+forumBathsButton.dataset.id = "forum-baths";
+forumBathsButton.type = "button";
+forumBathsButton.textContent = "Thermae · Pompeii Forum Baths, men's section, c. 80 BC";
+function showForumBaths(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === forumBathsButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "South elevation";
+  levelTitle.textContent = "Roof plan";
+  const model = createForumBaths(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model.group);
+  const size = bounds.getSize(new THREE.Vector3());
+  const centre = bounds.getCenter(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(centre.x - 22, 18, centre.z + 26);
+  controls.target.set(centre.x, 3.5, centre.z);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const { plan } = FORUM_BATHS;
+  const size2 = (r: { x0: number; x1: number; z0: number; z1: number }) =>
+    `${(r.x1 - r.x0).toFixed(1)} × ${(r.z1 - r.z0).toFixed(1)} m`;
+  appendFacts(
+    fact("Model", FORUM_BATHS.name),
+    fact("Author", FORUM_BATHS.author),
+    fact("Period", "Built soon after 80 BC; the only baths working at Pompeii in AD 79"),
+    fact(
+      "Rooms",
+      `Apodyterium ${size2(plan.apodyterium)}; round frigidarium ${(2 * plan.frigidarium.radius).toFixed(1)} m across; tepidarium ${size2(plan.tepidarium)}; caldarium ${size2(plan.caldarium)} with apse and alveus; furnace room with three boilers`
+    ),
+    fact("Source", `Room sizes measured from ${FORUM_BATHS.scale}; heights, vaults and roofs proportioned`),
+    fact("Quality", quality === "high" ? "High" : "Low — room masses, tiled roofs and doorways"),
+    fact("Note", FORUM_BATHS.note, "Thermae"),
+    ...(quality === "high" ? [fact("High detail", FORUM_BATHS.highNote)] : [])
+  );
+}
+forumBathsButton.addEventListener("click", () => showForumBaths());
+romanHeading.append(forumBathsButton);
+AUTHORED_VARIANTS[forumBathsButton.dataset.id] = {
+  author: FORUM_BATHS.author,
+  primary: true,
+  quality: true,
+  show: () => showForumBaths()
+};
+
+const amphitheatreButton = document.createElement("button");
+amphitheatreButton.dataset.id = "amphitheatre";
+amphitheatreButton.type = "button";
+amphitheatreButton.textContent = "Amphitheatre · Pompeii, c. 70 BC";
+function showAmphitheatre(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === amphitheatreButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Side elevation";
+  levelTitle.textContent = "Plan";
+  const model = createAmphitheatre(quality);
+  massing = model;
+  scene.add(model.group);
+  // The model carries its own ground round the building; the viewer's disc would cover the sunken arena.
+  ground.visible = false;
+  model.group.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(-95, 70, 105);
+  controls.target.set(0, -2, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const { arena, outer, rows, terrace } = AMPHITHEATRE;
+  appendFacts(
+    fact("Model", AMPHITHEATRE.name),
+    fact("Author", AMPHITHEATRE.author),
+    fact("Period", "Built about 70 BC by Valgus and Porcius; the oldest stone amphitheatre known"),
+    fact(
+      "Size",
+      `${outer.length} × ${outer.width} m overall; arena ${arena.length} × ${arena.width} m, ${-AMPHITHEATRE.arenaFloor} m below the ground; terrace ${terrace.toFixed(1)} m above it`
+    ),
+    fact(
+      "Seating",
+      `${rows.ima + rows.media + rows.summa} rows (${rows.ima} + ${rows.media} + ${rows.summa}); about ${Math.round(AMPHITHEATRE.seatingLength / AMPHITHEATRE.seatPerPerson / 100) * 100} places at ${AMPHITHEATRE.seatPerPerson} m each, against the recorded ${AMPHITHEATRE.recordedCapacity.toLocaleString("en")}`
+    ),
+    fact("Source", `Ring widths measured from ${AMPHITHEATRE.scale}; row height, corridors and boxes proportioned`),
+    fact("Quality", quality === "high" ? "High" : "Low — seating, arena wall, gallery, terrace, piers and stairways"),
+    fact("Note", AMPHITHEATRE.note, "Amphitheatre"),
+    ...(quality === "high" ? [fact("High detail", AMPHITHEATRE.highNote)] : [])
+  );
+}
+amphitheatreButton.addEventListener("click", () => showAmphitheatre());
+romanHeading.append(amphitheatreButton);
+AUTHORED_VARIANTS[amphitheatreButton.dataset.id] = {
+  author: AMPHITHEATRE.author,
+  primary: true,
+  quality: true,
+  show: () => showAmphitheatre()
+};
+
+const fieldDefencesHeading = modelCategory("Field defences");
+const paviseButton = document.createElement("button");
+paviseButton.dataset.id = "pavise";
+paviseButton.type = "button";
+paviseButton.textContent = "Pavise · Bohemian standing shield, c. 1450";
+function showPavise(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button"))
+    button.setAttribute("aria-current", button === paviseButton ? "true" : "false");
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Pavise side elevation";
+  levelTitle.textContent = "Pavise plan";
+  const model = createPavise(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  model.group.updateMatrixWorld(true);
+  const size = new THREE.Box3().setFromObject(model.group).getSize(new THREE.Vector3());
+  frame({ occupancyMeters: { width: size.x, depth: size.z } }, size.y);
+  camera.position.set(1.6, 1.1, 1.4);
+  controls.target.set(-0.2, 0.55, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  const p = PAVISE;
+  appendFacts(
+    fact("Model", p.name),
+    fact("Author", p.author),
+    fact("Period", "Central Europe, 15th century; after the Metropolitan Museum's Bohemian pavise of about 1450"),
+    fact(
+      "Dimensions",
+      `${(p.height * 100).toFixed(2)} × ${(p.width * 100).toFixed(2)} cm, ${(p.curvature * 100).toFixed(1)} cm of curvature, about ${(p.thickness * 100).toFixed(1)} cm thick; ${p.recordedMass} kg recorded`
+    ),
+    fact("Use", "Set up on its prop in front of a crossbowman while he spanned and loaded"),
+    fact("Quality", quality === "high" ? "High" : "Low — plain painted board and prop"),
+    fact("Note", p.note, "Pavise"),
+    ...(quality === "high" ? [fact("High detail", p.highNote)] : [])
+  );
+}
+paviseButton.addEventListener("click", () => showPavise());
+fieldDefencesHeading.append(paviseButton);
+AUTHORED_VARIANTS[paviseButton.dataset.id] = {
+  author: PAVISE.author,
+  primary: true,
+  quality: true,
+  show: () => showPavise()
+};
 
 const millsHeading = modelCategory("Mills");
 const postMillButton = document.createElement("button");
@@ -3115,6 +3829,127 @@ AUTHORED_VARIANTS[b2Button.dataset.id] = {
   primary: true,
   quality: true,
   show: () => showB2()
+};
+
+const wrightFlyerButton = document.createElement("button");
+wrightFlyerButton.dataset.id = "wrightFlyer";
+wrightFlyerButton.type = "button";
+wrightFlyerButton.textContent = "Wright Flyer · US pioneer aeroplane, 1903";
+function showWrightFlyer(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === wrightFlyerButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Wright Flyer side elevation";
+  levelTitle.textContent = "Wright Flyer plan";
+  const model = createWrightFlyer(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: WRIGHT_FLYER.length, depth: WRIGHT_FLYER.span } }, WRIGHT_FLYER.height);
+  camera.position.set(7.5, 4.5, 9.5);
+  controls.target.set(0, 1.2, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", WRIGHT_FLYER.name),
+    fact("Author", WRIGHT_FLYER.author),
+    fact("Period", "Pioneer era of aviation · United States, first flights on 17 December 1903"),
+    fact(
+      "Dimensions",
+      `${WRIGHT_FLYER.length} m long × ${WRIGHT_FLYER.span} m span × ${WRIGHT_FLYER.height} m high; wing chord ${WRIGHT_FLYER.chord} m, gap ${WRIGHT_FLYER.gap} m, camber 1:20`
+    ),
+    fact(
+      "Powerplant",
+      `The Wrights' own 12 hp four-cylinder water-cooled engine; two counter-rotating pusher propellers, ${WRIGHT_FLYER.propellerDiameter} m, driven by chains`
+    ),
+    fact(
+      "Controls",
+      "Biplane elevator ahead for pitch, wing warping from the pilot's hip cradle for roll, twin rudders aft"
+    ),
+    fact("Undercarriage", "Two wooden skids; it took off from a wooden launching rail (not modelled)"),
+    fact(
+      "Quality",
+      quality === "high" ? "High" : "Low — plain wings without ribs or bracing wires, a block engine and no chains"
+    ),
+    fact("Note", WRIGHT_FLYER.note, "Wright Flyer"),
+    ...(quality === "high" ? [fact("High detail", WRIGHT_FLYER.highNote)] : [])
+  );
+}
+wrightFlyerButton.addEventListener("click", () => showWrightFlyer());
+vehiclesHeading.append(wrightFlyerButton);
+AUTHORED_VARIANTS[wrightFlyerButton.dataset.id] = {
+  author: WRIGHT_FLYER.author,
+  primary: true,
+  quality: true,
+  show: () => showWrightFlyer()
+};
+
+const benzMotorwagenButton = document.createElement("button");
+benzMotorwagenButton.dataset.id = "benzMotorwagen";
+benzMotorwagenButton.type = "button";
+benzMotorwagenButton.textContent = "Benz Patent-Motorwagen · German motor car, 1886";
+function showBenzMotorwagen(): void {
+  selection++;
+  for (const button of list.querySelectorAll("button")) {
+    button.setAttribute("aria-current", button === benzMotorwagenButton ? "true" : "false");
+  }
+  clearMesh();
+  floors.replaceChildren();
+  facts.replaceChildren();
+  banner.hidden = true;
+  showQuality(true);
+  const quality = qualitySelect.value === "low" ? "low" : "high";
+  comparisonModel = { path: null, quality, viewOnly: true };
+  roofTitle.textContent = "Benz Patent-Motorwagen side elevation";
+  levelTitle.textContent = "Benz Patent-Motorwagen plan";
+  const model = createBenzMotorwagen(quality);
+  massing = model;
+  scene.add(model.group);
+  ground.visible = true;
+  frame({ occupancyMeters: { width: BENZ_MOTORWAGEN.length, depth: BENZ_MOTORWAGEN.width } }, BENZ_MOTORWAGEN.height);
+  camera.position.set(2.6, 1.8, 3.2);
+  controls.target.set(0, 0.6, 0);
+  controls.update();
+  mountPlan(roofHost, model.elevation);
+  mountPlan(levelHost, model.plan);
+  appendFacts(
+    fact("Model", BENZ_MOTORWAGEN.name),
+    fact("Author", BENZ_MOTORWAGEN.author),
+    fact("Period", "Second Industrial Revolution · Mannheim, Germany; patented 29 January 1886, built 1886–1893"),
+    fact(
+      "Dimensions",
+      `${BENZ_MOTORWAGEN.length} m long × ${BENZ_MOTORWAGEN.width} m wide × ${BENZ_MOTORWAGEN.height} m high; wheelbase ${BENZ_MOTORWAGEN.wheelbase} m`
+    ),
+    fact(
+      "Powerplant",
+      "954 cc horizontal single-cylinder four-stroke, about 2/3 hp at 400 rpm; vertical crankshaft, horizontal flywheel, evaporative cooling"
+    ),
+    fact(
+      "Drive",
+      "Flat belt to a countershaft with differential, then a chain to each rear wheel; one speed, no reverse"
+    ),
+    fact("Steering", "Tiller turning the single front wheel through a rack and pinion"),
+    fact("Quality", quality === "high" ? "High" : "Low — eight spokes per wheel, a block engine, no belt or chains"),
+    fact("Note", BENZ_MOTORWAGEN.note, "Benz Patent-Motorwagen"),
+    ...(quality === "high" ? [fact("High detail", BENZ_MOTORWAGEN.highNote)] : [])
+  );
+}
+benzMotorwagenButton.addEventListener("click", () => showBenzMotorwagen());
+vehiclesHeading.append(benzMotorwagenButton);
+AUTHORED_VARIANTS[benzMotorwagenButton.dataset.id] = {
+  author: BENZ_MOTORWAGEN.author,
+  primary: true,
+  quality: true,
+  show: () => showBenzMotorwagen()
 };
 
 let townWallHousingCulture: BuildingAppearanceProfile = "legacy";

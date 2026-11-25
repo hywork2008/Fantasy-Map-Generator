@@ -336,3 +336,39 @@ BVのShipsへ、作者 `Grok 4.7` の三段櫂船Highを追加した。系統は
 ユーザー指示で、`ship.ship-of-the-line@high` の既定をClaude Opus 5.5のHMS Victoryに切り替えた。CEの採用表は `ship.ship-of-the-line@high#claude-opus-5.5` を指す。CEで手動配置した戦列艦はOpus版で描かれる。BVでは戦列艦を開くとCreated byがClaude Opus 5.5になり、Grok 4.7は比較用に選べる。CEのモデル船は全長でそろえて等倍に拡大縮小するため、`SHIP_DIMENSIONS["ship-of-the-line"]` の基準全長と既定寸法を78.7 mから81.2 m（Opus版の外接全長）に、基準幅を15.8 mに改めた。保存済みの船は保存された長さのまま描かれる。窓の状態はCEに保存項目が無いので、既定の開（ガラス入り）で描く。
 
 関連テストは `npx vitest run src/buildings/ships/opusShipOfTheLine.test.ts src/buildings/ships/grokShipOfTheLine.test.ts src/city3d/three/modelShips.test.ts src/city3d/three/shipMeshes.test.ts src/city3d/adoption.test.ts src/model-viewer/catalogueIndex.test.ts src/city-editor/renderers/shipSvg.test.ts` の36件。Grok版テストの採用確認はOpus版に更新した。実BVで既定の作者がClaude Opus 5.5であることを確認した。
+
+## 17. Claude Opus 5.5 の三段櫂船オリンピアス（2026-11-19）
+
+ユーザー指示で、BVの「Trireme · Olympias」に作者 `Claude Opus 5.5` の版を追加した。Grok 4.7 版の流用ではなく、船体の線図・櫂の配置・帆装を独立に作った。実装は [opusTrireme.ts](../../src/buildings/ships/opusTrireme.ts)。版idは `ship.trireme@high#claude-opus-5.5` と `ship.trireme@low#claude-opus-5.5`。highに版が2つ並ぶため、採用表 `CE_ADOPTION` に Grok 4.7 のhighを記録した。CEの手動配置の見た目は変わらない。BVでは作者欄で Grok 4.7（既定）と Claude Opus 5.5 を切り替える。Opus版はHighとLowを選べる。
+
+基準は1987年の復元船オリンピアス（Coates・Morrison）。ラム先端からアプラストンまで36.9 m、アウトリガー外幅5.45 m、船体幅3.9 m、喫水1.1 m。櫂は170本で、部屋の間隔は0.888 m（アッティカ2キュビット）の1種類。上段スラニタイ31本／舷はアウトリガーのトール、中段ジギタイ27本／舷は舷縁のトール、下段サラミタイ27本／舷は水面上0.42 mの舷側の櫂孔から出し、櫂孔には革袋（アスコーマ）を付ける。3段は部屋の3分の1ずつ後ろへずらす。船体は酒杯形の断面で舷縁にわずかなタンブルホーム。水線下は瀝青の黒、船首の頬は赤土（ミルトス）、船首に大理石の目。三叉の青銅ラムとその上の青銅冠のプロエンボリオン、アウトリガーの前端を守るエポティデス、扇形のアプラストン、船尾の四分の一舵2本と舵柄、甲板上のスティリス、石の銛を持つ木の錨2つ。舷側は舷縁から甲板まで開いており、支柱の間から漕座と櫂が見える。船内は船倉床、ジギタイの座る横梁（ジゴン）、Highだけ下段・上段の座席。ハイポゾマ（船首尾を結ぶ張り綱）を船尾の巻き上げ機で張る。漕ぎ手の人形は置かない。
+
+帆は主帆と前傾18°の小帆（アカテイオン）の横帆2張で、どちらもブレイル（帆の前面を縦に走る絞り綱と環）で畳む。リーフポイントは描かない。
+
+| 状態 | 既定 | 切り替え |
+| --- | --- | --- |
+| 帆 `sails` | 展帆 `set` | `furled` はブレイルでヤードの直下へ束ねる。`struck`（戦闘時）は主檣と主ヤードを甲板上の3組の支え（クラッチ）に倒し、主帆はヤードに束ねる。小帆は立てたまま束ねる |
+| 櫂 `oars` | 出 `out` | 3段とも中間ストロークで舷側に直角、刃は水線。格納は櫂を引き込み、後ろへ回して舷側に沿わせ、刃だけを舷外に残す |
+
+部品は10。船体、船内、甲板、アウトリガー、設備、帆柱、索具、主帆、小帆、櫂。船体・船内・甲板・アウトリガー・設備は6状態で形状署名が変わらない。
+
+外接箱は x が -18.32 から 18.40（36.72 m）、y が -1.09 から 12.04、z は櫂出・展帆で ±5.20（主ヤード端）。マストを倒すと最高点は小帆の檣頭 7.72 m、幅は ±2.93。三角形は High が展帆・櫂出で52,564、畳帆・櫂格納で47,212、マスト倒しで46,140。Low はそれぞれ14,968、15,904、15,856。
+
+関連テストは `npx vitest run src/buildings/ships/opusTrireme.test.ts src/buildings/ships/grokTrireme.test.ts src/city3d/adoption.test.ts` の20件（Opus版7件）。両品質の外接箱と170本の櫂、ラムが水線をまたいで最前部にあること、アウトリガーが公表幅にあること、6状態で固定部品が不変であること、3段の高さの順序と出し櫂・格納櫂の範囲、ブレイルとマスト倒し、LowがHighの6割未満であることと資源の一度きりの解放、版の登録とCEの採用がGrokのままであることを確認した。Grok版のテストは作者で絞るよう直した。実BVでClaude Opus 5.5を選び、展帆・櫂出、マスト倒し・櫂格納、Lowを視認した。ページ例外は無かった。確認PNGはリポジトリに置かない。
+
+## 18. Gemini 4 Neon の三段櫂船オリンピアス（2026-11-25）
+
+ユーザー指示で、MV（Model Viewer）の「Trireme · Olympias」に作者 `Gemini 4 Neon` の版を追加した。`src/buildings/authors.ts` の `AUTHORS` に `"Gemini 4 Neon"` を登録し、Grok 4.7 版・Claude Opus 5.5 版の流用ではなく、1987年復元船 HS Olympias（John Coates・John Morrison 設計）の実構造に基づきゼロから独立実装した。実装は [geminiTrireme.ts](../../src/buildings/ships/geminiTrireme.ts)。版idは `ship.trireme@high#gemini-4-neon` と `ship.trireme@low#gemini-4-neon`。`ship.trireme@low` に複数版が並ぶため、`CE_ADOPTION` の `ship.trireme` に `high`（Grok 4.7 維持）に加えて `low`（Claude Opus 5.5 記録）を明示した。CEの手動配置の見た目は変わらない。MVでは作者欄（Created by）で Grok 4.7（既定）・Claude Opus 5.5・Gemini 4 Neon を切り替えられ、Gemini 4 Neon 版は High と Low を選べる。
+
+実船 HS Olympias の主要特徴を反映している。ラム先端からアプラストンまで 36.9 m、アウトリガー外幅 5.45 m、細身の船体幅 3.65 m、幅広キャノピー甲板 4.5 m、主檣トラック高 12.1 m、喫水 1.1 m。外板はニス塗りの松材色＋水線下の黒瀝青、船首の青銅ラムへ収束する上下2本の太いウェール、実船通りプロエンボリオンを持たないピレウス型の三叉青銅ラム、扁平断面で優雅に反り上がる船首材（akrostolion）、白い大理石と青い虹彩の目（ophthalmoi）。外側のアウトリガー（parexeiresia）は側板・上下縦梁・船体へ接地する斜め控え・前端の三角形エポティデス・後端の舵受け枠から成る枠組み構造で、支柱の上に幅 4.5 m のキャノピー甲板（katastroma）と一段低い中央通路（central gangway）が乗る。船尾はキール底から約 6.5 m まで優雅に立ち上がり前方へC字に巻き込む多層リブのアプラストン、アウトリガー後端の舵受け枠から約 38° 後傾させた2本の四分の一舵（pedalia、先細り翼形ブレードと連動ティラー）、スティリスと無地の赤い吹流しを備える。主帆は 13.0 m の弓なり複合ヤードに張る約 95 m² の低アスペクト比横帆、前檣は前傾 16° のアカテイオン（約 24 m²）。170本の櫂（62・54・54、部屋間隔 0.888 m）は実長 4.0–4.2 m で後方へ 7° スイープし、先細りの木製オールブレードを造形した。
+
+| 状態 | 既定 | 切り替え |
+| --- | --- | --- |
+| 帆 `sails` | 展帆 `set` | `furled` はブレイルでヤード直下に束ねる。`struck`（戦闘態勢）は主檣と主ヤードを甲板上の3組のクラッチへ倒して縛り、小帆（アカテイオン）は立てたまま束ねる |
+| 櫂 `oars` | 出 `out` | 3段とも中間ストロークで後方へ約 7° スイープして水線へ揃う。格納は引き込んで舷側沿いに水平に収める |
+
+部品は10（hull、interior、outrigger、decks、fittings、spars、rigging、main-sail、fore-sail、oars）。固定5部品は6状態で形状署名が変わらない。
+
+外接箱は x が -18.32 から 18.42（36.74 m）、y が -1.07 から 12.01、z は展帆・櫂出で ±6.50（主ヤード 13.0 m）。マスト倒し・櫂格納では高さ 7.34 m、幅 ±3.45 m。三角形は High が展帆・櫂出で 75,230（12メッシュ）、畳帆・櫂格納で 67,894、マスト倒しで 66,442。Low はそれぞれ 22,276（11メッシュ）、23,212、23,044。
+
+関連テストは `geminiTrireme.test.ts`（7件）・`opusTrireme.test.ts`（7件）・`grokTrireme.test.ts`（10件）・`adoption.test.ts`（3件）の計27件成功。`biome check`・`tsc --noEmit` も通過。ヘッドレス Chromium 上の実 MV で High（展帆・畳帆・マスト倒し・船首・船尾）と Low をレンダリング確認し、コンソール／ページエラー 0、確認用の一時画像はリポジトリ外のみで使用した。

@@ -39,6 +39,9 @@ const CONTAINER = f("prop", span("classicalAntiquity", "steamEra"), ["any"], ["s
 
 /** Entries built directly in the viewer, outside the medieval, landmark, placeable and record registries. */
 const VIEWER_ENTRIES: Record<string, ModelFacets> = {
+  amphitheatre: f("structure", ["classicalAntiquity", "lateAntiquity"], ["mediterranean"], ["spectacle"]),
+  "forum-baths": f("structure", ["classicalAntiquity"], ["mediterranean"], ["bathing"]),
+  "roman-insula": f("structure", ["classicalAntiquity"], ["mediterranean"], ["dwelling", "trade"]),
   "pont-du-gard": f("structure", ["classicalAntiquity"], ["european", "mediterranean"], ["water"]),
   "st-georges-chapel": f("structure", ["lateMedieval"], EU, ["worship"]),
   "bojnice-castle": f("structure", span("highMedieval", "steamEra"), EU, ["fortification", "residence"]),
@@ -55,7 +58,13 @@ const VIEWER_ENTRIES: Record<string, ModelFacets> = {
   trireme: f("ship", ["classicalAntiquity"], ["mediterranean"], ["military"]),
   sloop: f("ship", span("maritimeEra", "steamEra"), ["european", "american"], ["trade", "transport"]),
   barge: f("ship", span("classicalAntiquity", "steamEra"), ["any"], ["trade", "transport"]),
+  "tudor-lodging": f("structure", ["ageOfExploration"], EU, ["military", "residence"], [1520, 1547]),
+  "reaction-ferry": f("ship", span("maritimeEra", "steamEra"), EU, ["ferry", "transport"]),
+  "ferry-nachen": f("ship", span("highMedieval", "steamEra"), EU, ["ferry", "transport"]),
+  "ferry-smack": f("ship", span("ageOfExploration", "preIndustrialEra"), EU, ["ferry", "transport"]),
+  "rope-ferry": f("ship", span("highMedieval", "steamEra"), EU, ["ferry", "transport"]),
   "ford-carrier": f("ship", ["rocketryEra"], ["american"], ["aviation", "military"], [2017, 2105]),
+  pavise: f("weapon", ["lateMedieval"], EU, ["armor", "military"]),
   "flintlock-musket": f("weapon", span("maritimeEra", "preIndustrialEra"), EU, ["military", "small-arms"]),
   "lumber-yard": f("structure", MEDIEVAL_ON, EU, ["storage", "woodworking"]),
   "town-curtain-wall": FORTRESS,
