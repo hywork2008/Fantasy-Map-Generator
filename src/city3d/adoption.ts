@@ -155,6 +155,13 @@ export const CE_ADOPTION: Record<string, Record<string, Adoption>> = {
       }
     ])
   ),
+  "ship.ship-of-the-line": {
+    high: {
+      variant: "ship.ship-of-the-line@high#grok-4.7",
+      since: "2026-11-26",
+      note: "Recorded as found. The Claude Opus 5.5 HMS Victory is a BV comparison edition; CE keeps Grok 4.7"
+    }
+  },
   "medieval.harbor-treadwheel-crane": {
     high: {
       variant: "medieval.harbor-treadwheel-crane@high#codex-gpt-6.1-sol",

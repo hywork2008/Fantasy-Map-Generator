@@ -68,6 +68,11 @@ import {
   type OpusGalleonQuality,
   opusGalleonParts
 } from "../buildings/ships/opusGalleon";
+import {
+  createOpusShipOfTheLine,
+  OPUS_SHIP_OF_THE_LINE,
+  opusShipOfTheLineParts
+} from "../buildings/ships/opusShipOfTheLine";
 import { assembleSailingParts, type SailingShipState } from "../buildings/ships/sailingAssembly";
 import { createSloop, SLOOP } from "../buildings/ships/sloop";
 import { createSloopHigh, sloopHighParts } from "../buildings/ships/sloopHigh";
@@ -1550,20 +1555,23 @@ const lineButton = document.createElement("button");
 lineButton.type = "button";
 lineButton.textContent = "Ship of the line · First-rate, HMS Victory";
 lineButton.dataset.id = "ship-of-the-line";
-const lineState: { sails: "set" | "furled"; gunports: "open" | "closed"; windows: "open" | "closed"; part: string } = {
+const lineState: { sails: "set" | "furled"; gunports: "open" | "closed"; windows: "open" | "closed" } = {
   sails: "set",
   gunports: "open",
-  windows: "open",
-  part: "all"
+  windows: "open"
 };
+const linePartsSelected = { grok: "all", opus: "all" };
 AUTHORED_VARIANTS["ship-of-the-line"] = {
   author: GROK_SHIP_OF_THE_LINE.author,
+  authors: [GROK_SHIP_OF_THE_LINE.author, OPUS_SHIP_OF_THE_LINE.author],
   primary: true,
   quality: true,
   highOnly: true,
   show: () => showShipOfTheLine()
 };
-function showShipOfTheLine(): void {
+function showShipOfTheLine(author: string = authorSelect.value): void {
+  const opus = author === OPUS_SHIP_OF_THE_LINE.author;
+  const key = opus ? "opus" : "grok";
   if (qualitySelect.value !== "high") qualitySelect.value = "high";
   for (const option of qualitySelect.options) option.disabled = option.value !== "high";
   selection++;
@@ -1576,10 +1584,16 @@ function showShipOfTheLine(): void {
   roofTitle.textContent = "Ship elevation";
   levelTitle.textContent = "Deck plan";
   showQuality(true);
-  const parts = grokShipOfTheLineParts(lineState);
-  if (!parts.some(part => part.id === lineState.part)) lineState.part = "all";
-  const chosen = parts.find(part => part.id === lineState.part);
-  const model = chosen ? assembleSailingParts("ship-of-the-line-part", [chosen]) : createGrokShipOfTheLine(lineState);
+  const parts = opus ? opusShipOfTheLineParts(lineState) : grokShipOfTheLineParts(lineState);
+  if (!parts.some(part => part.id === linePartsSelected[key])) linePartsSelected[key] = "all";
+  const chosen = parts.find(part => part.id === linePartsSelected[key]);
+  const model = chosen
+    ? opus
+      ? chosen.create()
+      : assembleSailingParts("ship-of-the-line-part", [chosen])
+    : opus
+      ? createOpusShipOfTheLine(lineState)
+      : createGrokShipOfTheLine(lineState);
   comparisonModel = { path: null, quality: "high", viewOnly: true };
   for (const [label, field, options] of [
     [
@@ -1603,7 +1617,7 @@ function showShipOfTheLine(): void {
       "windows",
       [
         ["Open", "open"],
-        ["Shut", "closed"]
+        [opus ? "Deadlights in" : "Shut", "closed"]
       ]
     ]
   ] as const) {
@@ -1613,7 +1627,7 @@ function showShipOfTheLine(): void {
     input.value = lineState[field];
     input.addEventListener("change", () => {
       (lineState as Record<string, string>)[field] = input.value;
-      showShipOfTheLine();
+      showShipOfTheLine(author);
     });
     const row = document.createElement("label");
     row.append(label, input);
@@ -1623,10 +1637,10 @@ function showShipOfTheLine(): void {
   partSelect.setAttribute("aria-label", "Assembly part");
   partSelect.add(new Option("Complete ship", "all"));
   for (const part of parts) partSelect.add(new Option(`${part.role} · ${part.quality}`, part.id));
-  partSelect.value = lineState.part;
+  partSelect.value = linePartsSelected[key];
   partSelect.addEventListener("change", () => {
-    lineState.part = partSelect.value;
-    showShipOfTheLine();
+    linePartsSelected[key] = partSelect.value;
+    showShipOfTheLine(author);
   });
   const partRow = document.createElement("label");
   partRow.append("Assembly part", partSelect);
@@ -1634,7 +1648,7 @@ function showShipOfTheLine(): void {
   modelOptions.hidden = false;
   massing = model;
   scene.add(model.group);
-  const info = GROK_SHIP_OF_THE_LINE;
+  const info = opus ? OPUS_SHIP_OF_THE_LINE : GROK_SHIP_OF_THE_LINE;
   frame({ occupancyMeters: { width: info.length, depth: info.beam } }, info.height);
   camera.position.set(info.length * 0.95, info.height * 0.55, info.length * 1.05);
   controls.target.set(2, info.height * 0.28, 0);
@@ -1647,22 +1661,34 @@ function showShipOfTheLine(): void {
     fact("Sails", lineState.sails),
     fact("Gunports", lineState.gunports),
     fact("Windows", lineState.windows),
-    fact("CE adoption", "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"),
+    fact(
+      "CE adoption",
+      opus
+        ? "Not adopted; CE places the Grok 4.7 ship of the line. BV comparison edition"
+        : "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"
+    ),
     fact(
       "Dimensions",
-      `${info.length} m sparred envelope × ${info.beam} m moulded beam; ${info.height} m to the main truck; ${info.draft} m illustrative waterline`
+      `${info.length} m sparred envelope × ${info.beam} m moulded beam; ${info.height} m to the main truck; ${info.draft} m ${opus ? "keel depth aft" : "illustrative waterline"}`
     ),
     fact(
       "Armament",
-      "104 guns: 30 lower 32-pounders, 28 middle 24-pounders, 30 upper 12-pounders, 10 quarterdeck 12-pounders, 2 stern chasers, 2 forecastle 12-pounders and 2 carronades"
+      opus
+        ? "104 guns: 30 × 32-pdr lower deck, 28 × 24-pdr middle deck, 30 × 12-pdr upper deck, 12 × 12-pdr quarterdeck, 2 × 12-pdr and 2 × 68-pdr carronades on the forecastle"
+        : "104 guns: 30 lower 32-pounders, 28 middle 24-pounders, 30 upper 12-pounders, 10 quarterdeck 12-pounders, 2 stern chasers, 2 forecastle 12-pounders and 2 carronades"
     ),
-    fact("Rig", "Three masts, courses, topsails and topgallants, spanker, spritsail and two jibs"),
+    fact(
+      "Rig",
+      opus
+        ? "Three masts, courses, topsails and topgallants, spanker, spritsail, fore topmast staysail, jib and flying jib"
+        : "Three masts, courses, topsails and topgallants, spanker, spritsail and two jibs"
+    ),
     fact("Note", info.note, "HMS Victory")
   );
   const panel = modelPartsPanel(model.group);
   if (panel) facts.append(panel);
 }
-lineButton.addEventListener("click", () => showShipOfTheLine());
+lineButton.addEventListener("click", () => showShipOfTheLine(GROK_SHIP_OF_THE_LINE.author));
 shipsHeading.append(lineButton);
 
 const galleyButton = document.createElement("button");

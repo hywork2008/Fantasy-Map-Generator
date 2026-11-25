@@ -218,7 +218,7 @@ export function adoptedTree(species: TreeSpecies, quality = "ultra"): ModelVaria
   | --- | --- | --- |
   | `ship.sloop`・`ship.caravel`・`ship.barge` | Codex（`default`） | 版が1つなので自動 |
   | `ship.galleon` | Codex（`default`）、Opus（`default`＝high、`low`）。2026-11-15に Grok 4.7 の high をBV専用で追加。Lowは無い | Codex（採用表に記録。Grok版は不採用） |
-  | `ship.ship-of-the-line` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い） | CEは配置しない。版が1つなので `adopt()` はこの版を返すが、`shipMeshes.ts` は呼ばない |
+  | `ship.ship-of-the-line` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い）。2026-11-26に Claude Opus 5.5 のHMS Victory（`high`のみ）をBV比較版として追加 | Grok 4.7（採用表に記録。Opus版は不採用）。`shipMeshes.ts` は呼ばない |
   | `ship.galley` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い） | CEは配置しない。版が1つなので `adopt()` はこの版を返すが、`shipMeshes.ts` は呼ばない |
   | `ship.trireme` | Grok 4.7（`high`のみ。2026-11-15。Lowは無い） | CEは配置しない。版が1つなので `adopt()` はこの版を返すが、`shipMeshes.ts` は呼ばない |
   | `town-wall.town-curtain-wall`・`town-mural-tower`・`town-gate` | Codex、Grok（BVの習作。両脇に城壁の一部が付く） | Codex（採用表に記録） |
