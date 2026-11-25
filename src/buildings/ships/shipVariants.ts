@@ -14,7 +14,6 @@ import { createGrokShipOfTheLine } from "./grokShipOfTheLine";
 import { createGrokTrireme } from "./grokTrireme";
 import { createMerchantShipHigh } from "./merchantShipHigh";
 import { createOpusGalleon } from "./opusGalleon";
-import { createOpusShipOfTheLine } from "./opusShipOfTheLine";
 import { createOpusTrireme } from "./opusTrireme";
 import { createReactionFerryModel } from "./reactionFerry";
 import { createRopeFerryModel } from "./ropeFerry";
@@ -95,13 +94,6 @@ export const SHIP_VARIANTS: readonly ShipVariant[] = [
     author: "Grok 4.7",
     create: state => createGrokShipOfTheLine(state)
   },
-  ...(["high", "low"] as const).map(level => ({
-    id: variantId("ship.ship-of-the-line", level, "Claude Opus 5.5"),
-    family: "ship.ship-of-the-line",
-    level,
-    author: "Claude Opus 5.5" as const,
-    create: (state?: GalleonState) => createOpusShipOfTheLine(level, state)
-  })),
   {
     id: variantId("ship.galley", "high", "Grok 4.7"),
     family: "ship.galley",

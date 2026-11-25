@@ -290,11 +290,8 @@ describe.each(["set", "furled"] as const)("sails %s", sails => {
 });
 
 it("registers a BV-only high variant and leaves the CE galleon on Codex", () => {
-  const variants = SHIP_VARIANTS.filter(
-    entry => entry.family === "ship.ship-of-the-line" && entry.author === "Grok 4.7"
-  );
+  const variants = SHIP_VARIANTS.filter(entry => entry.family === "ship.ship-of-the-line");
   expect(variants.map(entry => entry.id)).toEqual(["ship.ship-of-the-line@high#grok-4.7"]);
-  expect(adopt(SHIP_VARIANTS, "ship.ship-of-the-line", "high").author).toBe("Grok 4.7");
   expect(variants[0]?.author).toBe("Grok 4.7");
   expect(adopt(SHIP_VARIANTS, "ship.galleon", "default").author).toBe("Codex GPT-6.1 Sol");
   expect(adopt(SHIP_VARIANTS, "ship.galleon", "high").author).toBe("Codex GPT-6.1 Sol");
