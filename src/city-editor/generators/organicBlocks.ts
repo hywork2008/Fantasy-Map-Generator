@@ -14,7 +14,7 @@ import {
   segmentSegmentHit
 } from "./geom";
 import { civicSizeForExtent, dwellingLotArea } from "./housing";
-import { insetConvexKernel } from "./lotGeometry";
+import { convexInfillParts, insetConvexKernel } from "./lotGeometry";
 import { makeRng, type Rng } from "./prng";
 import { type BlockBoundary, cleanStreetRing, type PerimeterFabric, streetChords } from "./streetBlockGeometry";
 
@@ -190,7 +190,8 @@ export function buildOrganicStreetCell(
   layout.connectDistrict(cell.ring, 0, scope);
   const clearance = [...nearby, ...layout.roads];
   for (const parcel of scope.parcels) layout.fill(parcel, scope.boundaries, clearance);
-  layout.fabric.lanes = layout.roads;
+  // On compact-v2, never emit orphaned internal lanes inside an unbuildable sliver cell that holds zero buildings.
+  layout.fabric.lanes = context.compactV2 && layout.fabric.buildings.length === 0 ? [] : layout.roads;
   return layout.fabric;
 }
 
@@ -366,6 +367,158 @@ function organicLayout(
         sides.map(s => s.setback)
       )
     );
+    if (context?.compactV2) {
+      const sign = -Math.sign(polygonArea(poly));
+      const polyArea = area(poly);
+      const kernelArea = area(
+        insetConvexKernel(
+          poly,
+          poly.map(() => 0)
+        )
+      );
+      // Recover concave street blocks (e.g. U/L shapes around plazas or curved wall arcs) where a single
+      // convex kernel collapses and would otherwise leave a large empty street block inside the wall.
+      const needsDecomp =
+        polyArea >= 120 && (block.length < 3 || area(block) < lotArea * 0.45 || kernelArea < polyArea * 0.85);
+      const subBlocks: { ring: Point[]; primaryEdges: number[]; streetEdges: number[] }[] = [];
+      if (needsDecomp) {
+        const polyEdges = poly.map((p, j) => {
+          const q = poly[(j + 1) % poly.length],
+            len = distance(p, q),
+            t: Point = len > 1e-6 ? [(q[0] - p[0]) / len, (q[1] - p[1]) / len] : [1, 0],
+            inward: Point = [-sign * t[1], sign * t[0]];
+          return { p, q, inward, offset: dot(p, inward), side: sides[j] };
+        });
+        for (const part of convexInfillParts(poly)) {
+          if (part.length < 3 || area(part) < lotArea * 0.6) continue;
+          const partSign = -Math.sign(polygonArea(part));
+          const partEdgeMeta = part.map((a, i) => {
+            const b = part[(i + 1) % part.length],
+              mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+            const host = polyEdges.find(
+              e =>
+                nearestOnPolyline(mid, [e.p, e.q]).dist < 0.08 &&
+                nearestOnPolyline(a, [e.p, e.q]).dist < 0.08 &&
+                nearestOnPolyline(b, [e.p, e.q]).dist < 0.08
+            );
+            return host
+              ? { setback: host.side.setback, primary: host.side.primary, street: true }
+              : { setback: 0.05, primary: false, street: false };
+          });
+          const inset = cleanStreetRing(
+            insetConvexKernel(
+              part,
+              partEdgeMeta.map(m => m.setback)
+            )
+          );
+          if (inset.length < 3 || area(inset) < lotArea * 0.4) continue;
+          const primaryEdges: number[] = [],
+            streetEdges: number[] = [];
+          inset.forEach((a, i) => {
+            const b = inset[(i + 1) % inset.length];
+            const match = part.findIndex((p, j) => {
+              const q = part[(j + 1) % part.length],
+                t = unit(sub(q, p)),
+                inw: Point = [-partSign * t[1], partSign * t[0]],
+                off = dot(p, inw) + partEdgeMeta[j].setback;
+              return Math.abs(dot(a, inw) - off) < 1e-3 && Math.abs(dot(b, inw) - off) < 1e-3;
+            });
+            if (match >= 0) {
+              if (partEdgeMeta[match].street) streetEdges.push(i);
+              if (partEdgeMeta[match].primary) primaryEdges.push(i);
+            }
+          });
+          if (streetEdges.length) subBlocks.push({ ring: inset, primaryEdges, streetEdges });
+        }
+      } else if (block.length >= 3 && area(block) >= lotArea * 0.45) {
+        const primaryEdges = block.flatMap((a, i) => {
+          const b = block[(i + 1) % block.length];
+          const primary = poly.some((p, j) => {
+            if (!sides[j].primary) return false;
+            const q = poly[(j + 1) % poly.length];
+            const tangent = unit(sub(q, p));
+            const inward: Point = [-sign * tangent[1], sign * tangent[0]];
+            const offset = dot(p, inward) + sides[j].setback;
+            return Math.abs(dot(a, inward) - offset) < 1e-4 && Math.abs(dot(b, inward) - offset) < 1e-4;
+          });
+          return primary ? [i] : [];
+        });
+        subBlocks.push({ ring: block, primaryEdges, streetEdges: block.map((_, i) => i) });
+      }
+      if (!subBlocks.length) return;
+      const clearOf = (p: Point[], lanes: InfillLane[]) =>
+        p.length >= 4 &&
+        area(p) >= 12 &&
+        p.every(point =>
+          lanes.every(
+            lane =>
+              nearestOnPolyline(point, lane.points).dist >= lane.widthMeters / 2 + ORGANIC_LANE_FACADE_CLEARANCE / 7
+          )
+        );
+      for (const subBlock of subBlocks) {
+        const ring = subBlock.ring;
+        fabric.blocks.push(ring);
+        const rSign = -Math.sign(polygonArea(ring));
+        const fronts: Front[] = subBlock.streetEdges
+          .map(i => {
+            const a = ring[i],
+              b = ring[(i + 1) % ring.length],
+              len = distance(a, b);
+            if (len < 4.2) return undefined;
+            const axis: Point = [(b[0] - a[0]) / len, (b[1] - a[1]) / len],
+              inward: Point = [-rSign * axis[1], rSign * axis[0]];
+            return {
+              a,
+              axis,
+              inward,
+              length: len,
+              offset: dot(a, inward),
+              primary: subBlock.primaryEdges.includes(i)
+            };
+          })
+          .filter((f): f is Front => f !== undefined);
+        const layoutV2 = packCompactV2Block(
+          poly,
+          ring,
+          fronts,
+          {
+            hub,
+            reach: context.compactV2.reach,
+            lotArea,
+            coverage: parameters?.coverage ?? 0.9,
+            occupancy: parameters?.occupancy ?? 1,
+            rowDepth: houseDepth,
+            laneWidth: width
+          },
+          makeRng(`${seed}:compact-v2-houses:${face.id}:${JSON.stringify(ring)}`)
+        );
+        const validEntryLanes: InfillLane[] = [];
+        for (const entry of layoutV2.entryLanes) {
+          const candidate: InfillLane = { faceId: face.id, points: entry.points, widthMeters: entry.widthMeters };
+          const clearOfBuildings = layoutV2.buildings.every(b =>
+            b.polygon.every(
+              pt =>
+                nearestOnPolyline(pt, entry.points).dist >= entry.widthMeters / 2 + ORGANIC_LANE_FACADE_CLEARANCE / 7
+            )
+          );
+          if (clearOfBuildings) {
+            addStreet(entry.points, entry.widthMeters);
+            validEntryLanes.push(candidate);
+          }
+        }
+        const allClearance = validEntryLanes.length ? [...clearance, ...validEntryLanes] : clearance;
+        for (const b of layoutV2.buildings) {
+          if (!clearOf(b.polygon, allClearance)) continue;
+          fabric.buildings.push({
+            faceId: face.id,
+            polygon: b.polygon,
+            landmark: false,
+            occupancyDraw: b.draw
+          });
+        }
+      }
+      return;
+    }
     if (block.length < 3 || area(block) < lotArea * 0.45) return;
     fabric.blocks.push(block);
     const sign = -Math.sign(polygonArea(poly));
@@ -381,87 +534,6 @@ function organicLayout(
       });
       return primary ? [i] : [];
     });
-    if (context?.compactV2) {
-      const fronts: Front[] = block
-        .map((a, i) => {
-          const b = block[(i + 1) % block.length],
-            len = distance(a, b);
-          if (len < 5) return undefined;
-          const axis: Point = [(b[0] - a[0]) / len, (b[1] - a[1]) / len],
-            inward: Point = [-sign * axis[1], sign * axis[0]];
-          return {
-            a,
-            axis,
-            inward,
-            length: len,
-            offset: dot(a, inward),
-            primary: primaryEdges.includes(i)
-          };
-        })
-        .filter((f): f is Front => f !== undefined);
-      const layoutV2 = packCompactV2Block(
-        poly,
-        block,
-        fronts,
-        {
-          hub,
-          reach: context.compactV2.reach,
-          lotArea,
-          coverage: parameters?.coverage ?? 0.9,
-          occupancy: parameters?.occupancy ?? 1,
-          rowDepth: houseDepth,
-          laneWidth: width
-        },
-        makeRng(`${seed}:compact-v2-houses:${face.id}:${JSON.stringify(block)}`)
-      );
-      const clearOf = (p: Point[], lanes: InfillLane[]) =>
-        p.length >= 4 &&
-        area(p) >= 12 &&
-        p.every(point =>
-          lanes.every(
-            lane =>
-              nearestOnPolyline(point, lane.points).dist >= lane.widthMeters / 2 + ORGANIC_LANE_FACADE_CLEARANCE / 7
-          )
-        );
-      const validEntryLanes: InfillLane[] = [];
-      for (const entry of layoutV2.entryLanes) {
-        const candidate: InfillLane = { faceId: face.id, points: entry.points, widthMeters: entry.widthMeters };
-        const clearOfBuildings = layoutV2.buildings.every(b =>
-          b.polygon.every(
-            pt => nearestOnPolyline(pt, entry.points).dist >= entry.widthMeters / 2 + ORGANIC_LANE_FACADE_CLEARANCE / 7
-          )
-        );
-        if (clearOfBuildings) {
-          addStreet(entry.points, entry.widthMeters);
-          validEntryLanes.push(candidate);
-        }
-      }
-      const allClearance = validEntryLanes.length ? [...clearance, ...validEntryLanes] : clearance;
-      for (const b of layoutV2.buildings) {
-        if (!clearOf(b.polygon, allClearance)) continue;
-        if (b.rear) {
-          fabric.rearBuildings ??= [];
-          fabric.rearBuildings.push({
-            faceId: face.id,
-            polygon: b.polygon,
-            landmark: false,
-            occupancyDraw: b.draw
-          });
-        } else {
-          fabric.buildings.push({
-            faceId: face.id,
-            polygon: b.polygon,
-            landmark: false,
-            occupancyDraw: b.draw
-          });
-        }
-      }
-      if (layoutV2.plots.length) {
-        fabric.plots ??= [];
-        fabric.plots.push(...layoutV2.plots);
-      }
-      return;
-    }
     const footprints = frontageBuildings(
       block,
       block.map((_, i) => i),

@@ -1,13 +1,10 @@
 import type { Point } from "../types/primitives";
 import type { VectorBlock, VectorPolygon } from "../types/vector/generation";
-import { clipToBox, tidyRing } from "./burgage/frame";
 import type { Front } from "./frontageBuildings.types";
 import { isSimplePolygon, nearestOnPolyline, pointInPolygon, polygonArea, polygonCentroid } from "./geom";
-import { houseFootprint } from "./houseFootprint";
 import { clipHalfPlane, insetConvexKernel } from "./lotGeometry";
 import type { Rng } from "./prng";
 import { regionArea, regionBoolean } from "./vector/geometry/regions";
-import { simpleContour } from "./vector/geometry/surfaces";
 
 const dot = (a: Point, b: Point) => a[0] * b[0] + a[1] * b[1];
 const sub = (a: Point, b: Point): Point => [a[0] - b[0], a[1] - b[1]];
@@ -63,7 +60,6 @@ export function withoutHolesNatural(block: VectorBlock): VectorBlock[] {
         candidates.push({ from: holeCenter, to: hit.point, score: hit.dist * 1.2 + 5 });
       }
       candidates.sort((a, b) => a.score - b.score);
-      // Try the best few shortest cuts, ensuring the cut actually reduces the hole count without degenerating.
       for (const cand of candidates.slice(0, 12)) {
         const dir = unit(sub(cand.to, cand.from)),
           normal: Point = [-dir[1], dir[0]],
@@ -140,20 +136,25 @@ export interface CompactV2BlockLayout {
 
 /** Corner inner angle bounds (60°–120°) eligible for an Eckhaus corner building. */
 const CORNER_COS_LIMIT = Math.cos((60 * Math.PI) / 180);
-const MIN_CORE_AREA_M2 = 25;
-const MIN_CORE_WIDTH_M = 2.5;
-const LARGE_CORE_AREA_M2 = 220;
-const LARGE_CORE_WIDTH_M = 14;
-const REAR_MIN_PLOT_DEPTH_M = 22;
-const REAR_MIN_FRONTAGE_M = 4.5;
+/** Corners within ±6° of 90° may conform closely to both streets; skewed corners stay strict 90° rectangles. */
+const ORTHO_CORNER_COS = Math.cos((84 * Math.PI) / 180);
+/** Nearly right-angled row lots (within ±5° of 90°) keep their clean party walls. */
+const NEAR_RECT_COS = Math.cos((85 * Math.PI) / 180);
+/** Tight neighbour-infill skew ceiling (±12° from 90°, i.e. 78°–102°); never emit 60°/120° rhombuses. */
+const MAX_INFILL_SKEW_COS = Math.cos((78 * Math.PI) / 180);
+const LARGE_CORE_AREA_M2 = 260;
+const LARGE_CORE_WIDTH_M = 15;
+const MIN_HOUSE_SPAN = 2.5;
+const MAX_HOUSE_ASPECT = 4.5;
 
 /**
  * Pack a convex compact-v2 block with:
  * - hub/primary lot-size gradient (Task E-1),
  * - corner-first Eckhaus placements and short-side return frontages without blind gable walls (Task B),
- * - continuous street-wall row packing with paired shared spines on shallow blocks,
- * - private backyard Voronoi plots or an entry-lane shared courtyard (Hof) for interior cores (Task A),
- * - optional low-rise rear outbuildings inside deep private yards (Task A).
+ * - right-angled (90°) building footprints by default, allowing modest skew (78°–102°) only when squeezed
+ *   between adjacent walls so open-space rhombuses never appear,
+ * - no fenced private yards on compact blocks (keeps entrances unobstructed),
+ * - optional open entry passage into very large interior courtyards (Hof).
  */
 export function packCompactV2Block(
   poly: Point[],
@@ -200,7 +201,7 @@ export function packCompactV2Block(
   const maxEdgeLen = Math.max(...fronts.map(f => f.length));
   const isShortSide = (f: Front) => f.length >= 8 && f.length <= 35 && f.length < maxEdgeLen * 0.78;
 
-  // Estimate interior core size to decide whether to open a shared courtyard (Hof) passage.
+  // Estimate interior core size to decide whether to open a shared open courtyard (Hof) entry passage (no fences).
   const blockEdgeDepths = block.map((a, i) => {
     const b = block[(i + 1) % block.length],
       mid: Point = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2],
@@ -211,7 +212,7 @@ export function packCompactV2Block(
     estCoreArea = estCore.length >= 3 ? area(estCore) : 0,
     estCoreWidth = estCore.length >= 3 ? meanWidth(estCore) : 0,
     largeCore = estCoreArea >= LARGE_CORE_AREA_M2 && estCoreWidth >= LARGE_CORE_WIDTH_M,
-    sharedCourt = largeCore && rng() < (distRatio < 0.45 ? 0.35 : 0.6);
+    sharedCourt = largeCore && rng() < 0.55;
 
   const reserved: [number, number][][] = fronts.map(() => []);
   const cornerDepthOnFront: number[] = fronts.map(() => 0);
@@ -222,7 +223,8 @@ export function packCompactV2Block(
   // Measure block span across each front so corner houses and opposing rows never collide across shallow blocks.
   const frontSpan = fronts.map(f => Math.max(...block.map(p => dot(p, f.inward) - f.offset)));
 
-  // Task B: corner-first Eckhaus buildings at well-shaped street corners (60°–120°).
+  // Task B: corner-first Eckhaus buildings at street corners (60°–120°).
+  // Nearly orthogonal corners (84°–96°) conform closely to both streets; skewed corners use a strict 90° rectangle.
   interface CornerCandidate {
     i: number;
     j: number;
@@ -256,8 +258,6 @@ export function packCompactV2Block(
   }
   corners.sort((a, b) => b.priority - a.priority);
 
-  // Corner leg limit along an edge: leave a clean return span (>= 4.2 m) on medium short sides (14–22 m),
-  // or meet cleanly at L/2 on compact short sides (10–14 m) without leaving an unbuildable 2 m gap.
   const cornerLegCap = (edgeLen: number, crossDepth: number, crossSpan: number) => {
     const geomCap = Math.min(crossDepth, crossSpan * 0.49);
     if (edgeLen < 14) return Math.min(geomCap, edgeLen * 0.495);
@@ -271,23 +271,13 @@ export function packCompactV2Block(
       maxA = cornerLegCap(fi.length, depthFor(fj), frontSpan[c.j]),
       maxB = cornerLegCap(fj.length, depthFor(fi), frontSpan[c.i]);
     if (maxA < 4.2 || maxB < 4.2) continue;
-    // Match shallow-short-side half-width cleanly so paired corners meet wall-to-wall with zero gap.
     const sA = fi.length < 14 && maxA <= 7.8 ? maxA : Math.min(maxA, rng.range(5.6, 8.0)),
       sB = fj.length < 14 && maxB <= 7.8 ? maxB : Math.min(maxB, rng.range(5.6, 8.0));
     if (sA < 4.2 || sB < 4.2) continue;
     const draw = rng();
     if (draw >= options.occupancy) continue;
-    const pA = add(c.vertex, scale(c.alongI, sA)),
-      pB = add(c.vertex, scale(c.alongJ, sB)),
-      pAB = add(pA, scale(c.alongJ, sB));
-    const rawQuad = [c.vertex, pA, pAB, pB];
-    const quad = polygonArea(rawQuad) < 0 ? rawQuad.reverse() : rawQuad;
-    if (area(quad) < 20 || !isSimplePolygon(quad)) continue;
-    if (!quad.every(p => insideConvex(p, block))) continue;
-    if (placed.some(b => overlapArea(quad, b.polygon) > 1e-3)) continue;
 
-    // Orient Eckhaus entrance: if a short side has no entrance yet and is too narrow for its own middle house
-    // (or needs a live return facade), turn this corner house's front onto the short side.
+    // Choose which street the Eckhaus faces: ensure narrow/short cross streets get live doors.
     const iShort = isShortSide(fi),
       jShort = isShortSide(fj);
     let useI: boolean;
@@ -297,8 +287,73 @@ export function packCompactV2Block(
     else if (jShort && fj.length < 14 && !frontHasDoor[c.j]) useI = false;
     else useI = fi.primary !== fj.primary ? fi.primary : fi.length >= fj.length;
 
-    const houseFront: [Point, Point] = useI ? [c.vertex, pA] : [c.vertex, pB];
-    const frontInward = useI ? fi.inward : fj.inward;
+    const cosCorner = dot(c.alongI, c.alongJ);
+    let quad: Point[];
+    let houseFront: [Point, Point];
+    let frontInward: Point;
+    let resI: [number, number];
+    let resJ: [number, number] | undefined;
+
+    if (Math.abs(cosCorner) <= ORTHO_CORNER_COS) {
+      // Nearly 90° corner (84°–96°): clean street-conforming Eckhaus.
+      const pA = add(c.vertex, scale(c.alongI, sA)),
+        pB = add(c.vertex, scale(c.alongJ, sB)),
+        pAB = add(pA, scale(c.alongJ, sB)),
+        raw = [c.vertex, pA, pAB, pB];
+      quad = polygonArea(raw) < 0 ? raw.reverse() : raw;
+      houseFront = useI ? [c.vertex, pA] : [c.vertex, pB];
+      frontInward = useI ? fi.inward : fj.inward;
+      resI = c.iAtStart ? [0, sA] : [fi.length - sA, fi.length];
+      resJ = c.jAtStart ? [0, sB] : [fj.length - sB, fj.length];
+    } else {
+      // Skewed corner (< 84° or > 96°): place a strict 90° rectangle along the chosen street (never a rhombus).
+      const mainF = useI ? fi : fj,
+        mainAlong = useI ? c.alongI : c.alongJ,
+        mainAtStart = useI ? c.iAtStart : c.jAtStart,
+        crossF = useI ? fj : fi,
+        crossAtStart = useI ? c.jAtStart : c.iAtStart,
+        w = useI ? sA : sB,
+        rawD = useI ? sB : sA;
+      let startU = 0,
+        d = rawD;
+      if (cosCorner > 0) {
+        // Acute corner: shift back along mainAlong just enough for the perpendicular inner corner to stay inside.
+        const sinCorner = Math.sqrt(Math.max(1e-6, 1 - cosCorner * cosCorner));
+        d = Math.min(rawD, mainF.length * 0.38 - w > 0 ? rawD : Math.max(4.5, rawD * 0.85));
+        startU = (d * cosCorner) / sinCorner + 0.05;
+        if (startU > 4.0) {
+          d = Math.max(4.2, (4.0 * sinCorner) / cosCorner);
+          startU = (d * cosCorner) / sinCorner + 0.05;
+        }
+        if (startU + w > mainF.length * 0.48) continue;
+      }
+      const baseP = add(c.vertex, scale(mainAlong, startU)),
+        p1 = add(baseP, scale(mainAlong, w)),
+        p2 = add(p1, scale(mainF.inward, d)),
+        p3 = add(baseP, scale(mainF.inward, d)),
+        raw = [baseP, p1, p2, p3];
+      quad = polygonArea(raw) < 0 ? raw.reverse() : raw;
+      houseFront = [baseP, p1];
+      frontInward = mainF.inward;
+      const spanMain: [number, number] = mainAtStart ? [0, startU + w] : [mainF.length - (startU + w), mainF.length];
+      // Project the rectangle onto the cross street so cross-street houses keep clear of its corner.
+      const crossProj = quad.map(p => dot(sub(p, crossF.a), crossF.axis)),
+        crossSpan: [number, number] = crossAtStart
+          ? [0, Math.min(crossF.length, Math.max(0, ...crossProj) + 0.1)]
+          : [Math.max(0, Math.min(crossF.length, ...crossProj) - 0.1), crossF.length];
+      if (useI) {
+        resI = spanMain;
+        resJ = crossSpan[1] - crossSpan[0] > 0.2 ? crossSpan : undefined;
+      } else {
+        resI = crossSpan[1] - crossSpan[0] > 0.2 ? crossSpan : [0, 0];
+        resJ = spanMain;
+      }
+    }
+
+    if (area(quad) < 20 || !isSimplePolygon(quad)) continue;
+    if (!quad.every(p => insideConvex(p, block))) continue;
+    if (placed.some(b => overlapArea(quad, b.polygon) > 1e-3)) continue;
+
     placed.push({
       polygon: shrinkHair(quad),
       draw,
@@ -306,13 +361,13 @@ export function packCompactV2Block(
       frontInward
     });
     frontHasDoor[useI ? c.i : c.j] = true;
-    reserved[c.i].push(c.iAtStart ? [0, sA] : [fi.length - sA, fi.length]);
-    reserved[c.j].push(c.jAtStart ? [0, sB] : [fj.length - sB, fj.length]);
+    if (resI[1] - resI[0] > 0.2) reserved[c.i].push(resI);
+    if (resJ && resJ[1] - resJ[0] > 0.2) reserved[c.j].push(resJ);
     cornerDepthOnFront[c.i] = Math.max(cornerDepthOnFront[c.i], sB);
     cornerDepthOnFront[c.j] = Math.max(cornerDepthOnFront[c.j], sA);
   }
 
-  // Task A (large shared court): reserve an entry passage on one accessible edge into the interior Hof.
+  // Open entry passage into a very large interior courtyard (Hof), without fenced yards.
   if (sharedCourt && estCore.length >= 3) {
     const coreCenter = polygonCentroid(estCore),
       passageWidth = Math.max(2.2, Math.min(2.6, options.laneWidth)),
@@ -347,9 +402,7 @@ export function packCompactV2Block(
     }
   }
 
-  // Task B + dense street wall: pack open spans along every edge using sequential unassigned carving
-  // (no 45° Voronoi bevel notches). Pack short return sides BEFORE long sides so cross streets always keep doors,
-  // while keeping short-side depth flush with adjacent corner buildings so long-side rows run cleanly wall-to-wall.
+  // Pack open spans along every edge: short return sides before long sides so cross streets always keep doors.
   const orderedIndices = fronts
     .map((_, i) => i)
     .sort((a, b) => {
@@ -359,7 +412,7 @@ export function packCompactV2Block(
       return Number(fronts[b].primary) - Number(fronts[a].primary) || fronts[b].length - fronts[a].length;
     });
 
-  // Identify paired opposite long fronts so shallow blocks share a clean back-to-back spine like packPerimeter.
+  // Identify paired opposite long fronts so shallow blocks share a clean back-to-back spine.
   const longFronts = fronts
     .map((f, i) => ({ f, i }))
     .filter(({ f }) => !isShortSide(f))
@@ -385,7 +438,6 @@ export function packCompactV2Block(
       shortSide = isShortSide(front),
       targetWidth = widthFor(front),
       baseFrontDepth = pairLimit.get(fi) ?? depthFor(front),
-      // Keep short-side return rows flush with adjacent Eckhaus corner depth so they never collide with long rows.
       rowDepth = shortSide
         ? Math.min(
             baseFrontDepth,
@@ -397,8 +449,6 @@ export function packCompactV2Block(
     const spans = openSpans(front.length, reserved[fi]);
     if (!spans.length) continue;
 
-    // Carve this front's strip from the remaining unassigned convex core (when no corners are present on this side)
-    // or directly from `block` constrained to the open spans (when corners already bracket the span).
     const hasReserved = reserved[fi].length > 0;
     const sourcePoly = hasReserved ? block : unassigned;
     if (sourcePoly.length < 3) continue;
@@ -416,17 +466,20 @@ export function packCompactV2Block(
           dot(front.a, front.axis) + spanHi
         )
       );
-      // Trim away any perpendicular strip already claimed by previously placed non-corner rows on other fronts.
       if (hasReserved && unassigned.length >= 3) {
         const clipped = intersectConvexPolys(spanBand, unassigned);
         if (clipped.length >= 3 && area(clipped) >= 12) spanBand = clipped;
       }
       if (spanBand.length < 3 || area(spanBand) < 12) continue;
-      const lots = partitionSpan(spanBand, front, spanLo, spanHi, targetWidth, fronts, rng);
-      for (const lot of lots) {
+      const lots = partitionSpan(spanBand, front, spanLo, spanHi, targetWidth, rng);
+      for (let li = 0; li < lots.length; li++) {
+        const lot = lots[li];
         const draw = rng();
         if (draw >= options.occupancy) continue;
-        const house = houseFootprint(lot, fronts, front.axis);
+        // A lot is hemmed in on its left/right when flanked by row neighbours or corner buildings.
+        const hemmedLeft = li > 0 || spanLo > 0.2,
+          hemmedRight = li < lots.length - 1 || spanHi < front.length - 0.2;
+        const house = compactV2Footprint(lot, front, hemmedLeft && hemmedRight);
         if (house.length < 4 || area(house) < 12) continue;
         if (placed.some(b => overlapArea(house, b.polygon) > 1e-3)) continue;
         const frontEdge = streetEdgeOf(house, front);
@@ -450,106 +503,126 @@ export function packCompactV2Block(
     }
   }
 
-  // Task A: convert non-shared interior cores into private Voronoi backyard plots (+ low-rise rear ranges in deep plots).
-  const plots: { ring: Point[]; front: [Point, Point] }[] = [];
-  if (!sharedCourt && placed.length >= 2) {
-    let remainder: VectorPolygon[] = [];
-    try {
-      remainder = regionBoolean(
-        [{ outer: block, holes: [] }],
-        placed.map(b => ({ outer: b.polygon, holes: [] })),
-        "difference"
-      ).filter(r => regionArea(r) > 1);
-    } catch {
-      remainder = [];
-    }
-    const coreArea = remainder.reduce((sum, r) => sum + regionArea(r), 0),
-      maxCoreWidth = Math.max(0, ...remainder.map(r => meanWidth(r.outer)));
-    if (coreArea >= MIN_CORE_AREA_M2 && maxCoreWidth >= MIN_CORE_WIDTH_M) {
-      // Anchor each house's Voronoi cell at its rear midpoint so the backyard behind it belongs cleanly to it.
-      const sites = placed.map(b => {
-        const c = polygonCentroid(b.polygon),
-          [fa, fb] = b.front,
-          fm: Point = [(fa[0] + fb[0]) / 2, (fa[1] + fb[1]) / 2];
-        return add(c, scale(sub(c, fm), 0.7));
-      });
-      const rearAdded: CompactV2Building[] = [];
-      for (let i = 0; i < placed.length; i++) {
-        let cell = block;
-        for (let j = 0; j < placed.length && cell.length >= 3; j++) {
-          if (i === j) continue;
-          const mid: Point = [(sites[i][0] + sites[j][0]) / 2, (sites[i][1] + sites[j][1]) / 2],
-            normal = sub(sites[j], sites[i]);
-          if (Math.hypot(normal[0], normal[1]) < 1e-6) continue;
-          cell = clipHalfPlane(cell, normal, dot(mid, normal));
-        }
-        const housePoly: VectorPolygon = { outer: placed[i].polygon, holes: [] };
-        let plotRing: Point[] | undefined;
-        if (cell.length >= 3 && area(cell) > 1) {
-          try {
-            const yardPieces = regionBoolean(remainder, [{ outer: cell, holes: [] }], "intersection").filter(
-              p =>
-                !p.holes.length &&
-                regionArea(p) > 0.5 &&
-                p.outer.some(q => nearestOnPolyline(q, [...placed[i].polygon, placed[i].polygon[0]]).dist < 0.35)
-            );
-            if (yardPieces.length) {
-              const joined = regionBoolean([housePoly, ...yardPieces], [], "union");
-              if (joined.length === 1 && !joined[0].holes.length && simpleContour(joined[0].outer, true))
-                plotRing = tidyRing(joined[0].outer);
-            }
-          } catch {
-            // fall back to house polygon alone
-          }
-        }
-        const finalRing = plotRing && plotRing.length >= 3 ? plotRing : placed[i].polygon;
-        plots.push({ ring: finalRing, front: placed[i].front });
-
-        // Deep private yard inside a large core: offer a low-rise rear outbuilding behind a 4–5.5 m court.
-        if (largeCore && plotRing && plotRing.length >= 3) {
-          const rear = makeRearBuilding(plotRing, placed[i], rng);
-          if (rear && !placed.some(b => overlapArea(rear, b.polygon) > 1e-3))
-            rearAdded.push({
-              polygon: shrinkHair(rear),
-              draw: 0.5 + 0.5 * rng(),
-              front: placed[i].front,
-              frontInward: placed[i].frontInward,
-              rear: true
-            });
-        }
-      }
-      placed.push(...rearAdded);
-    }
-  }
-
-  return { buildings: placed, plots, entryLanes };
+  // Compact blocks have no fenced private yards or rear outbuildings (prevents fences from blocking exits).
+  return { buildings: placed, plots: [], entryLanes };
 }
 
-function makeRearBuilding(plotRing: Point[], frontHouse: CompactV2Building, rng: Rng): Point[] | undefined {
-  const [a, b] = frontHouse.front,
-    frontage = distance(a, b);
-  if (frontage < REAR_MIN_FRONTAGE_M) return undefined;
-  const u = unit(sub(b, a)),
-    v = frontHouse.frontInward,
-    frame = { origin: a, u, v };
-  const houseDepth = Math.max(...frontHouse.polygon.map(p => dot(sub(p, a), v))),
-    plotDepth = Math.max(...plotRing.map(p => dot(sub(p, a), v)));
-  if (plotDepth < REAR_MIN_PLOT_DEPTH_M) return undefined;
-  const court = rng.range(4.0, 5.5),
-    from = houseDepth + court,
-    depth = rng.range(5.5, 7.5),
-    to = Math.min(from + depth, plotDepth - 1.5);
-  if (to - from < 4.5) return undefined;
-  // Leave a 1.2 m side passage when frontage permits.
-  const passage = frontage >= 5.2 ? 1.2 : 0,
-    left = rng() < 0.5;
-  const raw = clipToBox(plotRing, frame, left ? passage : 0, left ? frontage : frontage - passage, from, to);
-  if (raw.length < 3 || area(raw) < 16 || !isSimplePolygon(raw)) return undefined;
-  // Keep only near-rectangular rear buildings (avoid triangular tail scraps).
-  const rearFront = Math.max(...raw.map(p => dot(sub(p, a), u))) - Math.min(...raw.map(p => dot(sub(p, a), u))),
-    rearDepth = Math.max(...raw.map(p => dot(sub(p, a), v))) - Math.min(...raw.map(p => dot(sub(p, a), v)));
-  if (rearFront < 3.0 || rearDepth < 3.5 || area(raw) < 0.72 * rearFront * rearDepth) return undefined;
-  return raw;
+/**
+ * Fit a right-angled (90°) building footprint aligned to `front` by default.
+ * Modest non-90° quad conforming (78°–102°) is allowed only when the lot is hemmed in between neighbours
+ * and squaring it would leave a noticeable (>10%) triangular wedge gap; wide-open rhombuses are never emitted.
+ */
+function compactV2Footprint(lot: Point[], front: Front, hemmedIn: boolean): Point[] {
+  if (lot.length < 3) return [];
+  const rect = inscribedFrontRect(lot, front);
+  const quad = simplifyToQuad(lot);
+  if (quad && quad.length === 4 && streetEdgeOf(quad, front)) {
+    const skew = quadMaxCosine(quad);
+    const lengths = quad.map((p, i) => distance(p, quad[(i + 1) % 4]));
+    const minL = Math.min(...lengths),
+      maxL = Math.max(...lengths);
+    const wellProportioned =
+      minL >= MIN_HOUSE_SPAN &&
+      maxL / minL <= MAX_HOUSE_ASPECT &&
+      lengths.every((l, i) => l >= lengths[(i + 2) % 4] * 0.55);
+    if (wellProportioned) {
+      // Nearly 90° (85°–95°): keep exact wall-to-wall party fit.
+      if (skew <= NEAR_RECT_COS) return quad;
+      // Modest infill skew (78°–102°) ONLY when hemmed in between neighbours and a rectangle loses >10% area.
+      if (hemmedIn && skew <= MAX_INFILL_SKEW_COS && (!rect.length || area(rect) < area(quad) * 0.9)) return quad;
+    }
+  }
+  return rect;
+}
+
+/** Largest strict 90° rectangle inscribed in convex `lot` with its front edge flush on `front`. */
+function inscribedFrontRect(lot: Point[], front: Front): Point[] {
+  const street = streetEdgeOf(lot, front);
+  if (!street) return [];
+  const [sa, sb] = street,
+    length = distance(sa, sb);
+  const minW = front.primary ? 3.5 : MIN_HOUSE_SPAN;
+  if (length < minW) return [];
+  const axis = front.axis,
+    inward = front.inward;
+  const local = lot.map((p): Point => [dot(sub(p, sa), axis), dot(sub(p, sa), inward)]);
+  const sign = -Math.sign(polygonArea(local));
+  if (!sign) return [];
+  const constraints = local.map((p, j) => {
+    const q = local[(j + 1) % local.length],
+      n: Point = [sign * (q[1] - p[1]), sign * (p[0] - q[0])];
+    return { n, offset: dot(p, n) };
+  });
+  let best: Point[] = [],
+    bestArea = 0;
+  for (let left = 0; left <= 12; left++) {
+    for (let right = 0; right <= 12 - left; right++) {
+      const lo = (length * left) / 16,
+        hi = length * (1 - right / 16),
+        width = hi - lo;
+      if (width < minW) continue;
+      let depth = width * MAX_HOUSE_ASPECT;
+      for (const { n, offset } of constraints) {
+        if (n[1] <= 1e-8) continue;
+        depth = Math.min(depth, (offset - Math.max(n[0] * lo, n[0] * hi)) / n[1]);
+      }
+      if (depth < MIN_HOUSE_SPAN || width > depth * MAX_HOUSE_ASPECT) continue;
+      const a = width * depth;
+      if (a <= bestArea) continue;
+      bestArea = a;
+      best = [
+        [lo, 0],
+        [hi, 0],
+        [hi, depth],
+        [lo, depth]
+      ].map(([x, y]): Point => [sa[0] + axis[0] * x + inward[0] * y, sa[1] + axis[1] * x + inward[1] * y]);
+    }
+  }
+  return best.length === 4 && polygonArea(best) < 0 ? best.reverse() : best;
+}
+
+function simplifyToQuad(lot: Point[]): Point[] | undefined {
+  let poly = lot;
+  const budget = area(lot) * 0.02;
+  let removed = 0;
+  while (poly.length > 4) {
+    let bestIndex = -1,
+      bestLoss = Infinity;
+    for (let i = 0; i < poly.length; i++) {
+      const a = poly[(i + poly.length - 1) % poly.length],
+        p = poly[i],
+        b = poly[(i + 1) % poly.length],
+        inc = sub(p, a),
+        out = sub(b, p),
+        sc = Math.hypot(...inc) * Math.hypot(...out);
+      if (sc < 1e-12 || dot(inc, out) / sc < Math.cos((20 * Math.PI) / 180)) continue;
+      const loss = Math.abs(inc[0] * out[1] - inc[1] * out[0]) / 2,
+        chord = distance(a, b);
+      if (chord < 1e-6 || (2 * loss) / chord > 0.25 || removed + loss > budget || loss >= bestLoss) continue;
+      bestIndex = i;
+      bestLoss = loss;
+    }
+    if (bestIndex < 0) break;
+    removed += bestLoss;
+    poly = poly.filter((_, i) => i !== bestIndex);
+  }
+  return poly.length === 4 ? poly : undefined;
+}
+
+function quadMaxCosine(poly: Point[]): number {
+  let maxCos = 0;
+  for (let i = 0; i < 4; i++) {
+    const a = poly[(i + 3) % 4],
+      p = poly[i],
+      b = poly[(i + 1) % 4],
+      u = sub(a, p),
+      v = sub(b, p),
+      lu = Math.hypot(u[0], u[1]),
+      lv = Math.hypot(v[0], v[1]);
+    if (lu < 1e-7 || lv < 1e-7) return 1;
+    maxCos = Math.max(maxCos, Math.abs(dot(u, v) / (lu * lv)));
+  }
+  return maxCos;
 }
 
 function partitionSpan(
@@ -558,7 +631,6 @@ function partitionSpan(
   spanLo: number,
   spanHi: number,
   targetWidth: number,
-  fronts: Front[],
   rng: Rng
 ): Point[][] {
   const spanLen = spanHi - spanLo,
@@ -571,20 +643,22 @@ function partitionSpan(
   cuts[cuts.length - 1] = base + spanHi;
   const slice = (lo: number, hi: number) =>
     cleanPoly(clipHalfPlane(clipHalfPlane(band, [-front.axis[0], -front.axis[1]], -lo), front.axis, hi));
-  const scoreLot = (lot: Point[]) => {
+  const scoreLot = (lot: Point[], hemmed: boolean) => {
     if (lot.length < 3 || area(lot) < 12) return 0;
-    const h = houseFootprint(lot, fronts, front.axis);
+    const h = compactV2Footprint(lot, front, hemmed);
     if (h.length < 4 || area(h) < 12 || area(h) < area(lot) * 0.45 || !streetEdgeOf(h, front)) return 0;
     const normal: Point = [-front.axis[1], front.axis[0]],
       xs = h.map(p => dot(p, front.axis)),
       ys = h.map(p => dot(p, normal)),
       w = Math.max(...xs) - Math.min(...xs),
       d = Math.max(...ys) - Math.min(...ys);
-    if (Math.min(w, d) < 2.5) return 0;
+    if (Math.min(w, d) < MIN_HOUSE_SPAN) return 0;
     return area(h) / (w * d);
   };
-  for (let i = 0; i < cuts.length - 1; ) {
-    if (scoreLot(slice(cuts[i], cuts[i + 1])) >= 0.55) {
+  const hemmedAt = (idx: number) => (idx > 0 || spanLo > 0.2) && (idx < cuts.length - 2 || spanHi < front.length - 0.2);
+  let guard = 0;
+  for (let i = 0; i < cuts.length - 1 && guard < 256; guard++) {
+    if (scoreLot(slice(cuts[i], cuts[i + 1]), hemmedAt(i)) >= 0.55) {
       i++;
       continue;
     }
@@ -593,11 +667,13 @@ function partitionSpan(
     for (const boundary of [i, i + 1]) {
       if (boundary <= 0 || boundary >= cuts.length - 1) continue;
       const lo = cuts[boundary - 1],
-        hi = cuts[boundary + 1];
+        hi = cuts[boundary + 1],
+        hemA = hemmedAt(boundary - 1),
+        hemB = hemmedAt(boundary);
       for (let step = 1; step < 16; step++) {
         const pos = lo + ((hi - lo) * step) / 16,
-          qa = scoreLot(slice(lo, pos)),
-          qb = scoreLot(slice(pos, hi));
+          qa = scoreLot(slice(lo, pos), hemA),
+          qb = scoreLot(slice(pos, hi), hemB);
         if (qa < 0.55 || qb < 0.55) continue;
         const sc = qa + qb - Math.abs(pos - (lo + hi) / 2) / (hi - lo);
         if (!adjusted || sc > adjusted.score) adjusted = { boundary, pos, score: sc };
@@ -608,8 +684,8 @@ function partitionSpan(
       i = Math.max(0, i - 1);
       continue;
     }
-    const left = i > 0 ? scoreLot(slice(cuts[i - 1], cuts[i + 1])) : -1,
-      right = i < cuts.length - 2 ? scoreLot(slice(cuts[i], cuts[i + 2])) : -1;
+    const left = i > 0 ? scoreLot(slice(cuts[i - 1], cuts[i + 1]), hemmedAt(i - 1)) : -1,
+      right = i < cuts.length - 2 ? scoreLot(slice(cuts[i], cuts[i + 2]), hemmedAt(i + 1)) : -1;
     cuts.splice(left > right ? i : i + 1, 1);
     i = Math.max(0, i - 1);
   }

@@ -831,6 +831,7 @@ function* vectorUrbanSteps(
     ribbon = !sourceSite.descriptor?.urbanMorphology && vectorApproachBands(doc).bands.length > 0,
     outsideBlocks = new Set(districts.filter(d => !d.inside).map(d => streetBlockOf(d.id)));
   if (organic && remaining > 0) {
+    const compactV2 = isCompactV2Fabric(settings.plotFabric);
     const placed = placeVectorPerimeterHouses(
       doc,
       organic,
@@ -841,8 +842,10 @@ function* vectorUrbanSteps(
       continuation?.fabricDetachedLines ?? kept?.detachedLines,
       settings.lotOccupancy ?? 1,
       id => wardHeightKind(wards.get(id)?.ward),
-      // The shanty, and the roadside ribbon beyond the wall, stand whatever the demand (P6h, P7a).
-      id => wards.get(id)?.ward === "shanty" || (ribbon && outsideBlocks.has(id)),
+      // The shanty, and (on legacy fabrics) the roadside ribbon beyond the wall, stand whatever the demand (P6h, P7a).
+      // On compact-v2, outside ribbon houses are built only when the walled interior overflows, avoiding surplus suburbs
+      // while empty land sits inside the wall.
+      id => wards.get(id)?.ward === "shanty" || (!compactV2 && ribbon && outsideBlocks.has(id)),
       // A park ward holds no house while the rest of the town houses the demand; its block becomes the park's
       // lawn (P7c). A town short of room builds on it in the second pass instead.
       (id, polygon, residential) =>

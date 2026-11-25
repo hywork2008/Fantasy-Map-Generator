@@ -82,7 +82,7 @@ describe("compact-v2 and compact-medium-v2 (docs/plan/ce-meshless-compact-block-
     expect(hasNorthSouthSlit).toBe(false);
   });
 
-  it("generates valid compact-v2 and compact-medium-v2 towns with backyard plots and keeps serialization intact", () => {
+  it("generates valid compact-v2 and compact-medium-v2 towns without fenced yards or rhombic houses and keeps serialization intact", () => {
     const c2 = generateTown("compact-v2", 2000, false);
     const m2 = generateTown("compact-medium-v2", 2000, false);
     expect(c2.urban!.algorithm).toBe("vector-urban-v67");
@@ -91,9 +91,30 @@ describe("compact-v2 and compact-medium-v2 (docs/plan/ce-meshless-compact-block-
     expect(m2.fabric!.algorithm).toBe("vector-urban-v68");
     expect(c2.urban!.report.unplacedDwellings).toBe(0);
     expect(m2.urban!.report.unplacedDwellings).toBe(0);
-    // Medium-block v2 converts block cores into backyard plots or entry-lane courtyards.
-    const m2PlotCells = Object.values(m2.fabric!.cells).filter(c => c.inside && (c.plots?.offsets.length ?? 0) > 0);
-    expect(m2PlotCells.length).toBeGreaterThan(0);
+    // Compact v2 fabrics must not emit fenced burgage yards (`plots`) that block doors or trap owners.
+    for (const doc of [c2, m2]) {
+      const cellsWithPlots = Object.values(doc.fabric!.cells).filter(c => (c.plots?.offsets.length ?? 0) > 0);
+      expect(cellsWithPlots.length).toBe(0);
+      // No house may have rhombic/severely skewed corners (< 76° or > 104°).
+      let extremeSkew = 0;
+      for (const c of Object.values(doc.fabric!.cells)) {
+        for (let i = 0; i < cellHouseCount(c); i++) {
+          const h = cellHouseRing(c, i);
+          if (h.length !== 4) continue;
+          const bad = h.some((p, k) => {
+            const a = h[(k + 3) % 4],
+              b = h[(k + 1) % 4],
+              u = [a[0] - p[0], a[1] - p[1]],
+              v = [b[0] - p[0], b[1] - p[1]],
+              lu = Math.hypot(u[0], u[1]) || 1,
+              lv = Math.hypot(v[0], v[1]) || 1;
+            return Math.abs((u[0] * v[0] + u[1] * v[1]) / (lu * lv)) > Math.cos((76 * Math.PI) / 180);
+          });
+          if (bad) extremeSkew++;
+        }
+      }
+      expect(extremeSkew).toBe(0);
+    }
     expect(parseVectorDocument(serializeVectorDocument(c2))?.fabric).toEqual(c2.fabric);
     expect(parseVectorDocument(serializeVectorDocument(m2))?.fabric).toEqual(m2.fabric);
     expect(vectorRenderData(c2).warnings).toEqual([]);
@@ -134,6 +155,43 @@ describe("compact-v2 and compact-medium-v2 (docs/plan/ce-meshless-compact-block-
     expect(vectorRenderData(town5k).warnings).toEqual([]);
   });
 
+  it("recovers concave intramural blocks around plazas and avoids surplus outside houses when inside fits", () => {
+    // Regression: on seed s4 with an organic wall, the 1,285 m² U-shaped cell around the market square
+    // collapsed to 0 buildings under a single convex kernel on legacy compact, while building houses outside.
+    const settings = {
+      ...defaultGenerationSettings(),
+      wallShape: "organic" as const,
+      plotFabric: "compact-v2" as const,
+      facilityLayout: "population" as const
+    };
+    settings.config = { ...settings.config, features: { ...settings.config.features, walls: true, shanty: false } };
+    settings.population = defaultPopulationSettings(5000);
+    const input = vectorInputFromEditor({
+        settings,
+        seed: "s4",
+        frame: { extentMeters: 1200, cityRadiusMeters: 250, blockSizeMeters: 50 },
+        lotOccupancy: 1
+      }),
+      wall = vectorWallChoice(settings, "s4", input.context.historicalPeriod ?? "ageOfExploration"),
+      skeleton = generateVectorSkeleton(input, { ...DEFAULT_VECTOR_GENERATION, seed: "s4", ...wall }).document,
+      doc = generateVectorUrban(skeleton, {
+        ...DEFAULT_VECTOR_URBAN,
+        mode: "medieval-facilities",
+        population: 5000,
+        plotFabric: "compact-v2"
+      });
+    const allPlacements = Object.values(doc.placements);
+    const parkIds = new Set((doc.urban!.parks ?? []).map(p => p.id));
+    const bigEmpty = Object.values(doc.fabric!.cells).filter(c => {
+      if (!c.inside || cellHouseCount(c) > 0 || parkIds.has(c.id)) return false;
+      const ring = unpackPoints(c.ring, c.origin);
+      return Math.abs(polygonArea(ring)) >= 200 && !allPlacements.some(p => pointInPolygon(p.position, ring));
+    });
+    expect(bigEmpty).toEqual([]);
+    expect(doc.urban!.report.unplacedDwellings).toBe(0);
+    expect(vectorRenderData(doc).warnings).toEqual([]);
+  });
+
   it.skipIf(!process.env.BENCH_COMPACT_V2)(
     "benchmarks compact vs compact-v2 and compact-medium vs compact-medium-v2 across 2k-20k",
     () => {
@@ -143,14 +201,14 @@ describe("compact-v2 and compact-medium-v2 (docs/plan/ce-meshless-compact-block-
         const t0 = performance.now();
         const doc = generateTown(plotFabric, population, facilities, "ab-bench-seed");
         const ms = Math.round(performance.now() - t0);
-        const kb = Math.round(serializeVectorDocument(doc).length / 1024);
+        const _kb = Math.round(serializeVectorDocument(doc).length / 1024);
         const cells = Object.values(doc.fabric!.cells).filter(c => c.inside);
         let land = 0,
           built = 0,
-          lanes = 0,
+          _lanes = 0,
           _laneM = 0,
-          plotCells = 0,
-          plots = 0,
+          _plotCells = 0,
+          _plots = 0,
           houses = 0,
           perimTotal = 0,
           perimCovered = 0,
@@ -159,7 +217,7 @@ describe("compact-v2 and compact-medium-v2 (docs/plan/ce-meshless-compact-block-
         for (const c of cells) {
           const ring = unpackPoints(c.ring, c.origin);
           land += Math.abs(polygonArea(ring));
-          lanes += c.lanes.offsets.length;
+          _lanes += c.lanes.offsets.length;
           for (let i = 0; i < c.lanes.offsets.length; i++) _laneM += lineLen(unpackLine(c.lanes, i, c.origin));
           const n = cellHouseCount(c);
           houses += n;
@@ -174,8 +232,8 @@ describe("compact-v2 and compact-medium-v2 (docs/plan/ce-meshless-compact-block-
             doors.push([ex, ey]);
           }
           if (c.plots?.offsets.length) {
-            plotCells++;
-            plots += c.plots.offsets.length;
+            _plotCells++;
+            _plots += c.plots.offsets.length;
           }
           // Measure perimeter street-frontage coverage and short-side blind-wall rate (Task B).
           const edges: { a: [number, number]; b: [number, number]; len: number }[] = [];
@@ -213,6 +271,36 @@ describe("compact-v2 and compact-medium-v2 (docs/plan/ce-meshless-compact-block-
         }
         const r = doc.urban!.report;
         const inShare = Math.round((r.capacityInside / Math.max(1, r.capacityInside + r.capacityOutside)) * 1000) / 10;
+        const parkIds = new Set((doc.urban!.parks ?? []).map(p => p.id));
+        const allCells = Object.values(doc.fabric!.cells);
+        const outsideHouses = allCells.filter(c => !c.inside).reduce((s, c) => s + cellHouseCount(c), 0);
+        let emptyInsideNonPark = 0,
+          emptyInsidePark = 0,
+          rhombic = 0;
+        for (const c of cells) {
+          const ring = unpackPoints(c.ring, c.origin);
+          const n = cellHouseCount(c);
+          const hasFac = facilityPlacements.some(f => pointInPolygon(f.position, ring));
+          if (n === 0 && !hasFac) {
+            if (parkIds.has(c.id)) emptyInsidePark++;
+            else emptyInsideNonPark++;
+          }
+          for (let i = 0; i < n; i++) {
+            const h = cellHouseRing(c, i);
+            if (h.length === 4) {
+              const skewed = h.some((p, k) => {
+                const a = h[(k + 3) % 4],
+                  b = h[(k + 1) % 4],
+                  u = [a[0] - p[0], a[1] - p[1]],
+                  v = [b[0] - p[0], b[1] - p[1]],
+                  lu = Math.hypot(u[0], u[1]) || 1,
+                  lv = Math.hypot(v[0], v[1]) || 1;
+                return Math.abs((u[0] * v[0] + u[1] * v[1]) / (lu * lv)) > Math.cos((80 * Math.PI) / 180);
+              });
+              if (skewed) rhombic++;
+            }
+          }
+        }
         return {
           fabric: plotFabric,
           pop: population,
@@ -221,14 +309,14 @@ describe("compact-v2 and compact-medium-v2 (docs/plan/ce-meshless-compact-block-
           unplaced: r.unplacedDwellings,
           inPct: inShare,
           houses,
+          outHouses: outsideHouses,
+          emptyIn: emptyInsideNonPark,
+          parkIn: emptyInsidePark,
+          skew: rhombic,
           coverPct: Math.round((built / Math.max(1, land)) * 1000) / 10,
           frontPct: Math.round((perimCovered / Math.max(1, perimTotal)) * 1000) / 10,
           shortBlindPct: shortSides ? Math.round((shortBlind / shortSides) * 1000) / 10 : 0,
-          lanes,
-          plotCells,
-          plots,
-          ms,
-          kb
+          ms
         };
       };
       const rows = [];
