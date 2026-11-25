@@ -9,6 +9,12 @@ import { vectorPickHouse, vectorPickOwner } from "./picking";
 import type { VectorRenderData } from "./renderData";
 import { createVectorScene, VectorSceneLayers } from "./scene3d";
 
+/** A north-up plan view: its center in plan metres and the half-size fitted to the viewport's shorter side. */
+export interface VectorPlanView {
+  center: readonly [number, number];
+  halfView: number;
+}
+
 /** World bounds of one picked house's triangles in a batched house mesh. */
 function houseBounds(mesh: THREE.Object3D, range: { firstTriangle: number; endTriangle: number }) {
   const position = (mesh as THREE.Mesh).geometry.getAttribute("position"),
@@ -24,7 +30,12 @@ export function mountVector3d(
   data: VectorRenderData,
   onSelect?: (id: string) => void,
   quality: ModelQuality = "high",
-  view: { simplification?: SimplificationPreferences; forestQuality?: ForestQualityPreference } = {}
+  view: {
+    simplification?: SimplificationPreferences;
+    forestQuality?: ForestQualityPreference;
+    /** The 2D map's view: the 3D view opens straight above it at the same scale, as the mesh editor's view. */
+    planView?: VectorPlanView | null;
+  } = {}
 ) {
   // The mesh editor's forest quality: a fixed level, or automatic from the frame times while the camera moves.
   // Simplification off draws the forest at High, as there.
@@ -65,7 +76,7 @@ export function mountVector3d(
   );
   container.replaceChildren(renderer.domElement);
   const scene = new THREE.Scene(),
-    camera = new THREE.PerspectiveCamera(40, 1, 1, Math.max(10000, data.extentMeters * 20));
+    camera = new THREE.PerspectiveCamera(45, 1, 1, Math.max(10000, data.extentMeters * 20));
   const bounds = new THREE.Box3().setFromObject(model.group),
     targetHeight = (bounds.min.y + bounds.max.y) / 2;
   scene.add(model.group, new THREE.HemisphereLight(0xffffff, 0x706552, 2.3));
@@ -76,16 +87,40 @@ export function mountVector3d(
     -data.center[1] + data.extentMeters
   );
   scene.add(light);
-  camera.position.set(
-    data.center[0] + data.extentMeters * 0.65,
-    targetHeight + data.extentMeters * 0.9,
-    -data.center[1] + data.extentMeters * 0.8
-  );
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(data.center[0], targetHeight, -data.center[1]);
-  controls.maxPolarAngle = Math.PI * 0.49;
+  // The mesh editor's controls: the wheel zooms toward the cursor and panning stays on the ground plane.
+  controls.enableDamping = false;
+  controls.zoomToCursor = true;
+  controls.screenSpacePanning = false;
+  controls.maxPolarAngle = Math.PI / 2 - 0.05;
   controls.maxDistance = data.extentMeters * 5;
-  controls.update();
+  const groundAt = (x: number, z: number) => {
+    const ray = new THREE.Raycaster(new THREE.Vector3(x, bounds.max.y + 1, z), new THREE.Vector3(0, -1, 0));
+    const hits = ray.intersectObject(model.group, true);
+    return hits.length ? hits[hits.length - 1].point.y : model.group.position.y;
+  };
+  // Straight above the 2D view at its scale. A tiny +Z offset defines screen-up at the pole without a visible tilt.
+  const framePlan = (plan: VectorPlanView) => {
+    const halfView = Math.max(1, plan.halfView),
+      elevation = groundAt(plan.center[0], -plan.center[1]),
+      distance = halfView / Math.min(1, camera.aspect) / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    camera.position.set(plan.center[0], elevation + distance, -plan.center[1] + 0.001);
+    controls.target.set(plan.center[0], elevation, -plan.center[1]);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(controls.target);
+    controls.update();
+  };
+  const initialPlan =
+    view.planView && view.planView.center.every(Number.isFinite) && view.planView.halfView > 0
+      ? view.planView
+      : { center: data.center, halfView: data.extentMeters / 2 };
+  {
+    // The camera aspect is known before the first frame, so the framing matches the 2D map's fit.
+    const rect = container.getBoundingClientRect();
+    camera.aspect = Math.max(1, rect.width) / Math.max(300, rect.height);
+    camera.updateProjectionMatrix();
+  }
+  framePlan(initialPlan);
   let frame = 0,
     previousFrame: { at: number; endedAt: number } | undefined,
     moving = false,
@@ -211,6 +246,24 @@ export function mountVector3d(
     },
     /** Resolves when the WebGPU renderer has started. A rejection means the view could not start. */
     ready,
+    /** The 3D view as a north-up 2D view: the target and the scale seen along the viewing ray, as the mesh
+     * editor's view hands back to its 2D map. Null when the camera looks too flat to resolve a scale. */
+    getPlanView(): VectorPlanView | null {
+      const delta = camera.position.clone().sub(controls.target),
+        distance = delta.length();
+      if (!Number.isFinite(distance) || distance <= 0) return null;
+      const direction = delta.normalize();
+      if (direction.y <= 0.01) return null;
+      const halfView =
+        (distance *
+          Math.max(0.01, direction.y) *
+          Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) *
+          Math.min(1, camera.aspect)) /
+        camera.zoom;
+      return Number.isFinite(halfView) && halfView > 0
+        ? { center: [controls.target.x, -controls.target.z], halfView }
+        : null;
+    },
     /** Layer keys the last drawing rebuilt rather than kept. */
     get rebuiltLayers() {
       return [...layers.built];

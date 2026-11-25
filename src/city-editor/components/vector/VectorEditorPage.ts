@@ -27,7 +27,7 @@ import { createVectorFabricHousePanel } from "./VectorFabricHousePanel";
 import { createVectorGenerationPanel } from "./VectorGenerationPanel";
 import { createVectorObjectPanel } from "./VectorObjectPanel";
 import { createVectorPlacementPanel } from "./VectorPlacementPanel";
-import { createVectorPresentationPanel } from "./VectorPresentationPanel";
+import { createVectorPresentationPanel, vectorViewExtent } from "./VectorPresentationPanel";
 import { createVectorWorkbench } from "./VectorWorkbench";
 import { attachVectorMeasure } from "./vectorMeasure";
 
@@ -76,7 +76,6 @@ export function mountVectorCityEditor(
   status.setAttribute("aria-live", "polite");
   const map = document.createElement("main");
   map.style.cssText = "flex:1;min-width:0";
-  const viewportExtents = new WeakMap<SVGSVGElement, number>();
   scope.listen(
     map,
     "wheel",
@@ -88,8 +87,7 @@ export function mountVectorCityEditor(
       const size = Math.min(rect.width, rect.height);
       if (!(width > 0 && height > 0 && size > 0)) return;
       event.preventDefault();
-      const extent = viewportExtents.get(svg) ?? width;
-      viewportExtents.set(svg, extent);
+      const extent = vectorViewExtent(svg, width);
       const nextWidth = clamp(width * Math.exp(event.deltaY * 0.0012), extent / 20, extent);
       const scale = nextWidth / width;
       const nextHeight = height * scale;

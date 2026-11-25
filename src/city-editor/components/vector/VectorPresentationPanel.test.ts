@@ -10,7 +10,13 @@ vi.mock("../../renderers/vector/view3d", () => ({
   mountVector3d: (host: HTMLElement, data: unknown) => {
     host.replaceChildren(document.createElement("canvas"));
     mounted.calls(data);
-    return { warnings: [], png: async () => new Blob(), dispose: mounted.dispose, update: mounted.update };
+    return {
+      warnings: [],
+      png: async () => new Blob(),
+      dispose: mounted.dispose,
+      update: mounted.update,
+      getPlanView: () => null
+    };
   }
 }));
 afterEach(() => {

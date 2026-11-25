@@ -3,7 +3,7 @@ import { assertVectorDocument } from "../../generators/vector/validation/documen
 import { vectorUrbanStages } from "../../generators/vector/validation/urban";
 import { renderVectorDocument } from "../../renderers/vector/documentSvg";
 import { vectorRenderData } from "../../renderers/vector/renderData";
-import type { mountVector3d } from "../../renderers/vector/view3d";
+import type { mountVector3d, VectorPlanView } from "../../renderers/vector/view3d";
 import { readModelQualityPreference, readSimplificationPreferences } from "../../services/browserPreferences";
 import type { EditorLifetime } from "../../services/editorLifetime";
 import { readForestViewPreferences } from "../../services/forestViewPreferences";
@@ -12,6 +12,31 @@ import { type VectorRecipe, vectorRecipe, vectorShareUrl } from "../../services/
 import type { VectorCityDocument } from "../../types/vector/document";
 import type { VectorStage } from "../../types/vector/urban";
 
+/** The 2D map's north-up view, read from its SVG viewBox (plan +y is SVG -y). */
+function readPlanView(map: HTMLElement): VectorPlanView | null {
+  const box = map.querySelector<SVGSVGElement>(".ce-vector-svg")?.getAttribute("viewBox")?.split(/\s+/).map(Number);
+  if (!box || box.length !== 4 || !box.every(Number.isFinite) || !(box[2] > 0 && box[3] > 0)) return null;
+  return {
+    center: [box[0] + box[2] / 2, -(box[1] + box[3] / 2)],
+    halfView: Math.max(box[2], box[3]) / 2
+  };
+}
+/** Show a plan view on the 2D map, within the wheel zoom's range of the drawn extent. */
+function adoptPlanView(map: HTMLElement, plan: VectorPlanView) {
+  const svg = map.querySelector<SVGSVGElement>(".ce-vector-svg"),
+    box = svg?.getAttribute("viewBox")?.split(/\s+/).map(Number);
+  if (!svg || !box || box.length !== 4 || !(box[2] > 0)) return;
+  const extent = vectorViewExtent(svg, box[2]),
+    size = Math.min(extent, Math.max(extent / 20, plan.halfView * 2)),
+    [x, y] = plan.center;
+  svg.setAttribute("viewBox", `${x - size / 2} ${-y - size / 2} ${size} ${size}`);
+}
+/** The widest viewBox width of a drawn map, kept on it before its first zoom changes the viewBox. */
+export function vectorViewExtent(svg: SVGSVGElement, width: number): number {
+  const extent = Number(svg.dataset.viewExtent) || width;
+  svg.dataset.viewExtent = String(extent);
+  return extent;
+}
 const text = (key: string) => editorText(`cityEditor.vector.presentation.${key}` as EditorMessageKey);
 export function createVectorPresentationPanel(
   scope: EditorLifetime,
@@ -79,6 +104,9 @@ export function createVectorPresentationPanel(
     syncToggle();
     if (view.value !== "3d") {
       scope.invalidate("vector-3d");
+      // Leaving a shown 3D view hands its target and scale to the 2D map, as in the mesh editor.
+      const plan = !host.hidden ? scene?.getPlanView() : null;
+      if (plan) adoptPlanView(map, plan);
       host.hidden = true;
       map.hidden = false;
       status.textContent = text("ready");
@@ -112,7 +140,8 @@ export function createVectorPresentationPanel(
         readModelQualityPreference(),
         {
           simplification: readSimplificationPreferences(),
-          forestQuality: readForestViewPreferences().quality
+          forestQuality: readForestViewPreferences().quality,
+          planView: readPlanView(map)
         }
       );
       sceneDoc = doc;
@@ -188,7 +217,12 @@ export function createVectorPresentationPanel(
     return b;
   };
   button("svg", () =>
-    downloadVectorBlob(new Blob([serializeVectorSvg(displayed, selected)], { type: "image/svg+xml" }), "svg")
+    downloadVectorBlob(
+      new Blob([serializeVectorSvg(displayed, selected)], {
+        type: "image/svg+xml"
+      }),
+      "svg"
+    )
   );
   button("png", async () => {
     const current = scope.ticket("vector-export"),
@@ -222,8 +256,19 @@ export function createVectorPresentationPanel(
       }
     const url = vectorShareUrl(
       recipeValue
-        ? { kind: "fmg-vector-city-share", version: 1, mode: "recipe", recipe: recipeValue }
-        : { kind: "fmg-vector-city-share", version: 1, mode: "document", document: displayed, stage: selected }
+        ? {
+            kind: "fmg-vector-city-share",
+            version: 1,
+            mode: "recipe",
+            recipe: recipeValue
+          }
+        : {
+            kind: "fmg-vector-city-share",
+            version: 1,
+            mode: "document",
+            document: displayed,
+            stage: selected
+          }
     );
     link.value = url;
     link.hidden = false;
