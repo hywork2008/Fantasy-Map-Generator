@@ -17,8 +17,8 @@
 | Barge | Codex GPT-6.1 Sol | 単一default、Low扱い | BVとCE barge。帆は無い |
 | Galleon | Claude Opus 5.5 | low／highと互換default | BV両品質・帆×砲門4状態。CEは不採用 |
 | Galleon | Grok 4.7 | highのみ。Lowは作らない | BV専用。帆×砲門×窓の8状態。CEは不採用 |
-| Ship of the line | Grok 4.7 | highのみ。Lowは作らない | BV専用の新系統。帆×砲門×窓の8状態。CEは配置しない |
-| Ship of the line（HMS Victory） | Claude Opus 5.5 | highのみ。Lowは作らない | BVの比較版。帆×砲門×窓の8状態。CEの採用はGrok 4.7のまま |
+| Ship of the line | Grok 4.7 | highのみ。Lowは作らない | BV比較版。帆×砲門×窓の8状態。2026-11-26からCEの採用はOpus版 |
+| Ship of the line（HMS Victory） | Claude Opus 5.5 | highのみ。Lowは作らない | BVとCEの既定（2026-11-26）。帆×砲門×窓の8状態 |
 | Galley | Grok 4.7 | highのみ。Lowは作らない | BV専用の新系統。帆×櫂×船首砲の8状態。CEは配置しない |
 | Trireme | Grok 4.7 | highのみ。Lowは作らない | BV専用の新系統。帆×櫂の4状態。CEは配置しない。`ship.galley` とは別 |
 
@@ -330,3 +330,9 @@ BVのShipsへ、作者 `Grok 4.7` の三段櫂船Highを追加した。系統は
 計測（既定オプション、展帆・砲門開・窓開）は、外接箱のxが -31.51 から 49.66（81.2 m）、yが -7.45 から 62.5、z幅31.6 m（主帆桁）。三角形64,646、線分8,634。部品別の三角形は船体24,074、甲板8,480、船尾3,616、船首4,424、砲12,064、短艇2,124、帆柱2,772、帆3,020、静索4,072、動索0（線のみ）。畳帆・砲門閉・窓閉は三角形66,878、線分8,619。全長・最高点・喫水は変わらない。
 
 関連テストは `npx vitest run src/buildings/ships/opusShipOfTheLine.test.ts src/buildings/ships/grokShipOfTheLine.test.ts src/city3d/three/modelShips.test.ts src/city3d/adoption.test.ts src/model-viewer/catalogueIndex.test.ts`。外接箱と有限値、上甲板への着地、両状態で104門・33窓、部品単独の組立と全体との三角形一致、状態で変わる部品と変わらない部品、資源解放を確認した。Grok版テストの版一覧を2件に更新し、CE採用がGrok 4.7であることを確かめる。実BVで作者切替、展帆と畳帆・砲門閉・窓閉を確認した。次の制作は引き続きS4のBarge Highである。
+
+### MVとCEの既定をOpus版へ（2026-11-26）
+
+ユーザー指示で、`ship.ship-of-the-line@high` の既定をClaude Opus 5.5のHMS Victoryに切り替えた。CEの採用表は `ship.ship-of-the-line@high#claude-opus-5.5` を指す。CEで手動配置した戦列艦はOpus版で描かれる。BVでは戦列艦を開くとCreated byがClaude Opus 5.5になり、Grok 4.7は比較用に選べる。CEのモデル船は全長でそろえて等倍に拡大縮小するため、`SHIP_DIMENSIONS["ship-of-the-line"]` の基準全長と既定寸法を78.7 mから81.2 m（Opus版の外接全長）に、基準幅を15.8 mに改めた。保存済みの船は保存された長さのまま描かれる。窓の状態はCEに保存項目が無いので、既定の開（ガラス入り）で描く。
+
+関連テストは `npx vitest run src/buildings/ships/opusShipOfTheLine.test.ts src/buildings/ships/grokShipOfTheLine.test.ts src/city3d/three/modelShips.test.ts src/city3d/three/shipMeshes.test.ts src/city3d/adoption.test.ts src/model-viewer/catalogueIndex.test.ts src/city-editor/renderers/shipSvg.test.ts` の36件。Grok版テストの採用確認はOpus版に更新した。実BVで既定の作者がClaude Opus 5.5であることを確認した。

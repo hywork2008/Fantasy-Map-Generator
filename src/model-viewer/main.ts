@@ -1562,8 +1562,8 @@ const lineState: { sails: "set" | "furled"; gunports: "open" | "closed"; windows
 };
 const linePartsSelected = { grok: "all", opus: "all" };
 AUTHORED_VARIANTS["ship-of-the-line"] = {
-  author: GROK_SHIP_OF_THE_LINE.author,
-  authors: [GROK_SHIP_OF_THE_LINE.author, OPUS_SHIP_OF_THE_LINE.author],
+  author: OPUS_SHIP_OF_THE_LINE.author,
+  authors: [OPUS_SHIP_OF_THE_LINE.author, GROK_SHIP_OF_THE_LINE.author],
   primary: true,
   quality: true,
   highOnly: true,
@@ -1664,8 +1664,8 @@ function showShipOfTheLine(author: string = authorSelect.value): void {
     fact(
       "CE adoption",
       opus
-        ? "Not adopted; CE places the Grok 4.7 ship of the line. BV comparison edition"
-        : "Not placed by CE. BV-only; CE keeps sloop, caravel, galleon and barge"
+        ? "Adopted; CE places this ship of the line when one is added by hand"
+        : "Not adopted; BV comparison edition. CE places the Claude Opus 5.5 HMS Victory"
     ),
     fact(
       "Dimensions",
@@ -1688,7 +1688,7 @@ function showShipOfTheLine(author: string = authorSelect.value): void {
   const panel = modelPartsPanel(model.group);
   if (panel) facts.append(panel);
 }
-lineButton.addEventListener("click", () => showShipOfTheLine(GROK_SHIP_OF_THE_LINE.author));
+lineButton.addEventListener("click", () => showShipOfTheLine(OPUS_SHIP_OF_THE_LINE.author));
 shipsHeading.append(lineButton);
 
 const galleyButton = document.createElement("button");

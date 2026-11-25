@@ -295,8 +295,8 @@ it("registers a BV-only high variant and leaves the CE galleon on Codex", () => 
     "ship.ship-of-the-line@high#grok-4.7",
     "ship.ship-of-the-line@high#claude-opus-5.5"
   ]);
-  // CE keeps drawing the Grok 4.7 ship; the Opus HMS Victory is a BV comparison edition.
-  expect(adopt(SHIP_VARIANTS, "ship.ship-of-the-line", "high").author).toBe("Grok 4.7");
+  // CE draws the Opus HMS Victory; the Grok 4.7 ship is a BV comparison edition.
+  expect(adopt(SHIP_VARIANTS, "ship.ship-of-the-line", "high").author).toBe("Claude Opus 5.5");
   expect(adopt(SHIP_VARIANTS, "ship.galleon", "default").author).toBe("Codex GPT-6.1 Sol");
   expect(adopt(SHIP_VARIANTS, "ship.galleon", "high").author).toBe("Codex GPT-6.1 Sol");
   expect(adopt(SHIP_VARIANTS, "ship.sloop", "default").author).toBe("Codex GPT-6.1 Sol");

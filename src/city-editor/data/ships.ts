@@ -35,9 +35,9 @@ export const SHIP_DIMENSIONS: Record<ShipType, ShipPhysicalDimensions> = {
   },
   // Model Viewer ships measure their overall length, spars and flight deck included, and scale uniformly.
   "ship-of-the-line": {
-    baseLengthMeters: 78.7,
-    baseBeamMeters: 15.7,
-    defaultSizeMeters: 78.7,
+    baseLengthMeters: 81.2,
+    baseBeamMeters: 15.8,
+    defaultSizeMeters: 81.2,
     minSizeMeters: 55,
     maxSizeMeters: 95,
     historicalName: "Ship of the line"
