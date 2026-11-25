@@ -103,7 +103,8 @@ function urbanState(doc: VectorCityDocument, legacy = false): string {
             landscape: doc.environment.landscape,
             harbor: doc.environment.harbor,
             defenses: doc.environment.defenses,
-            terrain: doc.environment.terrain
+            terrain: doc.environment.terrain,
+            relief: doc.environment.relief
           }
         }
       : {}),

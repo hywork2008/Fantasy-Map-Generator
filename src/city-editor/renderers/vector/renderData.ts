@@ -22,6 +22,7 @@ import { vectorLandscapeClimate } from "../../generators/vector/generation/fores
 import { vectorTownProfile } from "../../generators/vector/generation/housingCulture";
 import { vectorHouseHeightKey, vectorHousingHeights } from "../../generators/vector/generation/housingHeights";
 import { tanneryWaterWorks } from "../../generators/vector/generation/tanneryWaterWorks";
+import { evaluateAnchor } from "../../generators/vector/geometry/curves";
 import { bridgeGeometry, gateOpening, junctionSurface } from "../../generators/vector/geometry/network";
 import { regionBoolean } from "../../generators/vector/geometry/regions";
 import { pathSurface } from "../../generators/vector/geometry/surfaces";
@@ -122,7 +123,11 @@ export interface VectorRenderData {
   landscapeTrees?: (VectorLandscapeTree & { elevationMeters: number })[];
   /** Wells and public basins drawn as the mesh editor's BV waterworks in 3D. */
   wells?: { id: string; point: Point; kind: "well" | "publicBasin"; elevationMeters: number }[];
-  terrain?: { points: [number, number, number][]; indices: number[] };
+  terrain?: { points: [number, number, number][]; indices: number[]; colors?: number[] };
+  /** Stone plinths under buildings on relief: from below the lowest ground up to the level floor (§5.1). */
+  plinths?: { id: string; ring: Point[]; bottom: number; top: number }[];
+  /** The finished ground for the mesh editor's 3D parts on relief: absolute heights and level foundations. */
+  ground?: { heightAt: (point: Point) => number; foundationAt: (ring: readonly Point[]) => number };
   /** Walls (with towers and gates) and bridges as the mesh editor's structure massing, for 3D. Only owners
    * drawn in this stage; the 2D view keeps the surfaces. */
   structures?: ReturnType<typeof vectorStructures>;
@@ -545,10 +550,23 @@ export function vectorRenderData(
   );
   for (const id of hiddenPaths) hidden.add(id);
   paths = paths.filter(p => !hiddenPaths.has(p.id));
+  const plinths: NonNullable<VectorRenderData["plinths"]> = [];
+  const plinth = (id: string, ring: Point[], level: { floor: number; low: number }) => {
+    if (level.floor - level.low > 0.05) plinths.push({ id, ring, bottom: level.low - 0.3, top: level.floor });
+  };
   const add = (item: VectorRenderSurface) => {
     if (hiddenPaths.has(item.id)) return;
     if (terrain.hasRelief) {
-      if (item.kind === "building") item.elevationMeters += terrain.foundationAt(item.id, item.polygons[0].outer);
+      if (item.kind === "building" && terrain.relief) {
+        // A building's floor meets its street; a plinth carries it down to the ground (§5.1).
+        const ring = item.polygons[0].outer,
+          access = item.placement?.accesses[0],
+          street = access && doc.paths[access.pathId] ? evaluateAnchor(doc.paths[access.pathId], access) : undefined,
+          level = terrain.floorAt(ring, street);
+        item.elevationMeters += level.floor - 0.1;
+        plinth(item.id, ring, level);
+      } else if (item.kind === "building")
+        item.elevationMeters += terrain.foundationAt(item.id, item.polygons[0].outer);
       else if (item.kind !== "bridge")
         item.heightAt =
           item.kind === "river"
@@ -838,8 +856,10 @@ export function vectorRenderData(
           parts = withinFrame(ring)
             ? [{ outer: ring, holes: [] }]
             : regionBoolean([{ outer: ring, holes: [] }], [frame], "intersection"),
-          elevation = 0.1 + (terrain.hasRelief ? terrain.foundationAt(id, ring) : 0),
-          [door, access] = plotDoor(ring) ?? unpackPoints(cell.houses.entrances, cell.origin, 2 * i, 2 * i + 2);
+          [door, access] = plotDoor(ring) ?? unpackPoints(cell.houses.entrances, cell.origin, 2 * i, 2 * i + 2),
+          level = terrain.relief ? terrain.floorAt(ring, access) : undefined,
+          elevation = level ? level.floor : 0.1 + (terrain.hasRelief ? terrain.foundationAt(id, ring) : 0);
+        if (level) plinth(id, ring, level);
         for (const part of parts) {
           polygons.push(part);
           houses.ids.push(id);
@@ -1138,20 +1158,33 @@ export function vectorRenderData(
     for (const surface of vectorLandscapeSurfaces(doc.environment.landscape)) add(surface);
   let terrainMesh: VectorRenderData["terrain"], contours: ContourLine[] | undefined;
   if (terrain.hasRelief) {
-    const count = 64,
+    // Fine enough for a motte or a castle hill: about 4 m in a town frame, no more than 385² vertices
+    // (docs/plan/ce-meshless-natural-relief.md §7.1).
+    const count = Math.max(64, Math.min(384, Math.ceil(extent / 4))),
+      step = extent / count,
       points: [number, number, number][] = [],
-      indices: number[] = [];
+      indices: number[] = [],
+      colors: number[] = [];
     for (let y = 0; y <= count; y++)
       for (let x = 0; x <= count; x++) {
-        const p: Point = [center[0] - extent / 2 + (x * extent) / count, center[1] - extent / 2 + (y * extent) / count];
+        const p: Point = [center[0] - extent / 2 + x * step, center[1] - extent / 2 + y * step];
         points.push([p[0], terrain.heightAt(p) - 0.01, p[1]]);
+      }
+    const at = (x: number, y: number) =>
+      points[Math.min(count, Math.max(0, y)) * (count + 1) + Math.min(count, Math.max(0, x))][1];
+    // Earth on gentle ground, grey rock on slopes steeper than 1:1 (§7.1).
+    for (let y = 0; y <= count; y++)
+      for (let x = 0; x <= count; x++) {
+        const slope = Math.hypot(at(x + 1, y) - at(x - 1, y), at(x, y + 1) - at(x, y - 1)) / (2 * step),
+          rock = Math.min(1, Math.max(0, (slope - 0.7) / 0.5));
+        colors.push(0.925 + (0.55 - 0.925) * rock, 0.902 + (0.54 - 0.902) * rock, 0.851 + (0.52 - 0.851) * rock);
       }
     for (let y = 0; y < count; y++)
       for (let x = 0; x < count; x++) {
         const i = y * (count + 1) + x;
         indices.push(i, i + 1, i + count + 1, i + 1, i + count + 2, i + count + 1);
       }
-    terrainMesh = { points, indices };
+    terrainMesh = { points, indices, colors };
     const elevations = new Float32Array(points.map(p => p[1] + 0.01));
     let low = Infinity,
       high = -Infinity;
@@ -1170,6 +1203,11 @@ export function vectorRenderData(
       Math.max(5, (high - low) / 50)
     );
   }
+  // Ground surfaces pushed past `add` (land use, forest, wells, generated precincts) lie on the relief too (P8b).
+  if (terrain.relief)
+    for (const surface of surfaces)
+      if (!surface.heightAt && !surface.elevations && surface.kind !== "building" && surface.kind !== "bridge")
+        surface.heightAt = surface.kind === "river" ? p => terrain.waterAt(p) ?? terrain.heightAt(p) : terrain.heightAt;
   if (doc.urban && !urban) warnings.push("stale-stages");
   const drawn = new Set(surfaces.filter(s => s.kind === "wall" || s.kind === "bridge").map(s => s.id)),
     // Fabric lines are drawn per record (`<record>~l`), or per line (`<record>~l3`) when the union fails.
@@ -1258,7 +1296,16 @@ export function vectorRenderData(
         ? [{ id: `urban:water:${w.id}`, point: w.center, kind: w.kind, elevationMeters: terrain.heightAt(w.center) }]
         : []
     ),
-    terrain: terrainMesh
+    terrain: terrainMesh,
+    ...(plinths.length ? { plinths } : {}),
+    ...(terrain.hasRelief
+      ? {
+          ground: {
+            heightAt: terrain.heightAt,
+            foundationAt: (ring: readonly Point[]) => terrain.foundationAt("", [...ring])
+          }
+        }
+      : {})
   };
 }
 

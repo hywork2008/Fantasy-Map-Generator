@@ -1,5 +1,5 @@
 import type { Point } from "../../types/primitives";
-import type { TerrainFieldPart } from "../../types/terrain";
+import type { PointTerrainPart, TerrainFieldPart } from "../../types/terrain";
 import { type FieldGrid, fieldIndex, fieldPoint, sampleGrid } from "./sample";
 
 function hash2(ix: number, iy: number, seed: number): number {
@@ -152,6 +152,54 @@ function smooth(grid: FieldGrid, values: Float32Array, radiusMeters: number): vo
   blur(mid, values, false);
 }
 
+export function isPointTerrainPart(part: TerrainFieldPart): part is PointTerrainPart {
+  return !["smooth", "mask", "coarse", "correct"].includes(part.kind);
+}
+
+/**
+ * The height one point part adds at `point`. Noise shorter than `minWavelengthMeters` is stretched to it, as a
+ * lattice cannot hold it.
+ */
+export function partHeightAt(part: PointTerrainPart, point: Point, minWavelengthMeters = 0): number {
+  switch (part.kind) {
+    case "offset":
+      return part.meters;
+    case "hill":
+      return (
+        part.heightMeters * falloff(Math.hypot(point[0] - part.center[0], point[1] - part.center[1]), part.radiusMeters)
+      );
+    case "dome": {
+      const radius = part.radiusMeters;
+      if (!(radius > 0)) return 0;
+      const distance = Math.hypot(point[0] - part.center[0], point[1] - part.center[1]);
+      if (distance >= radius) return 0;
+      const t = distance / radius;
+      return part.heightMeters * (1 - t * t);
+    }
+    case "range":
+      return part.heightMeters * falloff(distanceToPolyline(point, part.points), part.radiusMeters);
+    case "trough":
+      return -part.depthMeters * falloff(distanceToPolyline(point, part.points), part.radiusMeters);
+    case "pit":
+      return (
+        -part.depthMeters * falloff(Math.hypot(point[0] - part.center[0], point[1] - part.center[1]), part.radiusMeters)
+      );
+    case "crag":
+      return cragHeight(part, point);
+    case "spur":
+      return spurHeight(part, point);
+    case "scarp":
+      return scarpHeight(part, point);
+    case "noise": {
+      const octaves = part.octaves ?? 4;
+      const wave = Math.max(part.wavelengthMeters, minWavelengthMeters);
+      return part.amplitudeMeters * (fbm(point[0] / wave, point[1] / wave, part.seed, octaves) * 2 - 1);
+    }
+    default:
+      return 0;
+  }
+}
+
 /** Add every part, in order, onto `values`. */
 export function applyParts(grid: FieldGrid, values: Float32Array, parts: readonly TerrainFieldPart[]): void {
   for (const part of parts) {
@@ -167,67 +215,26 @@ export function applyParts(grid: FieldGrid, values: Float32Array, parts: readonl
       addCoarse(grid, values, part, -1);
       continue;
     }
-    for (let row = 0; row < grid.rows; row++)
-      for (let column = 0; column < grid.columns; column++) {
-        const point = fieldPoint(grid, column, row);
-        const index = fieldIndex(grid, column, row);
-        switch (part.kind) {
-          case "offset":
-            values[index] += part.meters;
-            break;
-          case "hill":
-            values[index] +=
-              part.heightMeters *
-              falloff(Math.hypot(point[0] - part.center[0], point[1] - part.center[1]), part.radiusMeters);
-            break;
-          case "dome": {
-            const radius = part.radiusMeters;
-            if (!(radius > 0)) break;
-            const distance = Math.hypot(point[0] - part.center[0], point[1] - part.center[1]);
-            if (distance >= radius) break;
-            const t = distance / radius;
-            values[index] += part.heightMeters * (1 - t * t);
-            break;
+    if (part.kind === "mask") {
+      for (let row = 0; row < grid.rows; row++)
+        for (let column = 0; column < grid.columns; column++) {
+          const point = fieldPoint(grid, column, row);
+          const half = ((grid.columns - 1) * grid.sampleMeters) / 2;
+          const edge = Math.max(Math.abs(point[0]) / half, Math.abs(point[1]) / half);
+          const inner = part.inner ?? 0.82;
+          if (edge > inner) {
+            const t = (edge - inner) / Math.max(1e-6, 1 - inner);
+            values[fieldIndex(grid, column, row)] -= part.dropMeters * t * t;
           }
-          case "range":
-            values[index] += part.heightMeters * falloff(distanceToPolyline(point, part.points), part.radiusMeters);
-            break;
-          case "trough":
-            values[index] -= part.depthMeters * falloff(distanceToPolyline(point, part.points), part.radiusMeters);
-            break;
-          case "pit":
-            values[index] -=
-              part.depthMeters *
-              falloff(Math.hypot(point[0] - part.center[0], point[1] - part.center[1]), part.radiusMeters);
-            break;
-          case "crag":
-            values[index] += cragHeight(part, point);
-            break;
-          case "spur":
-            values[index] += spurHeight(part, point);
-            break;
-          case "scarp":
-            values[index] += scarpHeight(part, point);
-            break;
-          case "noise": {
-            const octaves = part.octaves ?? 4;
-            const wave = Math.max(part.wavelengthMeters, grid.sampleMeters);
-            values[index] += part.amplitudeMeters * (fbm(point[0] / wave, point[1] / wave, part.seed, octaves) * 2 - 1);
-            break;
-          }
-          case "mask": {
-            const half = ((grid.columns - 1) * grid.sampleMeters) / 2;
-            const edge = Math.max(Math.abs(point[0]) / half, Math.abs(point[1]) / half);
-            const inner = part.inner ?? 0.82;
-            if (edge > inner) {
-              const t = (edge - inner) / Math.max(1e-6, 1 - inner);
-              values[index] -= part.dropMeters * t * t;
-            }
-            break;
-          }
-          default:
-            break;
         }
-      }
+      continue;
+    }
+    for (let row = 0; row < grid.rows; row++)
+      for (let column = 0; column < grid.columns; column++)
+        values[fieldIndex(grid, column, row)] += partHeightAt(
+          part as PointTerrainPart,
+          fieldPoint(grid, column, row),
+          grid.sampleMeters
+        );
   }
 }

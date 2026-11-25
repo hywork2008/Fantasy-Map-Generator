@@ -163,6 +163,9 @@ export type TerrainFieldPart =
       elevationsMeters: number[];
     };
 
+/** Parts that are a function of the point alone: everything but `smooth`, `mask`, `coarse` and `correct`. */
+export type PointTerrainPart = Exclude<TerrainFieldPart, { kind: "smooth" | "mask" | "coarse" | "correct" }>;
+
 /** Saved height-field recipe. The grid is rebuilt from this; it is not stored. */
 export interface TerrainFieldRecipe {
   version: 1;

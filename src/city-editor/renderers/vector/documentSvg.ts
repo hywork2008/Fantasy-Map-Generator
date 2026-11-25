@@ -58,16 +58,25 @@ export function renderVectorDocument(
       fill: "#ece6d9"
     })
   );
-  for (const contour of data.contours ?? [])
-    svg.append(
-      element("path", {
-        d: `M${contour.points.map(p => `${p[0]} ${-p[1]}`).join(" L")}`,
-        fill: "none",
-        stroke: "#aaa18b",
-        "stroke-width": ".4",
-        "data-vector-contour": String(contour.elevation)
-      })
-    );
+  // Contours over the fields and woods, under the streets and houses (natural relief §7.3).
+  let lastGround: Element | undefined;
+  const drawContours = () => {
+    const group = element("g", { "pointer-events": "none", "data-vector-contours": "" });
+    for (const contour of data.contours ?? [])
+      group.append(
+        element("path", {
+          d: `M${contour.points.map(p => `${p[0]} ${-p[1]}`).join(" L")}`,
+          fill: "none",
+          stroke: "#7d7262",
+          "stroke-opacity": ".55",
+          "stroke-width": ".6",
+          "pointer-events": "none",
+          "data-vector-contour": String(contour.elevation)
+        })
+      );
+    if (lastGround) lastGround.after(group);
+    else svg.insertBefore(group, svg.firstChild!.nextSibling);
+  };
   const attributes = {
     feature: "data-vector-feature",
     region: "data-vector-region",
@@ -100,8 +109,12 @@ export function renderVectorDocument(
       attrs["stroke-width"] = ".3";
       if (surface.provisional) attrs["stroke-dasharray"] = "1 1";
     }
-    svg.append(element("path", attrs));
+    const drawn = element("path", attrs);
+    svg.append(drawn);
+    if (surface.kind === "feature" && ["farm", "forest", "landscape"].includes(surface.featureKind ?? ""))
+      lastGround = drawn;
   }
+  if (data.contours?.length) drawContours();
   for (const path of data.paths)
     svg.append(
       element("path", {

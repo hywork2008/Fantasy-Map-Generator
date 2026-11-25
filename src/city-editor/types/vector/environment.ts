@@ -61,7 +61,9 @@ export interface VectorEnvironment {
   /** The open land beyond the town split into arable, meadow, pasture and wild ground (pre-acceptance U5b). */
   landUse?: import("./landUse").VectorLandUse;
   defenses?: Record<string, import("./defense").VectorDefensePlan>;
-  /** Freeform's authored ledger is the height/earthwork authority, not a synthetic cell mesh. */
+  /** Natural relief and earthworks of a generated city (docs/plan/ce-meshless-natural-relief.md). */
+  relief?: import("./relief").VectorRelief;
+  /** Freeform's authored ledger: hand grading and documents from before the natural relief. */
   terrain?: FreeformCity;
   freeformSource?: FreeformCity;
   hidden: string[];

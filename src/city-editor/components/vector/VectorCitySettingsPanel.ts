@@ -3,6 +3,13 @@ import { BURIAL_CULTURE_PRESETS, getBurialCulturePreset } from "../../../data/bu
 import { type EditorMessageKey, editorText } from "../../../i18n/editorMessages";
 import { HISTORICAL_PERIODS } from "../../../types/historicalPeriod";
 import {
+  ELEVATION_PRESETS,
+  ELEVATION_RELIEF_MAX,
+  ELEVATION_RELIEF_MIN,
+  ELEVATION_RELIEF_STEP,
+  elevationReliefScale
+} from "../../generators/elevationPreset";
+import {
   portTargets,
   RIVER_FORMS,
   RIVER_PLACEMENTS,
@@ -17,6 +24,8 @@ import { VECTOR_WALL_SHAPES } from "../../generators/vector/generation/wallShape
 import type { EditorLifetime } from "../../services/editorLifetime";
 import type { CoastShape, RiverForm, RiverPlacement, RiverSetting } from "../../types/contracts/siteConfig";
 import type { GenerationSettings } from "../../types/generation";
+import type { ElevationPreset } from "../../types/generationSettings";
+import type { TerrainTemplateId } from "../../types/terrain";
 import type { VectorCityDocument } from "../../types/vector/document";
 
 const text = (key: string) => editorText(`cityEditor.vector.settings.${key}` as EditorMessageKey);
@@ -154,6 +163,49 @@ export function createVectorCitySettingsPanel(
       }
     );
   const rivers = [add(placementAt(0)), add(formAt(0)), add(placementAt(1)), add(formAt(1))];
+  // Natural relief of a standalone site (docs/plan/ce-meshless-natural-relief.md §6.2); an FMG city keeps the map's.
+  const elevation = add(
+    select<ElevationPreset>(
+      "elevationPreset",
+      ELEVATION_PRESETS,
+      () => s().elevationPreset ?? "flat",
+      v => {
+        if (v === "flat") delete s().elevationPreset;
+        else s().elevationPreset = v;
+      }
+    )
+  );
+  const landform = add(
+    select<"" | Exclude<TerrainTemplateId, "cells">>(
+      "landform",
+      ["", "crag", "spur", "escarpment", "meander", "dome", "noise"],
+      () => {
+        const t = s().terrainField?.template;
+        return t && t !== "cells" ? t : "";
+      },
+      v => {
+        if (v) s().terrainField = { template: v };
+        else delete s().terrainField;
+      },
+      v => (v ? v : text("noLandform"))
+    )
+  );
+  const reliefScale = document.createElement("input");
+  reliefScale.type = "number";
+  reliefScale.min = String(ELEVATION_RELIEF_MIN);
+  reliefScale.max = String(ELEVATION_RELIEF_MAX);
+  reliefScale.step = String(ELEVATION_RELIEF_STEP);
+  reliefScale.dataset.citySetting = "elevationRelief";
+  const reliefValue = () => String(elevationReliefScale(s().elevationRelief));
+  reliefScale.value = reliefValue();
+  scope.listen(reliefScale, "change", () => {
+    const n = elevationReliefScale(Number(reliefScale.value));
+    if (n === ELEVATION_RELIEF_MIN) delete s().elevationRelief;
+    else s().elevationRelief = n;
+    changed();
+  });
+  row("elevationRelief", reliefScale);
+  const reliefControl = add({ element: reliefScale, sync: () => (reliefScale.value = reliefValue()) });
   for (const feature of ["walls", "citadel", "plaza", "temple", "shanty"] as const)
     add(
       check(
@@ -353,7 +405,9 @@ export function createVectorCitySettingsPanel(
   function sync() {
     for (const c of controls) c.sync();
     const fixedSite = linked();
-    for (const c of [coast, ...rivers]) (c.element as HTMLSelectElement).disabled = fixedSite;
+    for (const c of [coast, ...rivers, elevation, landform, reliefControl])
+      (c.element as HTMLSelectElement).disabled = fixedSite;
+    (reliefControl.element as HTMLInputElement).disabled ||= (s().elevationPreset ?? "flat") === "flat";
     // A river's form is chosen once the river is.
     const count = riverSettings(s().config).length;
     (rivers[1].element as HTMLSelectElement).disabled ||= count < 1;

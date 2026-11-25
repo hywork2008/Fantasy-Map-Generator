@@ -173,8 +173,12 @@ export function vectorStructures(doc: VectorCityDocument): VectorStructureOwner[
     );
     // Footings follow the ground: ribbons per vertex, footprints at their centre.
     for (const part of parts)
-      if (part.centerline) part.baseElevationsMeters = part.centerline.map(p => ground(p) + part.baseElevationMeters);
-      else if (part.footprint) part.baseElevationMeters += ground(polygonCentroid(part.footprint));
+      if (part.centerline) {
+        part.baseElevationsMeters = part.centerline.map(p => ground(p) + part.baseElevationMeters);
+        // The wall-walk rides the footing up and down the slope (natural relief §5.4).
+        if (terrain.hasRelief && !part.topElevationsMeters)
+          part.topElevationsMeters = part.baseElevationsMeters.map(base => base + part.heightMeters);
+      } else if (part.footprint) part.baseElevationMeters += ground(polygonCentroid(part.footprint));
     out.push({
       owner: wall.id,
       kind: "wall",

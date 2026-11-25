@@ -11,6 +11,7 @@ import { synthSite } from "../../site/synthSite";
 import { featureReservations } from "../environmentState";
 import { regionArea, regionBoolean } from "../geometry/regions";
 import { allVectorWater } from "../geometry/water";
+import { settingsRelief } from "../relief";
 import { seedVectorCivicCentre, vectorBurial, vectorCivicLayout } from "./civic";
 import { curveSynthesizedRivers } from "./curvedRivers";
 import { fortifyVectorInput } from "./fortress";
@@ -222,6 +223,11 @@ export function vectorInputFromEditor(request: VectorEditorGenerationInput) {
         doc = fortified.document;
       }
       if (civic) seedVectorCivicCentre(doc, civicOptions, burial.profile);
+    }
+    // A standalone town's relief comes from its settings; an FMG city keeps the map's heights (P8a).
+    if (!settings.descriptor) {
+      const relief = settingsRelief(doc, settings, seed, radius);
+      if (relief) doc.environment = { ...(doc.environment ?? { features: {}, hidden: [] }), relief };
     }
     return doc;
   };

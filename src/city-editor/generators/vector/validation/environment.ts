@@ -144,6 +144,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
           "landUse",
           "landscape",
           "terrain",
+          "relief",
           "hidden",
           "freeformSource"
         ].includes(k)
@@ -193,6 +194,7 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
     )
       errors.push("environment-terrain");
   }
+  if (e.relief !== undefined && !validVectorRelief(e.relief)) errors.push("environment-relief");
   for (const [id, f] of Object.entries(e.features))
     try {
       if (
@@ -332,4 +334,80 @@ export function validateVectorEnvironment(doc: VectorCityDocument): string[] {
       errors.push(`feature:${id}`);
     }
   return errors;
+}
+
+const finite = (v: unknown) => typeof v === "number" && Number.isFinite(v);
+const reliefPoint = (v: unknown) => Array.isArray(v) && v.length === 2 && v.every(finite);
+/** Shape check of the natural relief: bounded part and earthwork lists of finite numbers. */
+function validVectorRelief(r: unknown): boolean {
+  if (!record(r)) return false;
+  const v = r as Record<string, unknown>;
+  if (v.version !== 1 || !["settings", "fmg"].includes(v.source as string) || !finite(v.seed)) return false;
+  if (!Array.isArray(v.parts) || v.parts.length > 64 || !Array.isArray(v.earthworks) || v.earthworks.length > 256)
+    return false;
+  const kinds = [
+    "offset",
+    "hill",
+    "dome",
+    "range",
+    "trough",
+    "pit",
+    "crag",
+    "spur",
+    "scarp",
+    "noise",
+    "preset",
+    "lattice"
+  ];
+  for (const part of v.parts as unknown[]) {
+    if (!record(part) || !kinds.includes((part as { kind: string }).kind)) return false;
+    const text = JSON.stringify(part);
+    if (text.length > 200000 || /null|NaN|Infinity/.test(text)) return false;
+    if ((part as { kind: string }).kind === "lattice") {
+      const l = part as { columns: unknown; rows: unknown; elevationsMeters: unknown; spacingMeters: unknown };
+      if (
+        !Number.isInteger(l.columns) ||
+        !Number.isInteger(l.rows) ||
+        (l.columns as number) < 2 ||
+        (l.rows as number) < 2 ||
+        !finite(l.spacingMeters) ||
+        (l.spacingMeters as number) <= 0 ||
+        !Array.isArray(l.elevationsMeters) ||
+        l.elevationsMeters.length !== (l.columns as number) * (l.rows as number) ||
+        !l.elevationsMeters.every(finite)
+      )
+        return false;
+    }
+  }
+  for (const e of v.earthworks as unknown[]) {
+    if (!record(e)) return false;
+    const w = e as Record<string, unknown>;
+    if (typeof w.id !== "string") return false;
+    if (w.kind === "mound") {
+      if (
+        !reliefPoint(w.center) ||
+        !finite(w.summitMeters) ||
+        !finite(w.summitRadiusMeters) ||
+        !finite(w.baseRadiusMeters) ||
+        !((w.baseRadiusMeters as number) > (w.summitRadiusMeters as number)) ||
+        (w.summitRadiusMeters as number) < 0
+      )
+        return false;
+    } else if (w.kind === "ditch") {
+      if (
+        !Array.isArray(w.line) ||
+        w.line.length < 2 ||
+        w.line.length > 4096 ||
+        !w.line.every(reliefPoint) ||
+        typeof w.closed !== "boolean" ||
+        !finite(w.widthMeters) ||
+        !finite(w.floorWidthMeters) ||
+        !finite(w.floorMeters) ||
+        !((w.widthMeters as number) > (w.floorWidthMeters as number)) ||
+        (w.floorWidthMeters as number) < 0
+      )
+        return false;
+    } else return false;
+  }
+  return true;
 }

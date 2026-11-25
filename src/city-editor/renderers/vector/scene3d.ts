@@ -382,9 +382,25 @@ export function createVectorScene(
         )
       );
       groundGeometry.setIndex(data.terrain.indices);
+      if (data.terrain.colors) {
+        // The plan's colours are sRGB; vertex colours are linear.
+        const linear = new THREE.Color(),
+          colors = data.terrain.colors.slice();
+        for (let i = 0; i < colors.length; i += 3) {
+          linear.setRGB(colors[i], colors[i + 1], colors[i + 2], THREE.SRGBColorSpace);
+          colors[i] = linear.r;
+          colors[i + 1] = linear.g;
+          colors[i + 2] = linear.b;
+        }
+        groundGeometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+      }
       groundGeometry.computeVertexNormals();
     }
-    const ground = new THREE.Mesh(groundGeometry, material("#ece6d9"));
+    const reliefMaterial = data.terrain?.colors
+      ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, side: THREE.DoubleSide })
+      : undefined;
+    if (reliefMaterial) disposers.push(() => reliefMaterial.dispose());
+    const ground = new THREE.Mesh(groundGeometry, reliefMaterial ?? material("#ece6d9"));
     if (!data.terrain) {
       if (!cutouts.length) ground.rotation.x = -Math.PI / 2;
       ground.position.set(0, -0.01, 0);
@@ -405,6 +421,36 @@ export function createVectorScene(
         const trees = createVectorLandscapeTrees(data.landscapeTrees!, data.center, datum, season);
         return { object: trees.group, dispose: () => trees.dispose() };
       });
+    // Stone plinths: each building's walls carried down from its level floor below the lowest ground (P8c).
+    if (data.plinths?.length)
+      layer("plinths", [data.plinths], () => {
+        const positions: number[] = [];
+        for (const p of data.plinths!) {
+          const ring = p.ring,
+            b = p.bottom - datum,
+            t = p.top - datum;
+          for (let i = 0; i < ring.length; i++) {
+            const a = ring[i],
+              c = ring[(i + 1) % ring.length],
+              ax = a[0] - data.center[0],
+              az = -a[1] + data.center[1],
+              cx = c[0] - data.center[0],
+              cz = -c[1] + data.center[1];
+            positions.push(ax, b, az, cx, b, cz, cx, t, cz, ax, b, az, cx, t, cz, ax, t, az);
+          }
+        }
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+        geometry.computeVertexNormals();
+        const mesh = new THREE.Mesh(geometry, material("#a39a8a"));
+        mesh.userData = { kind: "plinths" };
+        return { object: mesh, dispose: () => geometry.dispose() };
+      });
+    // The mesh editor's parts stand on the relief through its height and foundation functions (P8b).
+    const onRelief = data.ground
+      ? { relief: true, heightAt: data.ground.heightAt, foundationAt: data.ground.foundationAt }
+      : undefined;
+    const drawsOn = !data.terrain || !!onRelief;
     if (data.piers?.length && !data.terrain)
       layer("piers", [data.piers], () => {
         const piers = createTownPiers(
@@ -424,9 +470,9 @@ export function createVectorScene(
       });
     // Inns, guild halls and yards, windmills and gallows as the mesh editor's BV facilities, religious houses as its
     // fitted friary assemblies (P2d-4). Their raised massing gives way; ground pieces stay under the models.
-    if (data.facilities && Object.values(data.facilities.aerial ?? {}).some(list => list?.length) && !data.terrain)
-      layer("facilities", [data.facilities], () => {
-        const facilities = createFacilityLayer(data.facilities!, harborCache, quality),
+    if (data.facilities && Object.values(data.facilities.aerial ?? {}).some(list => list?.length) && drawsOn)
+      layer("facilities", [data.facilities, onRelief ? data.revision : 0], () => {
+        const facilities = createFacilityLayer(data.facilities!, harborCache, quality, onRelief),
           holder = new THREE.Group();
         holder.position.set(-data.center[0], -datum, data.center[1]);
         holder.userData = { kind: "feature", representation: "bv-facility" };
@@ -437,9 +483,9 @@ export function createVectorScene(
           bvOwners: facilities.accepted.map(site => site.id)
         };
       });
-    if (data.monasteries?.length && !data.terrain)
-      layer("monasteries", [data.monasteries], () => {
-        const houses = createTownMonasteries(data.monasteries!, undefined, quality),
+    if (data.monasteries?.length && drawsOn)
+      layer("monasteries", [data.monasteries, onRelief ? data.revision : 0], () => {
+        const houses = createTownMonasteries(data.monasteries!, onRelief, quality),
           holder = new THREE.Group();
         holder.position.set(-data.center[0], -datum, data.center[1]);
         holder.userData = {
@@ -454,9 +500,9 @@ export function createVectorScene(
           bvKinds: ["monastery"]
         };
       });
-    if (data.openSpaces && !data.terrain)
-      layer("open-spaces", [data.openSpaces, season, outskirtsLod], () => {
-        const spaces = createTownOpenSpaces(data.openSpaces!, undefined, outskirtsLod, season),
+    if (data.openSpaces && drawsOn)
+      layer("open-spaces", [data.openSpaces, season, outskirtsLod, onRelief ? data.revision : 0], () => {
+        const spaces = createTownOpenSpaces(data.openSpaces!, onRelief, outskirtsLod, season),
           holder = new THREE.Group();
         holder.position.set(-data.center[0], -datum, data.center[1]);
         holder.userData = {
@@ -477,8 +523,8 @@ export function createVectorScene(
       });
     // Woodland as the mesh editor's forest (P2d-6): floor, far crowns and near trees by the camera, in the
     // town's climate and the settings' density. Its flat surface stays in the 2D plan only.
-    if (data.forest && !data.terrain) {
-      const forestLayer = layer("forest", [data.forest, season, outskirtsLod], () => {
+    if (data.forest && drawsOn) {
+      const forestLayer = layer("forest", [data.forest, season, outskirtsLod, onRelief ? data.revision : 0], () => {
         const f = data.forest!,
           forestDocument = {
             format: "vector-forest",
@@ -524,7 +570,7 @@ export function createVectorScene(
               protectedFarmCount: 0,
               protectedFarmAreaM2: 0
             },
-            undefined,
+            onRelief,
             // The forest has its own quality in the mesh editor, automatic by default.
             options.forestQuality ?? "standard",
             outskirtsLod,
@@ -909,7 +955,8 @@ export function createVectorScene(
             geometry = projectTerrainGeometry(
               original,
               p => surface.heightAt!([p[0] + data.center[0], p[1] + data.center[1]]) - datum,
-              Math.max(1, data.extentMeters / 128)
+              // Close to the ground lattice, so a field's chords do not dip under the ground between its vertices.
+              Math.max(2, data.extentMeters / 256)
             );
           } finally {
             original.dispose();
@@ -919,7 +966,11 @@ export function createVectorScene(
         // Hidden meshes are not drawn or exported, but the pick ray still finds them.
         if ((roadsDrawn && surface.kind === "road") || (waterParts.length && surface.kind === "river"))
           mesh.visible = false;
-        mesh.position.y = surface.elevations ? 0 : surface.elevationMeters - (surface.heightAt ? 0 : datum);
+        mesh.position.y = surface.elevations
+          ? 0
+          : surface.elevationMeters -
+            (surface.heightAt ? 0 : datum) +
+            (surface.heightAt && data.ground ? 0.1 + surface.elevationMeters * 40 : 0);
         mesh.userData = {
           id: surface.id,
           kind: surface.kind,

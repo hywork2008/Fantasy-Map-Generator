@@ -12,6 +12,16 @@ import { evaluateAnchor, pathIsClosed } from "./geometry/curves";
 import { bridgeGeometry } from "./geometry/network";
 import { sampledWidth, samplePath } from "./geometry/sampling";
 import { vectorWaterSurfaces } from "./geometry/water";
+import { reliefHeightFunction } from "./relief";
+
+/** Rise from the street into a house: one step (§5.1). */
+export const ENTRANCE_STEP_METERS = 0.15;
+/** How deep a building's uphill side may sink into the slope (§5.1). */
+export const EMBED_MAX_METERS = 2.5;
+/** A downhill plinth taller than this holds an undercroft storey (§5.1). */
+export const PLINTH_MAX_METERS = 1.2;
+/** Most a house may stand above its lowest ground, undercroft included (§5.1). */
+export const EXPOSURE_MAX_METERS = 3.5;
 
 const cache = new WeakMap<VectorCityDocument, ReturnType<typeof buildTerrain>>();
 export function vectorTerrain(doc: VectorCityDocument) {
@@ -23,7 +33,9 @@ export function vectorTerrain(doc: VectorCityDocument) {
   return terrain;
 }
 function buildTerrain(doc: VectorCityDocument) {
-  const source = doc.environment?.terrain;
+  const relief = doc.environment?.relief;
+  // The natural relief is the ground of a generated city; Freeform's ledger the ground of a hand-graded one.
+  const source = relief ? undefined : doc.environment?.terrain;
   const field = source
     ? fieldFromParts(
         source.frame.extentMeters,
@@ -53,42 +65,58 @@ function buildTerrain(doc: VectorCityDocument) {
           } else field.elevationsMeters[index] += (stroke.kind === "lower" ? -1 : 1) * stroke.meters * weight;
         }
     }
-  const baseAt = (p: Point) => (field ? sampleField(field, p) : 0);
-  const rivers = source
-    ? Object.values(doc.paths)
-        .filter(p => p.role === "river")
-        .map(path => {
-          const saved = source.rivers.find(r => `freeform:river:${r.id}` === path.id || r.sourceId === path.id),
-            samples = samplePath(path),
-            widths = sampledWidth(path, samples);
-          let prior = Infinity;
-          const bed = samples.map(sample => {
-            let level = baseAt(sample.point) - 2;
-            if (saved) {
-              const hit = nearestOnPolyline(sample.point, saved.centerline);
-              level =
-                saved.bedMeters[hit.segIndex] +
-                (saved.bedMeters[hit.segIndex + 1] - saved.bedMeters[hit.segIndex]) * hit.t;
+  const reliefAt = relief ? reliefHeightFunction(relief) : undefined;
+  const baseAt = (p: Point) => (reliefAt ? reliefAt(p) : field ? sampleField(field, p) : 0);
+  const rivers =
+    source || relief
+      ? Object.values(doc.paths)
+          .filter(p => p.role === "river")
+          .map(path => {
+            const saved = source?.rivers.find(r => `freeform:river:${r.id}` === path.id || r.sourceId === path.id),
+              samples = samplePath(path),
+              widths = sampledWidth(path, samples);
+            const natural = samples.map(sample => {
+              if (saved) {
+                const hit = nearestOnPolyline(sample.point, saved.centerline);
+                return (
+                  saved.bedMeters[hit.segIndex] +
+                  (saved.bedMeters[hit.segIndex + 1] - saved.bedMeters[hit.segIndex]) * hit.t
+                );
+              }
+              return baseAt(sample.point) - 2;
+            });
+            const descend = (levels: number[]) => {
+              let prior = Infinity;
+              return levels.map(level => (prior = Math.min(prior, level)));
+            };
+            // A generated relief's river runs whichever way cuts the less ground: down the land, not up it.
+            let bed = descend(natural);
+            if (relief && !saved) {
+              const reverse = descend(natural.slice().reverse()).reverse(),
+                cut = (levels: number[]) => levels.reduce((n, level, i) => n + natural[i] - level, 0);
+              if (cut(reverse) < cut(bed)) bed = reverse;
             }
-            prior = Math.min(prior, level);
-            return prior;
-          });
-          if (pathIsClosed(path)) {
-            const level = Math.min(...bed);
-            bed.fill(level);
-          }
-          return {
-            kind: "riverCorridor" as const,
-            id: `terrain:${path.id}`,
-            sourceId: path.id,
-            centerline: samples.map(s => s.point),
-            widthsMeters: widths.map(w => w.left + w.right),
-            bedMeters: bed,
-            depthMeters: saved?.depthMeters ?? 1,
-            bank: saved?.bank ?? { kind: "slope" as const, runMeters: 3 }
-          };
-        })
-    : [];
+            // Where the bed is cut deep, the valley sides lie back at about 1:2.5 instead of standing as a wall.
+            const deepest = Math.max(0, ...bed.map((level, i) => natural[i] - level));
+            if (pathIsClosed(path)) {
+              const level = Math.min(...bed);
+              bed.fill(level);
+            }
+            return {
+              kind: "riverCorridor" as const,
+              id: `terrain:${path.id}`,
+              sourceId: path.id,
+              centerline: samples.map(s => s.point),
+              widthsMeters: widths.map(w => w.left + w.right),
+              bedMeters: bed,
+              depthMeters: saved?.depthMeters ?? 1,
+              bank: saved?.bank ?? {
+                kind: "slope" as const,
+                runMeters: relief ? Math.min(150, Math.max(3, deepest * 2.5)) : 3
+              }
+            };
+          })
+      : [];
   const features: TerrainFeature[] = [
     ...rivers,
     ...landingPlatforms(source?.ways ?? [], baseAt),
@@ -164,7 +192,9 @@ function buildTerrain(doc: VectorCityDocument) {
     }
     return base;
   };
-  const heightAt = (p: Point) => (waterAt(p) !== null ? naturalAt(p) : approachAt(p, grading.apply(p, naturalAt(p))));
+  // The natural relief is not graded for roads: roads keep their own profile and sink into it (§5.2).
+  const heightAt = (p: Point) =>
+    waterAt(p) !== null ? naturalAt(p) : approachAt(p, relief ? naturalAt(p) : grading.apply(p, naturalAt(p)));
   const surfaceAt = (p: Point) => {
     for (const f of flights) {
       const hit = nearestOnPolyline(p, f.centerline);
@@ -184,6 +214,7 @@ function buildTerrain(doc: VectorCityDocument) {
     return deckAt(p) ?? heightAt(p);
   };
   const foundationAt = (id: string, ring: Point[]) => {
+    if (relief) return floorAt(ring).floor;
     const plot = source?.plots.find(p => p.ownerId === id.replace(/^freeform:placement:/, ""));
     if (plot) return plot.levelMeters;
     let height = heightAt(polygonCentroid(ring));
@@ -195,14 +226,51 @@ function buildTerrain(doc: VectorCityDocument) {
     }
     return Number.isFinite(height) ? height : 0;
   };
+  /** Lowest and highest ground under a footprint: its outline and a coarse lattice inside it. */
+  const groundRange = (ring: readonly Point[]) => {
+    let low = Infinity,
+      high = -Infinity;
+    const take = (p: Point) => {
+      const h = heightAt(p);
+      if (!Number.isFinite(h)) return;
+      low = Math.min(low, h);
+      high = Math.max(high, h);
+    };
+    for (let i = 0; i < ring.length; i++) {
+      const a = ring[i],
+        b = ring[(i + 1) % ring.length];
+      for (let j = 0; j < 4; j++) take([a[0] + ((b[0] - a[0]) * j) / 4, a[1] + ((b[1] - a[1]) * j) / 4]);
+    }
+    const xs = ring.map(p => p[0]),
+      ys = ring.map(p => p[1]),
+      step = Math.max(2, Math.sqrt(((Math.max(...xs) - Math.min(...xs)) * (Math.max(...ys) - Math.min(...ys))) / 36));
+    for (let y = Math.min(...ys) + step / 2; y < Math.max(...ys); y += step)
+      for (let x = Math.min(...xs) + step / 2; x < Math.max(...xs); x += step)
+        if (pointInPolygon([x, y], ring as Point[])) take([x, y]);
+    return Number.isFinite(low) ? { low, high } : { low: 0, high: 0 };
+  };
+  /**
+   * A building's level floor and the lowest ground beneath it (docs/plan/ce-meshless-natural-relief.md §5.1): the
+   * floor is a step above the street at its entrance; the downhill side stands on a plinth to the ground, the uphill
+   * side is sunk into it, never deeper than {@link EMBED_MAX_METERS}. Without a street the floor clears the ground.
+   */
+  const floorAt = (ring: readonly Point[], street?: Point) => {
+    const { low, high } = groundRange(ring);
+    let floor = street ? surfaceAt(street) + ENTRANCE_STEP_METERS : high + ENTRANCE_STEP_METERS;
+    floor = Math.max(floor, high - EMBED_MAX_METERS, low + ENTRANCE_STEP_METERS);
+    return { floor, low, high };
+  };
   return {
+    floorAt,
+    groundRange,
     heightAt,
     surfaceAt,
     waterAt,
     foundationAt,
     bridgeElevation: (id: string) =>
       bridgeProfiles.find(b => b.id === id)?.top !== undefined ? bridgeProfiles.find(b => b.id === id)!.top - 0.3 : 0,
-    hasRelief: !!source,
+    hasRelief: !!source || !!relief,
+    relief,
     field,
     containsPad: (p: Point) => source?.plots.some(plot => pointInPolygon(p, plot.outline)) ?? false
   };
