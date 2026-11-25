@@ -87,12 +87,16 @@ export function placeFacilitiesOnLots(
   /** Yards of the tanners' row, reserved before the street plan (`reserveTanneryRow`). */
   rowIds: readonly string[] = [],
   /** Street blocks kept free of facilities: a park ward becomes the park's lawn after the houses. */
-  barredCell: (cellId: string) => boolean = () => false
+  barredCell: (cellId: string) => boolean = () => false,
+  /** Experimental compact-v2 packing limits (docs/plan/ce-meshless-compact-block-improvements.md Task E-2). */
+  options?: { compactV2?: boolean }
 ): FacilityLotResult {
   const result: FacilityLotResult = { placed: [], unplaced: [], cells: new Set() };
   if (!requests.length || !doc.site) return result;
+  const compactV2 = !!options?.compactV2;
   const center = doc.site.center;
-  const lots = plan.houses.map((h, i) => ({
+  const sourceHouses = compactV2 ? plan.houses.filter(h => !h.rear) : plan.houses;
+  const lots = sourceHouses.map((h, i) => ({
     i,
     cellId: h.cellId,
     polygon: h.polygon,
@@ -102,6 +106,16 @@ export function placeFacilitiesOnLots(
     core: inside(polygonCentroid(h.polygon)),
     box: boxOf(h.polygon)
   }));
+  const cellLotTotal = new Map<string, number>(),
+    cellLotUsed = new Map<string, number>();
+  if (compactV2) for (const l of lots) cellLotTotal.set(l.cellId, (cellLotTotal.get(l.cellId) ?? 0) + 1);
+  const cellAllows = (cellId: string, addCount: number, isCore: boolean) => {
+    if (!compactV2 || !isCore) return true;
+    const total = cellLotTotal.get(cellId) ?? 0,
+      nextUsed = (cellLotUsed.get(cellId) ?? 0) + addCount,
+      minHouses = total <= 3 ? 1 : 2;
+    return nextUsed <= Math.floor(total * 0.5) && total - nextUsed >= minHouses;
+  };
   const lotIndex = new RBush<Box & { i: number }>();
   lotIndex.load(lots.map(l => ({ ...l.box, i: l.i })));
   const used = new Set<number>(lots.filter(l => barredCell(l.cellId)).map(l => l.i));
@@ -192,7 +206,7 @@ export function placeFacilitiesOnLots(
     const failedHere = failed.get(asset.id) ?? new Set<number>();
     failed.set(asset.id, failedHere);
     const seeds = lots
-      .filter(l => !used.has(l.i) && !failedHere.has(l.i) && l.core !== outskirts)
+      .filter(l => !used.has(l.i) && !failedHere.has(l.i) && l.core !== outskirts && cellAllows(l.cellId, 1, l.core))
       .filter(l => !wantsWater || waterOf(l.i) <= request.riverbankMaxDistanceMeters! + 30)
       // Beyond the wall the lots clear of the other smiths and chandlers come first, then the rest.
       .map(l => ({
@@ -281,6 +295,7 @@ export function placeFacilitiesOnLots(
           .map(item => lots[item.i])
           .filter(l => Math.abs(plotArea(intersectConvex(hull, l.hull))) > 0.5);
         if (!under.length || under.some(l => used.has(l.i) || l.cellId !== seed.cellId)) continue;
+        if (!cellAllows(seed.cellId, under.length, seed.core)) continue;
         // The site lies wholly in the street block: every sample of it falls inside the block's outline.
         const ring = cellRings.get(seed.cellId)!,
           inRing = ringTest(seed.cellId, ring),
@@ -420,8 +435,31 @@ export function placeFacilitiesOnLots(
           if (house) area += regionArea(rest[0]) - Math.abs(plotArea(house));
           else {
             area += rest.reduce((n, r) => n + regionArea(r), 0);
-            absorbed.push(...rest);
+            if (compactV2) {
+              for (const piece of rest) {
+                const pa = regionArea(piece);
+                if (pa <= whole * 0.35) absorbed.push(piece);
+              }
+            } else absorbed.push(...rest);
           }
+        }
+        // On compact-v2, strongly prefer placements that stay within the seed's own street row without punching
+        // through to opposing-street lots behind it.
+        if (compactV2 && under.length > 1) {
+          let backRowHits = 0;
+          for (const l of under) {
+            if (l.i === seed.i) continue;
+            const lf = frontOf(l.polygon);
+            if (!lf) continue;
+            const ll = Math.hypot(lf.b[0] - lf.a[0], lf.b[1] - lf.a[1]);
+            if (ll < 0.5) continue;
+            const lt: Point = [(lf.b[0] - lf.a[0]) / ll, (lf.b[1] - lf.a[1]) / ll];
+            let lin: Point = [-lt[1], lt[0]];
+            const lmid: Point = [(lf.a[0] + lf.b[0]) / 2, (lf.a[1] + lf.b[1]) / 2];
+            if (!pointInPolygon([lmid[0] + lin[0] * 0.2, lmid[1] + lin[1] * 0.2], l.polygon)) lin = [-lin[0], -lin[1]];
+            if (lin[0] * inward[0] + lin[1] * inward[1] < -0.3) backRowHits++;
+          }
+          area += backRowHits * 250;
         }
         // On burgage plots the house fronts' leftovers stay yard: joined to the parcel they made slivers and spikes
         // and reached the streets the fronts lie on (B3 lays facilities on whole plots instead).
@@ -445,6 +483,8 @@ export function placeFacilitiesOnLots(
               !protectedLand.search(boxOf(parcel[0].outer, 1e-6)).some(o => surfacesOverlap(parcel[0], o.polygon)) &&
               // The leftovers of the lots reach no street or lane either.
               !crossesLine(parcel[0]) &&
+              // The building footprint must remain wholly inside the merged parcel.
+              (!compactV2 || !regionsExceed(footprint, parcel, 1e-5)) &&
               // The door keeps standing on the parcel as validation tests it.
               candidate.building!.entrances.every(e => containsRegion(parcel, e.point))
             ) {
@@ -473,6 +513,7 @@ export function placeFacilitiesOnLots(
       placement = best.placement;
       doc.placements[placement.id] = placement;
       for (const l of best.under) used.add(l.i);
+      if (compactV2) cellLotUsed.set(cellId, (cellLotUsed.get(cellId) ?? 0) + best.under.length);
       occupied.insert({ ...boxOf(best.site.outer), polygon: best.site });
       facilitySites.insert({ ...boxOf(best.site.outer), polygon: best.site });
       if (outskirts) roadside.push(placement.position);

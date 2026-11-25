@@ -113,4 +113,8 @@ export interface BlockBoundary {
 export interface PerimeterFabric extends CityFabric {
   /** Buildable block outlines after street, wall and bank setbacks. */
   blocks: Point[][];
+  /** Optional backyard plots generated for compact-v2 blocks that enclose a courtyard core. */
+  plots?: { ring: Point[]; front: [Point, Point] }[];
+  /** Optional rear outbuildings/back-range houses inside deep compact-v2 yards. */
+  rearBuildings?: { faceId: string; polygon: Point[]; landmark: false; occupancyDraw?: number }[];
 }

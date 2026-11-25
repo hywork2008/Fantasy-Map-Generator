@@ -166,7 +166,9 @@ export type VectorUrbanAlgorithm =
   | "vector-urban-v63"
   | "vector-urban-v64"
   | "vector-urban-v65"
-  | "vector-urban-v66";
+  | "vector-urban-v66"
+  | "vector-urban-v67"
+  | "vector-urban-v68";
 export interface VectorUrban {
   algorithm: VectorUrbanAlgorithm;
   inputRevision: number;

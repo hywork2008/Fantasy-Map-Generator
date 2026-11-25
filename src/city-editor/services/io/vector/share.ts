@@ -138,7 +138,15 @@ function validateShare(value: unknown): VectorShare | null {
       (u.lotOccupancy !== undefined &&
         (!Number.isFinite(u.lotOccupancy) || u.lotOccupancy < 0.1 || u.lotOccupancy > 1)) ||
       (u.plotFabric !== undefined &&
-        !["compact", "compact-medium", "burgage", "burgage-dense", "burgage-village"].includes(u.plotFabric)) ||
+        ![
+          "compact",
+          "compact-medium",
+          "compact-v2",
+          "compact-medium-v2",
+          "burgage",
+          "burgage-dense",
+          "burgage-village"
+        ].includes(u.plotFabric)) ||
       (u.compactBlockScale !== undefined && !validCompactBlockScale(u.compactBlockScale)) ||
       Object.keys(u).some(
         k =>

@@ -1,5 +1,9 @@
 # 追加したドキュメント
 
+2026-11-25
+
+- docs/plan/ce-meshless-compact-block-improvements.md - 既存の `compact` / `compact-medium` を対照群として凍結したまま、複製した別 Plot pattern（`compact-v2` / `compact-medium-v2`）を新設し、数千〜2 万人のボリュームゾーンを対象に 5 課題（穴空き街区の最短スリット切断、角地先取りと横通り回復、街区中央の私有裏庭・進入小路付き共同中庭、通り抜け街路と街区長、施設配置上限と裏列貫通回避）を実装して A/B 検証する計画（C0〜C5）
+
 2026-11-22
 
 - docs/plan/ce-meshless-roadside-burgage-village.md - 市壁のない短冊形区画の村を、円形の下地を使わず、街道に張り付く四角形の街区・隙間の小路・裏小路・2段目の街区・周りの畑の順に作る（Plot pattern に `burgage-village` を加える）

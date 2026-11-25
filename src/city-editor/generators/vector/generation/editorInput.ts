@@ -4,6 +4,7 @@ import type { GenerationSettings } from "../../../types/generation";
 import { monasteryCountFor, monasteryKindsFor } from "../../aerialLandmarks";
 import { supportsBuildingHeightVariation } from "../../buildingHeightPolicy";
 import { burgageLandFactor } from "../../burgage/profiles";
+import { isCompactV2Fabric } from "../../compactBlocks";
 import { planPopulation } from "../../populationPlan";
 import { riverSettings } from "../../site/siteConfig";
 import { synthSite } from "../../site/synthSite";
@@ -252,11 +253,15 @@ export function vectorInputFromEditor(request: VectorEditorGenerationInput) {
         vectorTownCulture(townProfileFor(period, chosenHousingCulture(settings), descriptor, seed))
       ).coreM2,
       // On burgage plots a facility takes whole plots, its yard with it (plan §6).
+      housingDwellings =
+        isCompactV2Fabric(settings.plotFabric) && settings.facilityLayout === "population"
+          ? Math.max(1, Math.round(dwellings * 0.87))
+          : dwellings,
       need = fitBastions(() => {
         const housing =
-          walledScale(dwellings) *
+          walledScale(housingDwellings) *
           meshlessCityRadius(
-            dwellings,
+            housingDwellings,
             expectedVectorHouseStoreys(period, settings, settings.descriptor!.civilization?.tradition),
             input.lotOccupancy!,
             houses * MONASTERY_BLOCK_M2 * CIVIC_LAND_FACTOR,
@@ -286,11 +291,19 @@ export function vectorInputFromEditor(request: VectorEditorGenerationInput) {
   // The mesh plan sizes cells for the mesh editor's lots. The native site is sized for the CE perimeter lots it
   // will actually hold at the chosen occupancy, plus the land the civic centre takes before any lot.
   // A synthetic site is at least 30 m across its radius.
+  // On compact-v2 walled towns with population facilities, facilities themselves provide ~13–15% of dwellings;
+  // discounting housing dwellings avoids oversizing the wall and leaving empty perimeter blocks inside.
+  const compactV2WalledDwellings = (dwellings: number) =>
+    isCompactV2Fabric(settings.plotFabric) && wall.wall !== "none" && settings.facilityLayout === "population"
+      ? Math.max(1, Math.round(dwellings * 0.87))
+      : dwellings;
   const size = (reservedM2: number, facilityLandM2 = 0) => {
+    const rawDwellings = getUrbanDwellings(settings.population!.targetPopulation),
+      housingDwellings = compactV2WalledDwellings(rawDwellings);
     const radius =
-      walledScale(getUrbanDwellings(settings.population!.targetPopulation)) *
+      walledScale(housingDwellings) *
       meshlessCityRadius(
-        getUrbanDwellings(settings.population!.targetPopulation),
+        housingDwellings,
         expectedVectorHouseStoreys(period, settings, settings.descriptor?.civilization?.tradition),
         input.lotOccupancy,
         reservedM2,

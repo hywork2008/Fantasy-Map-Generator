@@ -6,6 +6,7 @@ import type { VectorFabricDetachedLine } from "../../../types/vector/fabric";
 import type { VectorStage, VectorUrbanSettings } from "../../../types/vector/urban";
 import { burgageLandFactor, isBurgageFabric } from "../../burgage/profiles";
 import { bvFacilityAsset } from "../../bvFacilityAsset";
+import { isCompactV2Fabric } from "../../compactBlocks";
 import { facilityPlacementOrder, facilityUseOf } from "../../facilityUses";
 import { type GenerationTimingObserver, generationTiming } from "../../generationTiming";
 import { pointInPolygon, polygonCentroid } from "../../geom";
@@ -769,21 +770,26 @@ function* vectorUrbanSteps(
       if (at >= 0) ownedPlacements.splice(at, 1);
     }
     // Burgage plots take facilities on whole plots (docs/plan/ce-burgage-plot-fabric.md B3); compact lots as before.
-    const lots = (organic.plotFabric ? placeFacilitiesOnPlots : placeFacilitiesOnLots)(
-      doc,
-      organic,
-      requests.filter(
+    const facilityRequests = requests.filter(
         r =>
           !ownedPlacements.includes(`urban:${r.id}`) &&
           !tanneryRow.unplaced.some(u => u.id === r.id) &&
           !ropewalks.unplaced.some(u => u.id === r.id) &&
           !edgeWorks.offMap.some(u => u.id === r.id)
       ),
-      core,
-      tanneryRow.placed,
       // A park ward stays a lawn (P7c); its lots never take a facility.
-      id => !villageFabric && wards.get(id)?.ward === "park"
-    );
+      barred = (id: string) => !villageFabric && wards.get(id)?.ward === "park",
+      lots = organic.plotFabric
+        ? placeFacilitiesOnPlots(doc, organic, facilityRequests, core, tanneryRow.placed, barred)
+        : placeFacilitiesOnLots(
+            doc,
+            organic,
+            facilityRequests,
+            core,
+            tanneryRow.placed,
+            barred,
+            isCompactV2Fabric(settings.plotFabric) ? { compactV2: true } : undefined
+          );
     unplacedFacilities.push(...tanneryRow.unplaced, ...ropewalks.unplaced, ...edgeWorks.offMap);
     ownedPlacements.push(...lots.placed);
     unplacedFacilities.push(...lots.unplaced);
@@ -825,6 +831,7 @@ function* vectorUrbanSteps(
     ribbon = !sourceSite.descriptor?.urbanMorphology && vectorApproachBands(doc).bands.length > 0,
     outsideBlocks = new Set(districts.filter(d => !d.inside).map(d => streetBlockOf(d.id)));
   if (organic && remaining > 0) {
+    const compactV2 = isCompactV2Fabric(settings.plotFabric);
     const placed = placeVectorPerimeterHouses(
       doc,
       organic,
@@ -835,8 +842,10 @@ function* vectorUrbanSteps(
       continuation?.fabricDetachedLines ?? kept?.detachedLines,
       settings.lotOccupancy ?? 1,
       id => wardHeightKind(wards.get(id)?.ward),
-      // The shanty, and the roadside ribbon beyond the wall, stand whatever the demand (P6h, P7a).
-      id => wards.get(id)?.ward === "shanty" || (ribbon && outsideBlocks.has(id)),
+      // The shanty, and (on legacy fabrics) the roadside ribbon beyond the wall, stand whatever the demand (P6h, P7a).
+      // On compact-v2, outside ribbon houses are built only when the walled interior overflows, avoiding surplus suburbs
+      // while empty land sits inside the wall.
+      id => wards.get(id)?.ward === "shanty" || (!compactV2 && ribbon && outsideBlocks.has(id)),
       // A park ward holds no house while the rest of the town houses the demand; its block becomes the park's
       // lawn (P7c). A town short of room builds on it in the second pass instead.
       (id, polygon, residential) =>
